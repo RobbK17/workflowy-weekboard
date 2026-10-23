@@ -1,9 +1,9 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.0.0
+// Version 1.0.1
 // Run:  WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 
 const http = require("http");
 const fs = require("fs");

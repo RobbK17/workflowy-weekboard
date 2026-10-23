@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.0">
+<meta name="version" content="1.0.1">
 <title>Workflowy Week Board</title>
 <style>
   :root {
@@ -39,17 +39,20 @@
   /* Main area: day columns on the left (scroll sideways), sidebar fixed on the far right. */
   #main { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 0 16px 16px; }
   #board { flex: 1; min-width: 0; display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; align-items: flex-start; }
-  #side { flex: 0 0 300px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-  #extras { display: flex; flex-direction: column; gap: 10px; }
+  /* The sidebar is exactly as tall as the window area. Its panels flex to fit and scroll inside themselves
+     (Today's page takes whatever room is left), so the column as a whole only scrolls on a tiny window. */
+  #side { flex: 0 0 300px; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  #extras { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
   #extras:empty { display: none; }
   .panel { flex: none; background: var(--col); border-radius: 8px; padding: 10px; }
-  .panel h3 { font-size: 13px; margin: 0 0 8px; display: flex; justify-content: space-between; }
-  .panel h3 span { color: var(--muted); font-weight: 400; }
+  .panel h3 { font-size: 13px; margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+  .panel h3 span { color: var(--muted); font-weight: 400; margin-left: auto; }
+  .panel h3 .mini { padding: 0 6px; font-size: 12px; }
 
   /* Day columns: header (title + add box) stays put, tasks scroll underneath. */
   .col { flex: 1 0 220px; display: flex; flex-direction: column; max-height: 100%;
          background: var(--col); border-radius: 8px; padding: 8px; min-height: 140px; }
-  #side .col { flex: none; width: 100%; max-height: 34vh; min-height: 0; }
+  #side .col { flex: 0 1 auto; width: 100%; max-height: 30vh; min-height: 70px; }
   .colhead { flex: none; padding-bottom: 4px; }
   .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 4px; }
   .col.today { background: var(--today); }
@@ -87,7 +90,29 @@
                     border-radius: 50%; background: var(--accent); }
 
   /* Outliner */
-  #outline { display: block; width: 100%; min-height: 180px; resize: vertical; padding: 8px; border-radius: 6px;
+  /* Today's page: read from WorkFlowy, nested like the outline */
+  /* Today's page fills the space left in the sidebar and scrolls inside itself. */
+  #outliner { flex: 1 1 0; min-height: 300px; display: flex; flex-direction: column; }
+  #outliner > h3, #outliner > #outline, #outliner > .outbar { flex: none; }
+  .pagetree { flex: 1 1 0; min-height: 60px; overflow-y: auto; scrollbar-width: thin; background: var(--card);
+              border-radius: 6px; padding: 6px 8px; margin-bottom: 12px; font-size: 13px; }
+  /* Expanded: the calendar and Past due / Upcoming panels hide, so the page (and the add pad) get the whole sidebar. */
+  #side.expanded #cal, #side.expanded #extras { display: none; }
+  .pl { display: flex; gap: 6px; align-items: flex-start; padding: 2px 0; }
+  .pl .b { flex: none; width: 13px; text-align: center; color: var(--muted); }
+  .pl input[type=checkbox] { flex: none; margin: 2px 0 0; }
+  .pl .t { flex: 1; word-break: break-word; cursor: text; }
+  #moveNotes { margin-left: auto; }
+  .pl .addc, .pl .indc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
+  .pl .addc:hover, .pl .indc:hover { color: var(--accent); }
+  .pl:hover .addc, .pl:hover .indc, .pl:focus-within .addc, .pl:focus-within .indc { opacity: 1; }
+  @media (hover: none) { .pl .addc, .pl .indc { opacity: 1; } }
+  .pl-add { padding: 2px 0 4px; }
+  .pl-add input { width: 100%; font: inherit; padding: 3px 6px; border: 1px dashed var(--border);
+                  border-radius: 4px; background: var(--card); color: var(--text); }
+  .pl.done .t { text-decoration: line-through; color: var(--muted); }
+  .pl.h .t { font-weight: 700; }
+  #outline { display: block; width: 100%; min-height: 110px; resize: vertical; padding: 8px; border-radius: 6px;
              border: 1px solid var(--border); background: var(--card); color: var(--text);
              font: 13px/1.55 ui-monospace, Menlo, Consolas, monospace; }
   .ver { flex: none; font-size: 11px; color: var(--muted); text-align: center; padding: 2px 0 0; }
@@ -96,8 +121,11 @@
   @media (max-width: 820px) {
     #main { flex-direction: column; overflow-y: auto; }
     #board { flex: none; height: 75vh; height: 75dvh; }
-    #side { flex: none; width: 100%; max-height: none; overflow: visible; }
-    #side .col { max-height: 40vh; }
+    #side { flex: none; width: 100%; overflow: visible; }
+    #extras { flex: none; }
+    #side .col { flex: none; max-height: 40vh; }
+    #outliner { flex: none; min-height: 0; }
+    .pagetree { flex: none; max-height: 60vh; }
   }
 </style>
 </head>
@@ -124,12 +152,14 @@
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
-      <h3>Outline <span id="outTitle">saves to Today</span></h3>
+      <h3>Today's page <span id="outTitle"></span><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload today's page">&#8635;</button></h3>
+      <div class="pagetree" id="pageTree">Loading…</div>
+      <h3>Add to WB-Notes <button class="mini" id="moveNotes" title="Move today's plain bullets into WB-Notes">Move notes in</button></h3>
       <textarea id="outline" spellcheck="true"
-        placeholder="- Type bullets here&#10;  - Tab indents, Shift+Tab outdents&#10;- [ ] Start a line with [ ] for a todo&#10;&#10;Ctrl+Enter saves to today's page"></textarea>
-      <div class="outbar"><button id="outSave">Save to today</button><span id="outStatus"></span></div>
+        placeholder="Add notes to WB-Notes… (Tab indents, Ctrl+Enter saves)"></textarea>
+      <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
     </section>
-    <div class="ver">Workflowy Week Board v1.0.0</div>
+    <div class="ver">Workflowy Week Board v1.0.1</div>
   </aside>
 </div>
 
@@ -139,6 +169,7 @@ const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MAX_MONTHS_BACK = 60;  // Past due "All" looks back at most this many months (5 years)
 const LOOKAHEAD = 14;    // Upcoming scans this many days past the visible days (or past today)
 const MAX_PARALLEL = 6;  // limit simultaneous requests to WorkFlowy
+const NOTES_NAME = "WB-Notes";   // the bullet on today's page that holds your notes (found by name, created if missing)
 
 const cache = {};        // dateKey -> sorted node array
 
@@ -317,7 +348,8 @@ function render() {
   const last = days[days.length - 1];
   document.getElementById("range").textContent = `${fmt(days[0])} – ${fmt(last)}, ${last.getFullYear()}`;
   document.querySelectorAll("#seg button").forEach((b) => b.classList.toggle("on", Number(b.dataset.span) === span));
-  document.getElementById("outTitle").textContent = "saves to Today, " + fmt(new Date());
+  document.getElementById("outTitle").textContent =
+    new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
   const board = document.getElementById("board");
   board.innerHTML = "";
@@ -588,17 +620,74 @@ function parseOutline(text) {
   return items;
 }
 
+// Finds today's WB-Notes bullet by name, or creates it at the bottom of today's page.
+async function ensureNotesId(todayK) {
+  const data = await call("GET", `/nodes?parent_id=${todayK}`);
+  const nodes = (data && data.nodes ? data.nodes : []).sort((a, b) => a.priority - b.priority);
+  const hit = nodes.find((n) => plain(n.name).trim() === NOTES_NAME);
+  if (hit) return hit.id;
+  const res = await call("POST", "/nodes", { parent_id: todayK, name: NOTES_NAME, position: "bottom" });
+  if (!res || !res.item_id) throw new Error(`Couldn't create the ${NOTES_NAME} bullet`);
+  return res.item_id;
+}
+
+// Moves today's plain top-level bullets (with their sub-bullets) under WB-Notes, keeping their order.
+// Todos, headings and the WB-Notes bullet itself stay where they are.
+async function moveNotes() {
+  if (saving) return;
+  const todayK = key(new Date());
+  let nodes;
+  try {
+    const data = await call("GET", `/nodes?parent_id=${todayK}`);
+    nodes = (data && data.nodes ? data.nodes : []).sort((a, b) => a.priority - b.priority);
+  } catch (e) { showError(e.message); return; }
+  const movable = nodes.filter((n) =>
+    plain(n.name).trim() !== NOTES_NAME && ((n.data && n.data.layoutMode) || "bullets") === "bullets");
+  if (!movable.length) { setStatus("No plain bullets to move"); return; }
+  const preview = movable.slice(0, 5).map((n) => "• " + (plain(n.name).slice(0, 60) || "(empty)")).join("\n") +
+    (movable.length > 5 ? `\n…and ${movable.length - 5} more` : "");
+  if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from today's page into ${NOTES_NAME}?\n\n` +
+               `${preview}\n\nSub-bullets move with them. Todos and headings stay put.`)) return;
+
+  saving = true; outSave.disabled = true; moveBtn.disabled = true; showError("");
+  let moved = 0;
+  try {
+    const notesId = await ensureNotesId(todayK);
+    for (const n of movable) {
+      await call("POST", `/nodes/${n.id}/move`, { parent_id: notesId, position: "bottom" });
+      moved++;
+    }
+    setStatus(`Moved ${moved} into ${NOTES_NAME}`);
+  } catch (e) {
+    showError(e.message);
+    setStatus(moved ? `Moved ${moved}, then stopped` : "Nothing moved");
+  }
+  saving = false; outSave.disabled = false; moveBtn.disabled = false;
+  try { await loadDay(todayK); } catch (e) {}
+  render();
+  await loadPage();
+}
+const moveBtn = document.getElementById("moveNotes");
+moveBtn.onclick = moveNotes;
+
 async function saveOutline() {
   if (saving) return;
   const items = parseOutline(outline.value);
   if (!items.length) { setStatus("Nothing to save"); return; }
   saving = true; outSave.disabled = true; showError("");
   const todayK = key(new Date());
+  let notesId;
+  try { notesId = await ensureNotesId(todayK); }          // find (or create) the WB-Notes bullet first
+  catch (e) {
+    showError(e.message); setStatus("Not saved");
+    saving = false; outSave.disabled = false;
+    return;
+  }
   const stack = [];               // stack[level] = id of the latest node saved at that level
   let done = 0, failure = null;
   for (const it of items) {
     const level = Math.min(it.level, stack.length);       // can't skip a level
-    const parent = level === 0 ? todayK : stack[level - 1];
+    const parent = level === 0 ? notesId : stack[level - 1];
     try {
       const res = await call("POST", "/nodes", { parent_id: parent, name: it.name, position: "bottom" });
       stack.length = level;
@@ -613,14 +702,176 @@ async function saveOutline() {
     setStatus(done ? `Saved ${done}, ${items.length - done} left` : "Not saved");
   } else {
     outline.value = "";
-    setStatus(`Saved ${done} ${done === 1 ? "line" : "lines"} to today`);
+    setStatus(`Saved ${done} ${done === 1 ? "line" : "lines"} to ${NOTES_NAME}`);
   }
   saveDraft();
   try { await loadDay(todayK); } catch (e) {}
   saving = false; outSave.disabled = false;
   render();
+  await loadPage();          // show what's on today's page now, including what was just saved
 }
 outSave.onclick = saveOutline;
+
+/* ---------- Today's page (read from WorkFlowy, shown above the pad) ---------- */
+
+const PAGE_DEPTH = 12;       // how many levels of nesting to read (each bullet costs one request)
+const pageTree = document.getElementById("pageTree");
+let pageNodes = [];
+let pageToken = 0;
+let addingFor = null;        // id of the line that currently has its "add under this line" box open
+let gateActive = 0;
+const gateWaiters = [];
+
+// Keeps the number of simultaneous requests for the page tree small.
+async function gate(fn) {
+  if (gateActive >= MAX_PARALLEL) await new Promise((r) => gateWaiters.push(r));
+  gateActive++;
+  try { return await fn(); }
+  finally { gateActive--; const w = gateWaiters.shift(); if (w) w(); }
+}
+
+// topLevel = true skips the page's own tasks (top-level todos); those live on the board, not in this pane.
+async function fetchTree(parent, depth, topLevel = false) {
+  const data = await gate(() => call("GET", `/nodes?parent_id=${parent}`));
+  let nodes = (data && data.nodes ? data.nodes : []).sort((a, b) => a.priority - b.priority);
+  if (topLevel) nodes = nodes.filter((n) => !(n.data && n.data.layoutMode === "todo"));
+  if (depth > 1) {
+    await Promise.all(nodes.map(async (n) => { n.children = await fetchTree(n.id, depth - 1); }));
+  }
+  return nodes;
+}
+
+async function loadPage() {
+  const token = ++pageToken;
+  if (!pageNodes.length) pageTree.textContent = "Loading…";
+  try {
+    const tree = await fetchTree(key(new Date()), PAGE_DEPTH, true);
+    if (token !== pageToken) return;
+    pageNodes = tree;
+    renderPage();
+  } catch (e) {
+    if (token !== pageToken) return;
+    pageTree.textContent = "Couldn't load today's page: " + e.message;
+  }
+}
+
+function renderPage() {
+  const keepScroll = pageTree.scrollTop;      // stay where you were after a reload or edit
+  pageTree.innerHTML = "";
+  if (!pageNodes.length) {
+    pageTree.innerHTML = `<div class="empty">No notes on today's page yet</div>`;
+    return;
+  }
+  const walk = (nodes, level) => {
+    nodes.forEach((n, i) => {
+      pageTree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null));
+      if (n.children) walk(n.children, level + 1);
+      if (addingFor === n.id) pageTree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
+    });
+  };
+  walk(pageNodes, 0);
+  pageTree.scrollTop = keepScroll;
+  const box = pageTree.querySelector(".pl-add input");
+  if (box) box.focus();
+}
+
+// Small input that adds a new line as the last child of `parent`. Stays open for quick repeat adds.
+function addRow(parent, level) {
+  const wrap = document.createElement("div");
+  wrap.className = "pl-add";
+  wrap.style.paddingLeft = level * 16 + "px";
+  const input = document.createElement("input");
+  input.placeholder = "Add under this line… (Enter adds, Esc closes)";
+  input.addEventListener("keydown", async (e) => {
+    if (e.key === "Escape") { addingFor = null; renderPage(); return; }
+    if (e.key !== "Enter" || !input.value.trim()) return;
+    const name = input.value.trim();
+    input.disabled = true;
+    try {
+      await call("POST", "/nodes", { parent_id: parent.id, name, position: "bottom" });
+      await loadPage();
+    } catch (err) { showError(err.message); input.disabled = false; }
+  });
+  wrap.appendChild(input);
+  return wrap;
+}
+
+// One line of today's page. Todos get a checkbox; double-click any line to edit its text.
+// `prev` is the line directly above at the same level (none for the first line of a group).
+function pageLine(n, level, prev) {
+  const mode = (n.data && n.data.layoutMode) || "bullets";
+  const row = document.createElement("div");
+  row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "");
+  row.style.paddingLeft = level * 16 + "px";
+
+  if (mode === "todo") {
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = !!n.completedAt;
+    cb.addEventListener("change", async () => {
+      try {
+        await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`);
+        n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
+        renderPage();
+        await loadDay(key(new Date()));
+        render();
+      } catch (e) { showError(e.message); cb.checked = !cb.checked; }
+    });
+    row.appendChild(cb);
+  } else {
+    const b = document.createElement("span");
+    b.className = "b"; b.textContent = "•";
+    row.appendChild(b);
+  }
+
+  const t = document.createElement("span");
+  t.className = "t";
+  t.textContent = plain(n.name) || "(empty)";
+  t.title = "Double-click to edit";
+  t.addEventListener("dblclick", async () => {
+    const current = plain(n.name);
+    const next = prompt("Edit line", current);
+    if (next === null || next.trim() === "" || next === current) return;
+    try {
+      await call("POST", `/nodes/${n.id}`, { name: next.trim() });
+      await Promise.all([loadPage(), loadDay(key(new Date()))]);
+      render();
+    } catch (e) { showError(e.message); }
+  });
+  row.appendChild(t);
+
+  // ">" indents the line: it becomes the last child of the line above (and takes its sub-bullets with it).
+  if (prev) {
+    const ind = document.createElement("button");
+    ind.className = "indc"; ind.textContent = ">"; ind.title = "Indent under the line above";
+    ind.addEventListener("click", async () => {
+      ind.disabled = true;
+      try {
+        await call("POST", `/nodes/${n.id}/move`, { parent_id: prev.id, position: "bottom" });
+        await loadPage();
+      } catch (e) { showError(e.message); ind.disabled = false; }
+    });
+    row.appendChild(ind);
+  }
+
+  const plus = document.createElement("button");
+  plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one";
+  plus.addEventListener("click", () => { addingFor = addingFor === n.id ? null : n.id; renderPage(); });
+  row.appendChild(plus);
+  return row;
+}
+
+document.getElementById("pageRefresh").onclick = loadPage;
+
+// Expand: today's page (and the add pad) take over the whole sidebar; click again to bring the calendar back.
+const expandBtn = document.getElementById("pageExpand");
+function setExpanded(on) {
+  document.getElementById("side").classList.toggle("expanded", on);
+  expandBtn.textContent = on ? "⤡" : "⤢";
+  expandBtn.title = on ? "Collapse back to the calendar view" : "Expand to fill the sidebar";
+  setPref("pageExpanded", on);
+}
+expandBtn.onclick = () => setExpanded(!document.getElementById("side").classList.contains("expanded"));
+setExpanded(getPref("pageExpanded"));
 
 /* ---------- Controls ---------- */
 
@@ -636,7 +887,7 @@ document.getElementById("seg").onclick = (e) => {
   weekStart = baseStart();
   goToWeek();
 };
-document.getElementById("refresh").onclick = () => loadWeek(true);
+document.getElementById("refresh").onclick = () => { loadWeek(true); loadPage(); };
 document.getElementById("extras").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-range]");
   if (!b || b.dataset.range === lateRange) return;
@@ -655,6 +906,7 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
 }
 
 loadWeek();
+loadPage();
 </script>
 </body>
 </html>

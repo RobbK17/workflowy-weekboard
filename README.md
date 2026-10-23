@@ -2,11 +2,9 @@
 
 A kanban-style week view for your WorkFlowy todos. Each day is a column, and everything you do on the board (add, check off, edit, move, delete) is saved straight back to WorkFlowy through its API.
 
-```
-![Week Board Image](https://github.com/robbk17/workflowy-weekboard/blob/main/Workflowy%20Week%20Board.png?raw=true)
-```
+<img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.0.0**
+**Version 1.0.1**
 
 ## What's in the box
 
@@ -107,11 +105,18 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 **Sidebar (far right)**
 - **Calendar:** click a day to jump the board to that week. Today is outlined, the days on screen are shaded, and a dot marks days with open tasks (only for days the board has already loaded).
 - **Past due / Upcoming** panels appear under the calendar when switched on.
-- **Outline:** a quick-capture pad that saves to today's daily page.
+- **Today's page:** shows the notes on today's WorkFlowy daily page, nested like the outline (up to 12 levels; the pane scrolls when it's long). Tasks are left out: any todo sitting directly on the page appears on the board, not here. (A todo nested deeper, such as inside WB-Notes, still shows with a checkbox, since the board doesn't display those.) Double-click any line to edit its text. It reloads when you open the board, after you save from the pad, and with its own ↻ button.
+  - The **⤢** button in the pane's header expands it to fill the whole sidebar (the calendar and Past due / Upcoming panels are hidden, and the add pad stays underneath). Click **⤡** to go back. Your choice is remembered.
+  - The sidebar always fits the window. The calendar and the Past due / Upcoming panels keep their size, Today's page takes the room that's left, and it scrolls inside itself (so the sidebar doesn't scroll as a whole, except on a very small window).
+  - Hover a line and click **>** to indent it: it becomes the last child of the line above it and takes its own sub-bullets along. The first line in a group has no **>**, since there's nothing above it to indent under.
+  - Hover a line and click **+** to add a new line under it (as its last child). The box stays open so you can add several in a row; press Enter to add and Esc to close.
+- **Add to WB-Notes:** a pad underneath for your daily notes. Everything you save goes into a single bullet named **WB-Notes** on today's page, so your notes stay together.
+  - The board finds the WB-Notes bullet by name each day and creates it (at the bottom of the page) if it isn't there yet, so saving again and again just keeps adding to it.
   - One bullet per line. Tab indents and Shift+Tab outdents. Enter continues the bullet, and Enter on an empty bullet outdents, then removes it.
-  - Start a line with `[ ]` to make it a todo.
-  - Press **Ctrl+Enter** or click **Save to today**. Nested bullets are saved as child nodes, and the pad clears when done.
+  - Press **Ctrl+Enter** or click **Save to WB-Notes**. Nested bullets are saved as child nodes, and the pad clears when done.
   - Your draft is kept in the browser until saved. If a save fails partway, only the unsaved lines remain.
+  - **Move notes in** gathers today's plain top-level bullets (with their sub-bullets) into WB-Notes, in their current order. It asks first, shows what will move, and leaves todos, headings, and the WB-Notes bullet alone. Items are moved, not copied.
+  - Don't rename the WB-Notes bullet in WorkFlowy. If you do, the board won't recognize it and will create a new one.
 
 ## How it maps to WorkFlowy
 
@@ -119,7 +124,7 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 - The board shows **todo items only**. Plain bullets, headers, quotes, and code blocks under a day are skipped.
 - Tasks added on the board are created as todos under that day. Moving a task changes its parent, so it's moved, not copied.
 - The board stores nothing itself. Every action is a live call to WorkFlowy.
-- Top-level lines saved from the Outline pad land under today's day node too. Lines that are plain bullets won't appear on the board, but `[ ]` lines will.
+- Notes saved from the pad go inside the **WB-Notes** bullet on today's page. Since the board only reads the top level of each day, nothing inside WB-Notes appears on the board, including `[ ]` todos typed in the pad. Add tasks that should show on the board with the **+ Add task** box in a day's column.
 - Changes you make in WorkFlowy appear on the board when you reload (↻), change weeks, or toggle an option. There's no live sync.
 
 ## Troubleshooting
@@ -164,7 +169,7 @@ Other easy changes:
 
 - The server listens on **localhost only** and only forwards the node endpoints the board needs (the full-export endpoint is blocked).
 - Your API key can read and change your whole outline. Keep it out of the browser, git repositories, and screenshots.
-- **Don't put this on a public address as-is.** There's no login, so anyone who could reach it could read, edit, and delete your outline. Before hosting on a host platform, add password protection and HTTPS, and set the key through the host's secret storage.
+- **Don't put this on a public address as-is.** There's no login, so anyone who could reach it could read, edit, and delete your outline. Before hosting on a VPS or Fly.io, add password protection and HTTPS, and set the key through the host's secret storage.
 
 ## Known limitations
 
@@ -172,6 +177,7 @@ Other easy changes:
 - Dragging between days uses mouse events and doesn't work by touch.
 - Editing a task shows it as plain text, so bold, links, and other formatting are lost if you save an edit.
 - Reordering tasks within a day isn't supported, only moving between days.
+- The Today's page view can complete todos, edit text, add lines under a bullet, and indent a line (**>**). It can't outdent, reorder, or delete lines, because the API can only place a moved or new line at the top or bottom of a parent, not right after a specific line. New lines (from the pad or the **+** button) always go to the bottom of their parent.
 - Dots on the calendar only appear for days already loaded.
 - Settings are stored in the browser (`localStorage`), so they're per browser.
-- The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. 
+- The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. It was tested against a mock of that API, so report anything that behaves differently on a real account.
