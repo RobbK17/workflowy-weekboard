@@ -4,7 +4,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.0.2**
+**Version 1.0.3**
 
 ## What's in the box
 
@@ -79,6 +79,8 @@ All settings are environment variables, set the same way as the key above.
 | `WORKFLOWY_BASE_URL` | No | `https://workflowy.com/api/v1` | API address. If you get errors, try `https://beta.workflowy.com/api/v1` (WorkFlowy's reference docs use that address). |
 | `PORT` | No | `3000` | Port to serve the board on. |
 | `NOTES_NAME` | No | `WB-Notes` | Default name of the notes bullet on today's page. Each browser can override it with the ✎ button (see below). |
+| `UPDATE_CHECK` | No | on | Set to `0` to stop the board checking GitHub for a newer version. |
+| `UPDATE_URL` | No | this project's `server.js` on GitHub (`main` branch) | Raw address of a `server.js` to compare versions against (useful for a fork). |
 | `NODE_USE_SYSTEM_CA` | No | off | Set to `1` on Windows to use the Windows certificate store (fixes certificate errors on networks that inspect HTTPS). Needs Node 22.15+ or 23.8+. |
 
 ## Using the board
@@ -122,6 +124,18 @@ Both panels are relative to the view. If you're looking at last week, Past due s
   - Only today's bullet is renamed. Older days keep their old name, since each day has its own notes bullet. Avoid markdown symbols such as `*` or `[` in the name, because WorkFlowy converts them.
   - If you rename the bullet directly in WorkFlowy, the board won't recognize it until you change the name here to match.
 
+**Search (🔍 Search nodes button in the header, or Ctrl+K)**
+- Opens a search window over your **whole outline**. The first time, the board downloads a copy of your outline through WorkFlowy's export (this can take a few seconds on a big outline), then searches it instantly as you type.
+- Every word you type must match, in any order. Matches in the item's text are listed first, then the most recently changed. Up to 50 results show at a time, each with its path (the lines above it) and the match highlighted.
+- **Filters:** *Include completed*, *Todos only*, and *Search notes* (the text under an item). They're remembered in your browser.
+- Use the arrow keys and Enter, or click a result, to open it. Esc closes the window.
+- The item opens in an **editor over the list**, inside the search window, so Today's page in the sidebar stays as it was. Edit it like Today's page: double-click to edit text, tick todos, **+** to add a child, **>** to indent. Click **← Results** (or press Esc) to go back to the list with your search still in place. **Open in WorkFlowy ↗** jumps to the item in WorkFlowy, and **↻** in the editor's header downloads a fresh copy.
+- The window's **Refresh index** button downloads a fresh copy. WorkFlowy allows the export once a minute, so the server keeps its copy for 5 minutes and declines refreshes sooner than a minute apart (you'll see a note).
+
+**Update notice**
+- The version label at the bottom right of the sidebar shows **⬆ vX.Y.Z available** (a link to the GitHub page) when GitHub has a newer version than the one you're running. To update, download the new `server.js` and `index.html`, replace yours, and restart.
+- The server makes the check (at most once every 6 hours, only reading the version number) and stays quiet if it's offline. Turn it off with `UPDATE_CHECK=0`.
+
 ## How it maps to WorkFlowy
 
 - Each column is a day in your WorkFlowy **calendar** (for example `2026-10-23`). Tasks are that day's children.
@@ -155,6 +169,9 @@ If the base address is the problem, try `WORKFLOWY_BASE_URL=https://beta.workflo
 **Past due "All" is slow or errors**
 "All" checks up to 60 months back, one request per month and then one per day in months that exist. This can mean hundreds of requests on the first load. Past due days are remembered afterwards (↻ re-reads them). If you hit rate-limit errors, use 4w instead.
 
+**Search says it couldn't load your outline, or refresh does nothing**
+The export is limited to one request a minute. Wait a minute and press ↻ again. If the error mentions 429, the board falls back to its last copy.
+
 ## Customizing
 
 Edit the constants near the top of the `<script>` in `index.html`:
@@ -171,7 +188,7 @@ Other easy changes:
 
 ## Security
 
-- The server listens on **localhost only** and only forwards the node endpoints the board needs (the full-export endpoint is blocked).
+- The server listens on **localhost only** and only forwards the node endpoints the board needs (the full export is allowed for search, read-only, and cached by the server).
 - Your API key can read and change your whole outline. Keep it out of the browser, git repositories, and screenshots.
 - **Don't put this on a public address as-is.** There's no login, so anyone who could reach it could read, edit, and delete your outline. Before hosting on a VPS or Fly.io, add password protection and HTTPS, and set the key through the host's secret storage.
 
@@ -183,5 +200,8 @@ Other easy changes:
 - Reordering tasks within a day isn't supported, only moving between days.
 - The Today's page view can complete todos, edit text, add lines under a bullet, and indent a line (**>**). It can't outdent, reorder, or delete lines, because the API can only place a moved or new line at the top or bottom of a parent, not right after a specific line. New lines (from the pad or the **+** button) always go to the bottom of their parent.
 - Dots on the calendar only appear for days already loaded.
+- Search works on a copy of your outline that can be a few minutes old. Changes made in WorkFlowy appear after a refresh (↻). Changes you make in the item view are applied to the copy, but changes made on the board are not.
+- The whole outline is held in browser memory, which is fine for tens of thousands of items but heavy for very large outlines.
+- Calendar day pages (such as 2026-10-23) can show up in results with their date as the path.
 - Settings are stored in the browser (`localStorage`), so they're per browser.
 - The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. It was tested against a mock of that API, so report anything that behaves differently on a real account.

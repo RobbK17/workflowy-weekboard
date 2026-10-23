@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.2">
+<meta name="version" content="1.0.3">
 <meta name="notes-name" content="WB-Notes">
 <title>Workflowy Week Board</title>
 <style>
@@ -19,7 +19,8 @@
   body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text);
          height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
   header { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 16px; flex-wrap: wrap; }
-  header h1 { font-size: 17px; margin: 0 8px 0 0; flex: 1; min-width: 200px; }
+  header h1 { font-size: 17px; margin: 0 8px 0 0; flex: 0 1 auto; min-width: 200px; }
+  .hsearch { flex: 1; display: flex; justify-content: center; min-width: 0; }
   header h1 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; white-space: nowrap; }
   .opts { display: flex; gap: 12px; align-items: center; font-size: 13px; flex-wrap: wrap; }
   .opts label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
@@ -94,7 +95,7 @@
   /* Today's page: read from WorkFlowy, nested like the outline */
   /* Today's page fills the space left in the sidebar and scrolls inside itself. */
   #outliner { flex: 1 1 0; min-height: 300px; display: flex; flex-direction: column; }
-  #outliner > h3, #outliner > #outline, #outliner > .outbar { flex: none; }
+  #outliner > h3, #outliner > #outline, #outliner > .outbar, #outliner > .viewbar { flex: none; }
   .pagetree { flex: 1 1 0; min-height: 60px; overflow-y: auto; scrollbar-width: thin; background: var(--card);
               border-radius: 6px; padding: 6px 8px; margin-bottom: 12px; font-size: 13px; }
   /* Expanded: the calendar and Past due / Upcoming panels hide, so the page (and the add pad) get the whole sidebar. */
@@ -116,6 +117,44 @@
   #outline { display: block; width: 100%; min-height: 110px; resize: vertical; padding: 8px; border-radius: 6px;
              border: 1px solid var(--border); background: var(--card); color: var(--text);
              font: 13px/1.55 ui-monospace, Menlo, Consolas, monospace; }
+  /* Item view bar (shown when a search result is open in the page pane) */
+  .viewbar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px;
+             color: var(--muted); margin: -2px 0 8px; }
+  .viewbar[hidden] { display: none; }
+  .viewbar button { padding: 2px 8px; font-size: 12px; }
+  .viewbar a { color: var(--accent); text-decoration: none; }
+  .viewbar a:hover { text-decoration: underline; }
+
+  /* Search window */
+  .modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex;
+           align-items: flex-start; justify-content: center; padding: 8vh 16px 16px; }
+  .modal[hidden] { display: none; }
+  .sm-list, .sm-item { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .sm-list[hidden], .sm-item[hidden] { display: none; }
+  .sm-item .viewbar { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .sm-item .pagetree { flex: 1; min-height: 240px; padding: 8px 12px; }
+  .modal-box { width: min(700px, 100%); max-height: 82vh; display: flex; flex-direction: column; overflow: hidden;
+               background: var(--card); color: var(--text); border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+  .sm-head { flex: none; display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); }
+  .sm-head input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 6px;
+                   border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  .sm-filters { flex: none; display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 12px; font-size: 13px;
+                border-bottom: 1px solid var(--border); }
+  .sm-filters label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  .sm-results { flex: 1; min-height: 120px; overflow-y: auto; }
+  .sm-results .hint { padding: 16px 12px; color: var(--muted); font-size: 13px; }
+  .sr { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .sr:hover, .sr.active { background: var(--col); }
+  .sr .st { word-break: break-word; }
+  .sr .sp { font-size: 11px; color: var(--muted); word-break: break-word; }
+  .sr .st.done { color: var(--muted); text-decoration: line-through; }
+  mark { background: #ffe27a; color: #000; border-radius: 2px; padding: 0 1px; }
+  .sm-foot { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px;
+             font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
+  .sm-foot .mini { padding: 2px 8px; }
+
+  .ver a { color: #b45309; font-weight: 600; text-decoration: none; }
+  .ver a:hover { text-decoration: underline; }
   .ver { flex: none; font-size: 11px; color: var(--muted); text-align: center; padding: 2px 0 0; }
   .outbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 
@@ -127,12 +166,15 @@
     #side .col { flex: none; max-height: 40vh; }
     #outliner { flex: none; min-height: 0; }
     .pagetree { flex: none; max-height: 60vh; }
+    .modal { padding: 0; }
+    .modal-box { width: 100%; max-height: none; height: 100vh; height: 100dvh; border-radius: 0; }
   }
 </style>
 </head>
 <body>
 <header>
   <h1>Workflowy Week Board <small id="range"></small></h1>
+  <div class="hsearch"><button id="searchBtn" title="Search your whole outline (Ctrl+K)">&#128269; Search nodes</button></div>
   <div class="opts">
     <label><input type="checkbox" id="optHide"> Hide completed</label>
     <label><input type="checkbox" id="optLate"> Past due</label>
@@ -153,15 +195,37 @@
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
-      <h3>Today's page <span id="outTitle"></span><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload today's page">&#8635;</button></h3>
+      <h3><strong>Today's page</strong> <span id="outTitle"></span><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload">&#8635;</button></h3>
       <div class="pagetree" id="pageTree">Loading…</div>
       <h3><strong id="notesHeading">Add to WB-Notes</strong><button class="mini" id="notesEdit" title="Change the name of the notes bullet">&#9998;</button><button class="mini" id="moveNotes" title="Move today's plain bullets into the notes bullet">Move notes in</button></h3>
       <textarea id="outline" spellcheck="true"
         placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
       <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
     </section>
-    <div class="ver">Workflowy Week Board v1.0.2</div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.3</span></div>
   </aside>
+</div>
+
+<div class="modal" id="searchModal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="Search your outline">
+    <div class="sm-list" id="listPane">
+    <div class="sm-head">
+      <input id="searchInput" type="search" placeholder="Search your outline…" autocomplete="off" spellcheck="false">
+      <button id="searchClose" title="Close (Esc)">&#10005;</button>
+    </div>
+    <div class="sm-filters">
+      <label><input type="checkbox" id="fCompleted" checked> Include completed</label>
+      <label><input type="checkbox" id="fTodos"> Todos only</label>
+      <label><input type="checkbox" id="fNotes" checked> Search notes</label>
+    </div>
+    <div class="sm-results" id="searchResults"></div>
+    <div class="sm-foot"><span id="searchInfo"></span><button class="mini" id="searchRefresh" title="Download a fresh copy of your outline (WorkFlowy allows this once a minute)">Refresh index</button></div>
+    </div>
+    <div class="sm-item" id="itemPane" hidden>
+      <div class="viewbar" id="viewBar"></div>
+      <div class="pagetree" id="itemTree"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -190,6 +254,9 @@ const prefs = { hideDone: getPref("hideDone"), showLate: getPref("showLate"), sh
 let lateRange = loadLateRange();
 let loadingExtras = false;   // true while Past due / Upcoming days are still being fetched
 let loadToken = 0;           // lets a newer load cancel an older one
+let viewItem = null;
+let itemNodes = [];         // id of the search result open in the page pane, or null when showing Today's page
+let index = null;            // the downloaded copy of your whole outline, used by search (built on first search)
 const monthInfo = {};        // "YYYY-MM" -> does that calendar month exist? (used by "All")
 function loadLateRange() {
   try { const v = localStorage.getItem("lateRange"); if (["all", "1", "2", "3", "4"].includes(v)) return v; } catch (e) {}
@@ -767,6 +834,7 @@ outSave.onclick = saveOutline;
 
 const PAGE_DEPTH = 12;       // how many levels of nesting to read (each bullet costs one request)
 const pageTree = document.getElementById("pageTree");
+const itemTree = document.getElementById("itemTree");
 let pageNodes = [];
 let pageToken = 0;
 let addingFor = null;        // id of the line that currently has its "add under this line" box open
@@ -793,6 +861,7 @@ async function fetchTree(parent, depth, topLevel = false) {
 }
 
 async function loadPage() {
+  if (viewItem) return;                       // the item editor is open; Today's page reloads when you go back
   const token = ++pageToken;
   if (!pageNodes.length) pageTree.textContent = "Loading…";
   try {
@@ -806,23 +875,26 @@ async function loadPage() {
   }
 }
 
+// Draws Today's page in the sidebar, or (when a search result is open) the item editor inside the search window.
 function renderPage() {
-  const keepScroll = pageTree.scrollTop;      // stay where you were after a reload or edit
-  pageTree.innerHTML = "";
-  if (!pageNodes.length) {
-    pageTree.innerHTML = `<div class="empty">No notes on today's page yet</div>`;
+  const tree = viewItem ? itemTree : pageTree;
+  const roots = viewItem ? itemNodes : pageNodes;
+  const keepScroll = tree.scrollTop;          // stay where you were after a reload or edit
+  tree.innerHTML = "";
+  if (!roots.length) {
+    tree.innerHTML = `<div class="empty">No notes on today's page yet</div>`;
     return;
   }
   const walk = (nodes, level) => {
     nodes.forEach((n, i) => {
-      pageTree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null));
+      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null));
       if (n.children) walk(n.children, level + 1);
-      if (addingFor === n.id) pageTree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
+      if (addingFor === n.id) tree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
     });
   };
-  walk(pageNodes, 0);
-  pageTree.scrollTop = keepScroll;
-  const box = pageTree.querySelector(".pl-add input");
+  walk(roots, 0);
+  tree.scrollTop = keepScroll;
+  const box = tree.querySelector(".pl-add input");
   if (box) box.focus();
 }
 
@@ -834,13 +906,14 @@ function addRow(parent, level) {
   const input = document.createElement("input");
   input.placeholder = "Add under this line… (Enter adds, Esc closes)";
   input.addEventListener("keydown", async (e) => {
-    if (e.key === "Escape") { addingFor = null; renderPage(); return; }
+    if (e.key === "Escape") { e.stopPropagation(); addingFor = null; renderPage(); return; }
     if (e.key !== "Enter" || !input.value.trim()) return;
     const name = input.value.trim();
     input.disabled = true;
     try {
-      await call("POST", "/nodes", { parent_id: parent.id, name, position: "bottom" });
-      await loadPage();
+      const res = await call("POST", "/nodes", { parent_id: parent.id, name, position: "bottom" });
+      if (viewItem) { addLocalChild(parent, name, res && res.item_id); renderPage(); }   // item view: update the local copy
+      else await loadPage();
     } catch (err) { showError(err.message); input.disabled = false; }
   });
   wrap.appendChild(input);
@@ -862,9 +935,9 @@ function pageLine(n, level, prev) {
       try {
         await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`);
         n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
+        n.completed = !!n.completedAt;
         renderPage();
-        await loadDay(key(new Date()));
-        render();
+        if (!viewItem) { await loadDay(key(new Date())); render(); }
       } catch (e) { showError(e.message); cb.checked = !cb.checked; }
     });
     row.appendChild(cb);
@@ -884,8 +957,8 @@ function pageLine(n, level, prev) {
     if (next === null || next.trim() === "" || next === current) return;
     try {
       await call("POST", `/nodes/${n.id}`, { name: next.trim() });
-      await Promise.all([loadPage(), loadDay(key(new Date()))]);
-      render();
+      if (viewItem) { setLocalName(n, next.trim()); renderPage(); }
+      else { await Promise.all([loadPage(), loadDay(key(new Date()))]); render(); }
     } catch (e) { showError(e.message); }
   });
   row.appendChild(t);
@@ -898,7 +971,8 @@ function pageLine(n, level, prev) {
       ind.disabled = true;
       try {
         await call("POST", `/nodes/${n.id}/move`, { parent_id: prev.id, position: "bottom" });
-        await loadPage();
+        if (viewItem) { reparentLocal(n, prev); renderPage(); }
+        else await loadPage();
       } catch (e) { showError(e.message); ind.disabled = false; }
     });
     row.appendChild(ind);
@@ -911,7 +985,7 @@ function pageLine(n, level, prev) {
   return row;
 }
 
-document.getElementById("pageRefresh").onclick = loadPage;
+document.getElementById("pageRefresh").onclick = () => loadPage();
 
 // Expand: today's page (and the add pad) take over the whole sidebar; click again to bring the calendar back.
 const expandBtn = document.getElementById("pageExpand");
@@ -955,6 +1029,298 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
     if (pref === "hideDone") render(); else loadWeek();   // hiding is instant; the others need to fetch days
   };
 }
+
+/* ---------- Search (runs on a downloaded copy of your whole outline) ---------- */
+
+const SEARCH_LIMIT = 50;     // most results listed at once
+const searchModal = document.getElementById("searchModal");
+const searchInput = document.getElementById("searchInput");
+const searchResults = document.getElementById("searchResults");
+const searchInfo = document.getElementById("searchInfo");
+const fCompleted = document.getElementById("fCompleted");
+const fTodos = document.getElementById("fTodos");
+const fNotes = document.getElementById("fNotes");
+let searchActive = -1;       // highlighted result (for the arrow keys)
+let searchTimer = null;
+
+function getBool(k, def) { try { const v = localStorage.getItem(k); return v === null ? def : v === "1"; } catch (e) { return def; } }
+fCompleted.checked = getBool("sCompleted", true);
+fTodos.checked = getBool("sTodos", false);
+fNotes.checked = getBool("sNotes", true);
+for (const [el, k] of [[fCompleted, "sCompleted"], [fTodos, "sTodos"], [fNotes, "sNotes"]]) {
+  el.addEventListener("change", () => { setPref(k, el.checked); doSearch(); });
+}
+
+// Skips the (slower) HTML parsing for the many names that are already plain text.
+function plainFast(s) { return !s ? "" : (/[<&]/.test(s) ? plain(s) : s); }
+
+function buildIndex(list, loadedAt) {
+  const byId = {};
+  for (const n of list) {
+    n.children = [];
+    n._name = plainFast(n.name);
+    n._lname = n._name.toLowerCase();
+    n._note = n.note ? plainFast(n.note) : "";
+    n._lnote = n._note.toLowerCase();
+    byId[n.id] = n;
+  }
+  for (const n of list) { const p = n.parent_id ? byId[n.parent_id] : null; if (p) p.children.push(n); }
+  for (const n of list) if (n.children.length > 1) n.children.sort((a, b) => a.priority - b.priority);
+  return { nodes: list, byId, loadedAt };
+}
+
+// Downloads (or re-downloads) the whole outline. The server keeps a copy for a few minutes and only does a real
+// refresh once a minute, so a refresh can come back unchanged ("throttled").
+async function loadIndex(force) {
+  const res = await fetch(API + "/nodes-export" + (force ? "?refresh=1" : ""));
+  if (!res.ok) throw new Error(`GET /nodes-export failed (${res.status}): ${await res.text()}`);
+  const data = await res.json();
+  const loadedAt = Number(res.headers.get("X-Index-Time")) || Date.now();
+  const throttled = res.headers.get("X-Index-Throttled") === "1";
+  if (index && loadedAt === index.loadedAt) return { changed: false, throttled };   // same copy (it already has our edits)
+  index = buildIndex(Array.isArray(data.nodes) ? data.nodes : [], loadedAt);
+  if (viewItem) {                                         // re-point the open item at the new copy
+    const n = index.byId[viewItem];
+    if (n) { itemNodes = [n]; updateViewBar(); renderPage(); } else closeItem();
+  }
+  return { changed: true, throttled };
+}
+
+// Edits made while an item is open (after the API call succeeds) are applied to the local copy too.
+function setLocalName(n, text) { n.name = text; n._name = text; n._lname = text.toLowerCase(); }
+function lastPriority(parent) { return parent.children.reduce((m, c) => Math.max(m, c.priority || 0), 0); }
+function addLocalChild(parent, text, id) {
+  const todo = text.match(/^- \[( |x|X)\]\s+(.*)$/);
+  const label = todo ? todo[2] : text.replace(/^[-*•]\s+/, "");
+  const now = Math.floor(Date.now() / 1000);
+  const done = todo && todo[1] !== " ";
+  const node = {
+    id: id || "local-" + now + "-" + Math.random().toString(36).slice(2), parent_id: parent.id,
+    name: label, note: null, priority: lastPriority(parent) + 100, createdAt: now, modifiedAt: now,
+    data: { layoutMode: todo ? "todo" : "bullets" }, completedAt: done ? now : null, completed: !!done,
+    children: [], _name: label, _lname: label.toLowerCase(), _note: "", _lnote: "",
+  };
+  index.byId[node.id] = node; index.nodes.push(node); parent.children.push(node);
+}
+function reparentLocal(n, newParent) {
+  const old = n.parent_id && index.byId[n.parent_id];
+  if (old) old.children = old.children.filter((c) => c !== n);
+  n.priority = lastPriority(newParent) + 100;
+  n.parent_id = newParent.id;
+  newParent.children.push(n);
+}
+
+// Names of the lines above this one, from the top of the outline down.
+function pathOf(n) {
+  const out = [];
+  let p = n.parent_id ? index.byId[n.parent_id] : null;
+  for (let guard = 0; p && guard < 60; guard++) {
+    out.unshift(p._name || "(empty)");
+    p = p.parent_id ? index.byId[p.parent_id] : null;
+  }
+  return out;
+}
+
+function runSearch(q) {
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length || !index) return { terms, hits: [], total: 0 };
+  const inNotes = fNotes.checked, wantDone = fCompleted.checked, todosOnly = fTodos.checked;
+  const hits = [];
+  for (const n of index.nodes) {
+    if (!wantDone && n.completedAt) continue;
+    if (todosOnly && !(n.data && n.data.layoutMode === "todo")) continue;
+    let inName = true, inEither = true;                    // every word must match, in the text or (optionally) the note
+    for (const t of terms) {
+      const a = n._lname.includes(t);
+      if (!a) inName = false;
+      if (!a && !(inNotes && n._lnote.includes(t))) { inEither = false; break; }
+    }
+    if (inEither) hits.push({ n, nameHit: inName });
+  }
+  hits.sort((a, b) => (b.nameHit - a.nameHit) || ((b.n.modifiedAt || 0) - (a.n.modifiedAt || 0)));
+  return { terms, hits: hits.slice(0, SEARCH_LIMIT), total: hits.length };
+}
+
+// Splits text into plain and <mark>ed pieces (built as DOM nodes, so nothing is treated as HTML).
+function highlight(text, terms) {
+  const lower = text.toLowerCase();
+  if (lower.length !== text.length) return [document.createTextNode(text)];
+  const marked = new Array(text.length).fill(false);
+  for (const t of terms) {
+    let i = lower.indexOf(t);
+    while (i !== -1) { for (let k = i; k < i + t.length; k++) marked[k] = true; i = lower.indexOf(t, i + t.length); }
+  }
+  const out = [];
+  for (let i = 0; i < text.length;) {
+    let j = i;
+    while (j < text.length && marked[j] === marked[i]) j++;
+    if (marked[i]) { const m = document.createElement("mark"); m.textContent = text.slice(i, j); out.push(m); }
+    else out.push(document.createTextNode(text.slice(i, j)));
+    i = j;
+  }
+  return out;
+}
+
+function noteSnippet(n, terms) {
+  let at = -1;
+  for (const t of terms) { const i = n._lnote.indexOf(t); if (i !== -1) { at = i; break; } }
+  if (at === -1) return "";
+  const start = Math.max(0, at - 30);
+  return (start ? "…" : "") + n._note.slice(start, start + 100) + (start + 100 < n._note.length ? "…" : "");
+}
+
+function ago(ms) {
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return "updated just now";
+  const m = Math.round(s / 60);
+  return m < 60 ? `updated ${m} min ago` : `updated ${Math.round(m / 60)} h ago`;
+}
+
+function resultEl(hit, terms, i) {
+  const n = hit.n;
+  const row = document.createElement("div");
+  row.className = "sr"; row.dataset.i = i;
+  const isTodo = n.data && n.data.layoutMode === "todo";
+  const title = document.createElement("div");
+  title.className = "st" + (isTodo && n.completedAt ? " done" : "");
+  if (isTodo) title.append(n.completedAt ? "☑ " : "☐ ");
+  title.append(...highlight(n._name || "(empty)", terms));
+  const path = document.createElement("div");
+  path.className = "sp"; path.textContent = pathOf(n).join(" › ") || "Top level";
+  row.append(title, path);
+  if (!hit.nameHit) {                                      // matched in the note: show where
+    const snip = noteSnippet(n, terms);
+    if (snip) { const d = document.createElement("div"); d.className = "sp"; d.append("Note: ", ...highlight(snip, terms)); row.append(d); }
+  }
+  row.addEventListener("click", () => openFromSearch(n.id));
+  return row;
+}
+
+function setActive(i, scroll = true) {
+  searchActive = i;
+  searchResults.querySelectorAll(".sr").forEach((el, k) => el.classList.toggle("active", k === i));
+  if (scroll && i >= 0) {
+    const el = searchResults.querySelector(`.sr[data-i="${i}"]`);
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" });
+  }
+}
+
+function doSearch() {
+  if (!index) return;
+  const { terms, hits, total } = runSearch(searchInput.value);
+  searchResults.innerHTML = "";
+  if (!terms.length) searchResults.innerHTML = `<div class="hint">Type to search ${index.nodes.length.toLocaleString()} items.</div>`;
+  else if (!hits.length) searchResults.innerHTML = `<div class="hint">No matches.</div>`;
+  hits.forEach((h, i) => searchResults.appendChild(resultEl(h, terms, i)));
+  setActive(hits.length ? 0 : -1, false);
+  searchInfo.textContent = terms.length
+    ? `${total} match${total === 1 ? "" : "es"}${total > SEARCH_LIMIT ? `, showing the first ${SEARCH_LIMIT}` : ""} · index ${ago(index.loadedAt).replace("updated ", "")}`
+    : `Index ${ago(index.loadedAt).replace("updated ", "")}`;
+}
+
+async function openSearch() {
+  searchModal.hidden = false;
+  searchInput.focus(); searchInput.select();
+  if (index) { doSearch(); return; }
+  searchResults.innerHTML = `<div class="hint">Indexing your outline…</div>`;
+  searchInfo.textContent = "";
+  try { await loadIndex(false); doSearch(); }
+  catch (e) {
+    searchResults.innerHTML = "";
+    const d = document.createElement("div");
+    d.className = "hint"; d.textContent = "Couldn't load your outline: " + e.message;
+    searchResults.appendChild(d);
+  }
+}
+function closeSearch() { searchModal.hidden = true; closeItem(true); }
+function openFromSearch(id) { openItem(id); }
+
+// ---- Item editor: a search result opens over the list, inside the search window ----
+function openItem(id) {
+  if (!index || !index.byId[id]) return;
+  viewItem = id; addingFor = null;
+  itemNodes = [index.byId[id]];
+  document.getElementById("listPane").hidden = true;
+  document.getElementById("itemPane").hidden = false;
+  updateViewBar();
+  renderPage();
+  itemTree.scrollTop = 0;
+}
+// Back to the results list (quiet = the window is closing, so don't redraw the list).
+function closeItem(quiet) {
+  if (!viewItem) return;
+  viewItem = null; addingFor = null; itemNodes = [];
+  document.getElementById("itemPane").hidden = true;
+  document.getElementById("listPane").hidden = false;
+  if (!quiet) { doSearch(); searchInput.focus(); }
+  loadPage();                                   // Today's page may have been affected (e.g. an item under it was edited)
+}
+function updateViewBar() {
+  const bar = document.getElementById("viewBar");
+  bar.innerHTML = "";
+  const n = index.byId[viewItem];
+  const back = document.createElement("button");
+  back.textContent = "← Results"; back.title = "Back to the search results (Esc)"; back.onclick = () => closeItem();
+  const path = document.createElement("span");
+  path.textContent = pathOf(n).concat(n._name || "(empty)").join(" › ");
+  const link = document.createElement("a");
+  link.href = "https://workflowy.com/#/" + n.id.slice(-12);   // WorkFlowy links use the last 12 characters of the id
+  link.target = "_blank"; link.rel = "noopener"; link.textContent = "Open in WorkFlowy ↗";
+  const fresh = document.createElement("button");
+  fresh.textContent = "↻"; fresh.title = "Download a fresh copy of your outline (WorkFlowy allows this once a minute)";
+  fresh.onclick = async () => { try { await loadIndex(true); } catch (e) { showError(e.message); } };
+  bar.append(back, path, link, fresh);
+}
+
+searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, 120); });
+searchInput.addEventListener("keydown", (e) => {
+  const count = searchResults.querySelectorAll(".sr").length;
+  if (e.key === "ArrowDown" && count) { e.preventDefault(); setActive(Math.min(count - 1, searchActive + 1)); }
+  else if (e.key === "ArrowUp" && count) { e.preventDefault(); setActive(Math.max(0, searchActive - 1)); }
+  else if (e.key === "Enter" && searchActive >= 0) {
+    e.preventDefault();
+    const el = searchResults.querySelector(`.sr[data-i="${searchActive}"]`);
+    if (el) el.click();
+  }
+});
+// Update check: the server looks at GitHub (at most every 6 hours) and tells us the newest version.
+function newer(a, b) {      // is version a newer than b?
+  const x = a.split(".").map(Number), y = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+  return false;
+}
+(async () => {
+  try {
+    const mine = document.querySelector('meta[name="version"]').content;
+    const r = await fetch("/update-check");
+    if (!r.ok) return;
+    const info = await r.json();
+    if (!info.latest || !newer(info.latest, mine)) return;
+    const a = document.createElement("a");
+    a.textContent = `⬆ v${info.latest} available`;
+    a.title = `You have v${mine}. Download the new files from GitHub, replace server.js and index.html, and restart.`;
+    if (info.url) { a.href = info.url; a.target = "_blank"; a.rel = "noopener"; }
+    document.getElementById("ver").append(" · ", a);
+  } catch (e) { /* no network or no answer: stay quiet */ }
+})();
+
+document.getElementById("searchBtn").onclick = openSearch;
+document.getElementById("searchClose").onclick = closeSearch;
+searchModal.addEventListener("click", (e) => { if (e.target === searchModal) closeSearch(); });
+document.getElementById("searchRefresh").onclick = async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true; searchInfo.textContent = "Refreshing…";
+  try {
+    const r = await loadIndex(true);
+    doSearch();
+    if (!r.changed && r.throttled) searchInfo.textContent += " · WorkFlowy allows one refresh a minute";
+  } catch (err) { searchInfo.textContent = "Couldn't refresh: " + err.message; }
+  btn.disabled = false;
+};
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); }
+  else if (e.key === "Escape" && !searchModal.hidden) { if (viewItem) closeItem(); else closeSearch(); }
+});
 
 document.getElementById("notesEdit").onclick = changeNotesName;
 applyNotesLabels();
