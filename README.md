@@ -2,9 +2,7 @@
 
 A kanban-style week view for your WorkFlowy todos. Each day is a column, and everything you do on the board (add, check off, edit, move, delete) is saved straight back to WorkFlowy through its API.
 
-```
-![Week Board Image](https://github.com/robbk17/workflowy-weekboard/blob/main/Workflowy%20Week%20Board.png?raw=true)
-```
+<img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
 **Version 1.0.0**
 
