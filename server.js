@@ -1,9 +1,9 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.0.1
+// Version 1.0.2
 // Run:  WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 
-const VERSION = "1.0.1";
+const VERSION = "1.0.2";
 
 const http = require("http");
 const fs = require("fs");
@@ -12,6 +12,9 @@ const path = require("path");
 const KEY = process.env.WORKFLOWY_API_KEY;
 const BASE = (process.env.WORKFLOWY_BASE_URL || "https://workflowy.com/api/v1").replace(/\/$/, "");
 const PORT = Number(process.env.PORT || 3000);
+// Default name of the notes bullet on today's page. Each browser can override it with the pencil in the board.
+const NOTES_NAME = (process.env.NOTES_NAME || "").trim() || "WB-Notes";
+const escapeAttr = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 if (!KEY) {
   console.error("Set WORKFLOWY_API_KEY first (get one at https://workflowy.com/api-key).");
@@ -63,8 +66,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
+    // Pass the configured notes-bullet name to the page through its notes-name meta tag.
+    const page = fs.readFileSync(path.join(__dirname, "index.html"), "utf8")
+      .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    return res.end(fs.readFileSync(path.join(__dirname, "index.html")));
+    return res.end(page);
   }
 
   res.writeHead(404);
@@ -73,5 +79,5 @@ const server = http.createServer(async (req, res) => {
 
 // Localhost only: your key has full access to your outline.
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Workflowy Week Board v${VERSION} running at http://localhost:${PORT}  (API: ${BASE})`);
+  console.log(`Workflowy Week Board v${VERSION} running at http://localhost:${PORT}  (API: ${BASE}, notes bullet: "${NOTES_NAME}")`);
 });

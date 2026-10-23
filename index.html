@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.1">
+<meta name="version" content="1.0.2">
+<meta name="notes-name" content="WB-Notes">
 <title>Workflowy Week Board</title>
 <style>
   :root {
@@ -154,12 +155,12 @@
     <section class="panel" id="outliner">
       <h3>Today's page <span id="outTitle"></span><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload today's page">&#8635;</button></h3>
       <div class="pagetree" id="pageTree">Loading…</div>
-      <h3>Add to WB-Notes <button class="mini" id="moveNotes" title="Move today's plain bullets into WB-Notes">Move notes in</button></h3>
+      <h3><strong id="notesHeading">Add to WB-Notes</strong><button class="mini" id="notesEdit" title="Change the name of the notes bullet">&#9998;</button><button class="mini" id="moveNotes" title="Move today's plain bullets into the notes bullet">Move notes in</button></h3>
       <textarea id="outline" spellcheck="true"
-        placeholder="Add notes to WB-Notes… (Tab indents, Ctrl+Enter saves)"></textarea>
+        placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
       <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
     </section>
-    <div class="ver">Workflowy Week Board v1.0.1</div>
+    <div class="ver">Workflowy Week Board v1.0.2</div>
   </aside>
 </div>
 
@@ -169,7 +170,15 @@ const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MAX_MONTHS_BACK = 60;  // Past due "All" looks back at most this many months (5 years)
 const LOOKAHEAD = 14;    // Upcoming scans this many days past the visible days (or past today)
 const MAX_PARALLEL = 6;  // limit simultaneous requests to WorkFlowy
-const NOTES_NAME = "WB-Notes";   // the bullet on today's page that holds your notes (found by name, created if missing)
+// Name of the bullet on today's page that holds your notes (found by name, created if missing).
+// The server's NOTES_NAME setting provides the default; the pencil next to the heading overrides it in this browser.
+const DEFAULT_NOTES_NAME = ((document.querySelector('meta[name="notes-name"]') || {}).content || "WB-Notes").trim() || "WB-Notes";
+let notesName = loadNotesName();
+function loadNotesName() {
+  try { const v = (localStorage.getItem("notesName") || "").trim(); if (v) return v; } catch (e) {}
+  return DEFAULT_NOTES_NAME;
+}
+function sameName(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase(); }   // ignores case and stray spaces
 
 const cache = {};        // dateKey -> sorted node array
 
@@ -620,19 +629,61 @@ function parseOutline(text) {
   return items;
 }
 
-// Finds today's WB-Notes bullet by name, or creates it at the bottom of today's page.
-async function ensureNotesId(todayK) {
+// Looks for a bullet with this name (ignoring case) among the top-level lines of today's page.
+async function findNotes(todayK, name) {
   const data = await call("GET", `/nodes?parent_id=${todayK}`);
   const nodes = (data && data.nodes ? data.nodes : []).sort((a, b) => a.priority - b.priority);
-  const hit = nodes.find((n) => plain(n.name).trim() === NOTES_NAME);
+  return nodes.find((n) => sameName(plain(n.name), name)) || null;
+}
+
+// Finds today's notes bullet by name, or creates it at the bottom of today's page.
+async function ensureNotesId(todayK) {
+  const hit = await findNotes(todayK, notesName);
   if (hit) return hit.id;
-  const res = await call("POST", "/nodes", { parent_id: todayK, name: NOTES_NAME, position: "bottom" });
-  if (!res || !res.item_id) throw new Error(`Couldn't create the ${NOTES_NAME} bullet`);
+  const res = await call("POST", "/nodes", { parent_id: todayK, name: notesName, position: "bottom" });
+  if (!res || !res.item_id) throw new Error(`Couldn't create the ${notesName} bullet`);
   return res.item_id;
 }
 
-// Moves today's plain top-level bullets (with their sub-bullets) under WB-Notes, keeping their order.
-// Todos, headings and the WB-Notes bullet itself stay where they are.
+// Pencil next to the heading: choose the notes bullet's name (saved in this browser; the server setting is the default).
+async function changeNotesName() {
+  if (saving) return;
+  const input = prompt(`Name of the notes bullet on today's page:\n(server default: "${DEFAULT_NOTES_NAME}")`, notesName);
+  if (input === null) return;
+  const next = input.trim().replace(/\s+/g, " ");
+  if (!next) { showError("The notes bullet needs a name."); return; }
+  if (next === notesName) return;
+  showError("");
+  const todayK = key(new Date());
+  let usingExisting = false;
+  try {
+    const current = await findNotes(todayK, notesName);
+    // If today already has a bullet with the new name, just use it instead of renaming (no duplicates).
+    const taken = sameName(next, notesName) ? null : await findNotes(todayK, next);
+    if (taken) usingExisting = true;
+    else if (current && confirm(`Also rename today's "${notesName}" bullet to "${next}"?\n\n` +
+        `OK renames it. Cancel leaves it as it is, and the board will start a separate "${next}" bullet the next time you save.`)) {
+      await call("POST", `/nodes/${current.id}`, { name: next });
+    }
+  } catch (e) { showError(e.message); return; }
+  notesName = next;
+  try {
+    if (next === DEFAULT_NOTES_NAME) localStorage.removeItem("notesName");   // back to the server default
+    else localStorage.setItem("notesName", next);
+  } catch (e) {}
+  applyNotesLabels();
+  if (usingExisting) setStatus(`Now using your existing "${next}" bullet`);
+  await loadPage();
+}
+
+function applyNotesLabels() {
+  document.getElementById("notesHeading").textContent = "Add to " + notesName;
+  outSave.textContent = "Save to " + notesName;
+  moveBtn.title = `Move today's plain bullets into ${notesName}`;
+}
+
+// Moves today's plain top-level bullets (with their sub-bullets) under the notes bullet, keeping their order.
+// Todos, headings and the notes bullet itself stay where they are.
 async function moveNotes() {
   if (saving) return;
   const todayK = key(new Date());
@@ -642,11 +693,11 @@ async function moveNotes() {
     nodes = (data && data.nodes ? data.nodes : []).sort((a, b) => a.priority - b.priority);
   } catch (e) { showError(e.message); return; }
   const movable = nodes.filter((n) =>
-    plain(n.name).trim() !== NOTES_NAME && ((n.data && n.data.layoutMode) || "bullets") === "bullets");
+    !sameName(plain(n.name), notesName) && ((n.data && n.data.layoutMode) || "bullets") === "bullets");
   if (!movable.length) { setStatus("No plain bullets to move"); return; }
   const preview = movable.slice(0, 5).map((n) => "• " + (plain(n.name).slice(0, 60) || "(empty)")).join("\n") +
     (movable.length > 5 ? `\n…and ${movable.length - 5} more` : "");
-  if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from today's page into ${NOTES_NAME}?\n\n` +
+  if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from today's page into ${notesName}?\n\n` +
                `${preview}\n\nSub-bullets move with them. Todos and headings stay put.`)) return;
 
   saving = true; outSave.disabled = true; moveBtn.disabled = true; showError("");
@@ -657,7 +708,7 @@ async function moveNotes() {
       await call("POST", `/nodes/${n.id}/move`, { parent_id: notesId, position: "bottom" });
       moved++;
     }
-    setStatus(`Moved ${moved} into ${NOTES_NAME}`);
+    setStatus(`Moved ${moved} into ${notesName}`);
   } catch (e) {
     showError(e.message);
     setStatus(moved ? `Moved ${moved}, then stopped` : "Nothing moved");
@@ -702,7 +753,7 @@ async function saveOutline() {
     setStatus(done ? `Saved ${done}, ${items.length - done} left` : "Not saved");
   } else {
     outline.value = "";
-    setStatus(`Saved ${done} ${done === 1 ? "line" : "lines"} to ${NOTES_NAME}`);
+    setStatus(`Saved ${done} ${done === 1 ? "line" : "lines"} to ${notesName}`);
   }
   saveDraft();
   try { await loadDay(todayK); } catch (e) {}
@@ -904,6 +955,9 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
     if (pref === "hideDone") render(); else loadWeek();   // hiding is instant; the others need to fetch days
   };
 }
+
+document.getElementById("notesEdit").onclick = changeNotesName;
+applyNotesLabels();
 
 loadWeek();
 loadPage();

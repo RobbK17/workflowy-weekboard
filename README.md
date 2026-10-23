@@ -4,7 +4,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.0.1**
+**Version 1.0.2**
 
 ## What's in the box
 
@@ -78,6 +78,7 @@ All settings are environment variables, set the same way as the key above.
 | `WORKFLOWY_API_KEY` | Yes | none | Your WorkFlowy API key. |
 | `WORKFLOWY_BASE_URL` | No | `https://workflowy.com/api/v1` | API address. If you get errors, try `https://beta.workflowy.com/api/v1` (WorkFlowy's reference docs use that address). |
 | `PORT` | No | `3000` | Port to serve the board on. |
+| `NOTES_NAME` | No | `WB-Notes` | Default name of the notes bullet on today's page. Each browser can override it with the ✎ button (see below). |
 | `NODE_USE_SYSTEM_CA` | No | off | Set to `1` on Windows to use the Windows certificate store (fixes certificate errors on networks that inspect HTTPS). Needs Node 22.15+ or 23.8+. |
 
 ## Using the board
@@ -110,13 +111,16 @@ Both panels are relative to the view. If you're looking at last week, Past due s
   - The sidebar always fits the window. The calendar and the Past due / Upcoming panels keep their size, Today's page takes the room that's left, and it scrolls inside itself (so the sidebar doesn't scroll as a whole, except on a very small window).
   - Hover a line and click **>** to indent it: it becomes the last child of the line above it and takes its own sub-bullets along. The first line in a group has no **>**, since there's nothing above it to indent under.
   - Hover a line and click **+** to add a new line under it (as its last child). The box stays open so you can add several in a row; press Enter to add and Esc to close.
-- **Add to WB-Notes:** a pad underneath for your daily notes. Everything you save goes into a single bullet named **WB-Notes** on today's page, so your notes stay together.
+- **Add to WB-Notes:** a pad underneath for your daily notes. Everything you save goes into a single bullet on today's page (named **WB-Notes** by default), so your notes stay together.
   - The board finds the WB-Notes bullet by name each day and creates it (at the bottom of the page) if it isn't there yet, so saving again and again just keeps adding to it.
   - One bullet per line. Tab indents and Shift+Tab outdents. Enter continues the bullet, and Enter on an empty bullet outdents, then removes it.
   - Press **Ctrl+Enter** or click **Save to WB-Notes**. Nested bullets are saved as child nodes, and the pad clears when done.
   - Your draft is kept in the browser until saved. If a save fails partway, only the unsaved lines remain.
   - **Move notes in** gathers today's plain top-level bullets (with their sub-bullets) into WB-Notes, in their current order. It asks first, shows what will move, and leaves todos, headings, and the WB-Notes bullet alone. Items are moved, not copied.
-  - Don't rename the WB-Notes bullet in WorkFlowy. If you do, the board won't recognize it and will create a new one.
+  - **Changing the name:** click **✎** next to the heading and type a new name. It's saved in your browser and overrides the server's `NOTES_NAME` default. Typing the default name again clears the override. Names must not be empty, and matching ignores capitals and stray spaces (`wb-notes` finds `WB-Notes`).
+  - When you change the name, the board offers to rename today's existing bullet too (OK renames it; Cancel leaves it, and the next save starts a separate bullet with the new name). If today already has a bullet with the new name, the board just uses that one and doesn't rename anything.
+  - Only today's bullet is renamed. Older days keep their old name, since each day has its own notes bullet. Avoid markdown symbols such as `*` or `[` in the name, because WorkFlowy converts them.
+  - If you rename the bullet directly in WorkFlowy, the board won't recognize it until you change the name here to match.
 
 ## How it maps to WorkFlowy
 
