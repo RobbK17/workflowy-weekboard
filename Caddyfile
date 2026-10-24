@@ -1,0 +1,16 @@
+# Caddy config for the Workflowy Week Board (DEPLOY_MODE=vps).
+# Caddy gets and renews the HTTPS certificate for you automatically.
+#
+# Before using it:
+#   - Point a DNS "A" record for your name at this server's IP address.
+#   - Open ports 80 and 443 (not 3000: the app only listens on this machine).
+# Install:
+#   sudo cp Caddyfile /etc/caddy/Caddyfile      (change board.example.com first)
+#   sudo systemctl reload caddy
+#
+# The name here must be exactly the host in PUBLIC_URL in /etc/weekboard.env.
+board.example.com {
+	encode zstd gzip
+	# Caddy passes the original address and "https" along, which the app checks.
+	reverse_proxy 127.0.0.1:3000
+}

@@ -1,13 +1,15 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.0.4
-// Run:  WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
+// Version 1.0.5
+// Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
+// DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.0.4";
+const VERSION = "1.0.5";
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const KEY = process.env.WORKFLOWY_API_KEY;
 const BASE = (process.env.WORKFLOWY_BASE_URL || "https://workflowy.com/api/v1").replace(/\/$/, "");
@@ -16,10 +18,65 @@ const PORT = Number(process.env.PORT || 3000);
 const NOTES_NAME = (process.env.NOTES_NAME || "").trim() || "WB-Notes";
 const escapeAttr = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/* ---------- Where is this running? (a required choice, there is no default) ----------
+   local  this computer only: reachable only from http://localhost, no login.
+   vps    your own server behind Caddy (or nginx): HTTPS is done by the proxy, a password login is required.
+   fly    Fly.io: HTTPS is done by Fly, a password login is required.
+   Anything other than "local" is reachable from other machines, so it refuses to start without a password and
+   the https:// address you'll use. */
+const MODES = {
+  local: "this computer only (http://localhost, no login; nothing else on the network can reach it)",
+  vps: "your own server behind Caddy or nginx (HTTPS from the proxy, password login required)",
+  fly: "Fly.io (HTTPS from Fly, password login required)",
+};
+const MODE = (process.env.DEPLOY_MODE || "").trim().toLowerCase();
+if (!MODES[MODE]) {
+  console.error(`
+Choose where you are running the Workflowy Week Board by setting DEPLOY_MODE to one of:
+
+  local   ${MODES.local}
+  vps     ${MODES.vps}
+  fly     ${MODES.fly}
+
+${process.env.DEPLOY_MODE ? `"${process.env.DEPLOY_MODE}" is not one of them.\n\n` : ""}Examples:
+  Mac/Linux:   DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js
+  Windows cmd: set DEPLOY_MODE=local   (then set WORKFLOWY_API_KEY=..., then node server.js)
+  PowerShell:  $env:DEPLOY_MODE="local"
+
+vps and fly also need BOARD_PASSWORD and PUBLIC_URL. See "Choose how to run it" in README.md.
+`);
+  process.exit(1);
+}
+const REMOTE = MODE !== "local";
+
 if (!KEY) {
   console.error("Set WORKFLOWY_API_KEY first (get one at https://workflowy.com/api-key).");
   process.exit(1);
 }
+
+const BOARD_PASSWORD = process.env.BOARD_PASSWORD || "";
+const SESSION_DAYS = Number(process.env.SESSION_DAYS) > 0 ? Number(process.env.SESSION_DAYS) : 7;
+let PUBLIC = null;                    // the https address you visit (remote modes)
+const isLoopback = (h) => ["127.0.0.1", "localhost", "::1", "[::1]"].includes(h);
+if (REMOTE) {
+  const problems = [];
+  if (BOARD_PASSWORD.length < 12) problems.push("BOARD_PASSWORD must be set, to a password of at least 12 characters.");
+  try {
+    PUBLIC = new URL(process.env.PUBLIC_URL || "");
+    if (PUBLIC.protocol !== "https:") throw new Error("not https");
+  } catch (e) {
+    problems.push("PUBLIC_URL must be the https:// address you will visit, for example https://board.example.com");
+  }
+  if (problems.length) {
+    console.error(`DEPLOY_MODE=${MODE} is reachable from other machines, so it needs:\n  - ${problems.join("\n  - ")}`);
+    process.exit(1);
+  }
+} else if (process.env.HOST && !isLoopback(process.env.HOST)) {
+  console.error("DEPLOY_MODE=local only listens on this computer, so HOST must be 127.0.0.1 or unset. Use DEPLOY_MODE=vps or fly to be reachable from elsewhere.");
+  process.exit(1);
+}
+// local: always this computer. vps: this machine (Caddy talks to it locally). fly: all interfaces (Fly's proxy needs that).
+const HOST = REMOTE ? (process.env.HOST || (MODE === "fly" ? "0.0.0.0" : "127.0.0.1")) : "127.0.0.1";
 
 // Only the node endpoints the board needs. The browser never gets the full export: search runs here (see below).
 const ALLOWED = /^\/api\/v1\/nodes(\/[^/]+(\/(move|complete|uncomplete))?)?$/;
@@ -313,17 +370,186 @@ async function serveUpdate(res) {
   return sendJson(res, 200, { current: VERSION, latest: updateCache.latest, url: REPO_URL });
 }
 
-function readBody(req) {
+/* ---------- Access control ---------- */
+const SESSION_COOKIE = "__Host-wb_session";     // __Host- means: HTTPS only, this exact site, no subdomains
+const sessions = new Map();                      // token -> expiry time (lost on restart: you just sign in again)
+const failures = new Map();                      // client address -> { count, until }
+const MAX_FAILS = 5, LOCKOUT_MS = 15 * 60 * 1000;
+
+function applySecurityHeaders(res) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+    "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+  if (REMOTE) res.setHeader("Strict-Transport-Security", "max-age=31536000");
+}
+
+function clientIp(req) {
+  if (REMOTE) {
+    if (MODE === "fly" && req.headers["fly-client-ip"]) return String(req.headers["fly-client-ip"]);
+    const xff = String(req.headers["x-forwarded-for"] || "").split(",").map((x) => x.trim()).filter(Boolean);
+    if (xff.length) return xff[xff.length - 1];       // the proxy adds the real client address last
+  }
+  return req.socket.remoteAddress || "unknown";
+}
+
+function hostAllowed(req) {
+  const host = String(req.headers.host || "").toLowerCase();
+  if (REMOTE) return host === PUBLIC.host.toLowerCase();
+  return isLoopback(host.replace(/:\d+$/, ""));        // localhost / 127.0.0.1 / [::1] on any port
+}
+
+// Writes (POST/DELETE) must come from this site's own page, so another website can't make requests for you.
+function originAllowed(req) {
+  const origin = req.headers.origin;
+  if (origin) {
+    try { const h = new URL(origin).host.toLowerCase(); return REMOTE ? h === PUBLIC.host.toLowerCase() : isLoopback(h.replace(/:\d+$/, "")); }
+    catch (e) { return false; }
+  }
+  const site = req.headers["sec-fetch-site"];
+  return !site || site === "same-origin" || site === "none";
+}
+
+function parseCookies(header) {
+  const out = {};
+  for (const part of String(header || "").split(";")) {
+    const i = part.indexOf("=");
+    if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+  }
+  return out;
+}
+function sessionValid(req) {
+  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  const exp = token && sessions.get(token);
+  if (!exp) return false;
+  if (exp < Date.now()) { sessions.delete(token); return false; }
+  return true;
+}
+const sha = (s) => crypto.createHash("sha256").update(s).digest();
+const passwordOk = (given) => crypto.timingSafeEqual(sha(given), sha(BOARD_PASSWORD));
+const sessionCookie = (value, maxAge) => `${SESSION_COOKIE}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+
+function loginPage(message) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in - Workflowy Week Board</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f5f7; color: #1f2933; }
+  @media (prefers-color-scheme: dark) { body { background: #16191d; color: #e6e8eb; } input { background: #22272e; color: inherit; } }
+  form { width: min(320px, 90vw); display: flex; flex-direction: column; gap: 12px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  input, button { font: inherit; padding: 9px 10px; border-radius: 6px; border: 1px solid #9aa5b1; }
+  button { cursor: pointer; font-weight: 600; }
+  .err { color: #c0392b; margin: 0; font-size: 14px; }
+</style></head><body>
+<form method="post" action="/login">
+  <h1>Workflowy Week Board</h1>
+  ${message ? `<p class="err">${message}</p>` : ""}
+  <input type="password" name="password" placeholder="Password" autocomplete="current-password" autofocus required>
+  <button type="submit">Sign in</button>
+</form></body></html>`;
+}
+
+function sendHtml(res, status, html, extra) {
+  res.writeHead(status, { "Content-Type": "text/html; charset=utf-8", ...(extra || {}) });
+  res.end(html);
+}
+
+async function handleLogin(req, res) {
+  if (req.method === "GET") return sendHtml(res, 200, loginPage(""));
+  if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+  const ip = clientIp(req);
+  const rec = failures.get(ip);
+  if (rec && rec.until > Date.now()) {
+    const mins = Math.ceil((rec.until - Date.now()) / 60000);
+    return sendHtml(res, 429, loginPage(`Too many attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`));
+  }
+  const raw = await readBody(req, 4096).catch(() => null);
+  const given = raw ? (new URLSearchParams(raw.toString()).get("password") || "") : "";
+  if (raw && passwordOk(given)) {
+    failures.delete(ip);
+    const token = crypto.randomBytes(32).toString("hex");
+    sessions.set(token, Date.now() + SESSION_DAYS * 86400000);
+    return sendHtml(res, 303, "", { Location: "/", "Set-Cookie": sessionCookie(token, SESSION_DAYS * 86400) });
+  }
+  const next = { count: (rec ? rec.count : 0) + 1, until: 0 };
+  if (next.count >= MAX_FAILS) { next.until = Date.now() + LOCKOUT_MS; next.count = 0; }
+  failures.set(ip, next);
+  console.warn(`Failed sign-in from ${ip}${next.until ? " (locked out for 15 minutes)" : ""}`);
+  await new Promise((r) => setTimeout(r, 500));          // slows down guessing
+  return sendHtml(res, 401, loginPage("Wrong password."));
+}
+
+// Runs before every request. Returns true when the request may continue to the normal routes.
+async function guard(req, res, url) {
+  applySecurityHeaders(res);
+  if (url.pathname === "/healthz") { res.writeHead(200, { "Content-Type": "text/plain" }); res.end("ok"); return false; }
+
+  if (!hostAllowed(req)) {
+    res.writeHead(421, { "Content-Type": "text/plain" });
+    res.end(REMOTE ? `Use ${PUBLIC.origin}` : "Open this at http://localhost");
+    return false;
+  }
+  const writes = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+  if (writes && !originAllowed(req)) {
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "cross-site request blocked" }));
+    return false;
+  }
+  if (!REMOTE) return true;
+
+  const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  if (proto !== "https") {                                  // the proxy must be speaking HTTPS to the browser
+    if (!writes) { res.writeHead(308, { Location: PUBLIC.origin + req.url }); res.end(); }
+    else { res.writeHead(400, { "Content-Type": "text/plain" }); res.end("HTTPS required"); }
+    return false;
+  }
+  if (url.pathname === "/login") { await handleLogin(req, res); return false; }
+  if (url.pathname === "/logout" && req.method === "POST") {
+    const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+    if (token) sessions.delete(token);
+    res.writeHead(204, { "Set-Cookie": sessionCookie("", 0) });
+    res.end();
+    return false;
+  }
+  if (sessionValid(req)) return true;
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/update-check"].includes(url.pathname);
+  if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
+  else { res.writeHead(302, { Location: "/login" }); res.end(); }
+  return false;
+}
+
+if (REMOTE) {
+  setInterval(() => {                                       // forget expired sessions and old lockouts
+    const now = Date.now();
+    for (const [t, exp] of sessions) if (exp < now) sessions.delete(t);
+    for (const [ip, r] of failures) if (r.until < now && r.count === 0) failures.delete(ip);
+    if (failures.size > 5000) failures.clear();
+  }, 10 * 60 * 1000).unref();
+}
+
+function readBody(req, limit) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (c) => chunks.push(c));
+    let size = 0;
+    req.on("data", (c) => {
+      size += c.length;
+      if (limit && size > limit) { reject(new Error("body too large")); req.destroy(); return; }
+      chunks.push(c);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, "http://localhost");
+  let url;
+  try { url = new URL(req.url, "http://localhost"); } catch (e) { res.writeHead(400); return res.end(); }
+  if (!(await guard(req, res, url))) return;
 
   if (req.method === "GET" && url.pathname === "/update-check") return serveUpdate(res);
   if (req.method === "GET" && url.pathname === "/search") return serveSearch(url, res);
@@ -365,7 +591,8 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/" || url.pathname === "/index.html") {
     // Pass the configured notes-bullet name to the page through its notes-name meta tag.
     const page = fs.readFileSync(path.join(__dirname, "index.html"), "utf8")
-      .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b);
+      .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)
+      .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     return res.end(page);
   }
@@ -374,7 +601,9 @@ const server = http.createServer(async (req, res) => {
   res.end("not found");
 });
 
-// Localhost only: your key has full access to your outline.
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Workflowy Week Board v${VERSION} running at http://localhost:${PORT}  (API: ${BASE}, notes bullet: "${NOTES_NAME}")`);
+// Your key has full access to your outline: "local" listens on this computer only; the other modes require a login.
+server.listen(PORT, HOST, () => {
+  const where = REMOTE ? PUBLIC.origin : `http://localhost:${PORT}`;
+  console.log(`Workflowy Week Board v${VERSION} running at ${where}  (mode: ${MODE}, listening on ${HOST}:${PORT}, API: ${BASE}, notes bullet: "${NOTES_NAME}")`);
+  if (REMOTE) console.log(`Login required. Sessions last ${SESSION_DAYS} day${SESSION_DAYS === 1 ? "" : "s"}.`);
 });

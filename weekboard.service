@@ -1,0 +1,40 @@
+# systemd service for the Workflowy Week Board (DEPLOY_MODE=vps).
+# Install:
+#   sudo cp weekboard.service /etc/systemd/system/weekboard.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now weekboard
+# Logs:  sudo journalctl -u weekboard -f
+#
+# Assumes: server.js and index.html are in /opt/weekboard, secrets are in /etc/weekboard.env,
+# and node is at /usr/bin/node (check with: which node).
+[Unit]
+Description=Workflowy Week Board
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=weekboard
+Group=weekboard
+WorkingDirectory=/opt/weekboard
+EnvironmentFile=/etc/weekboard.env
+ExecStart=/usr/bin/node /opt/weekboard/server.js
+Restart=always
+RestartSec=5
+
+# Lock the service down: it only needs to read its own files and make outgoing web requests.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+ReadOnlyPaths=/opt/weekboard
+
+[Install]
+WantedBy=multi-user.target

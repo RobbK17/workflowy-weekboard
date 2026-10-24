@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.4">
+<meta name="version" content="1.0.5">
 <meta name="notes-name" content="WB-Notes">
+<meta name="remote" content="0">
 <title>Workflowy Week Board</title>
 <style>
   :root {
@@ -203,7 +204,7 @@
         placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
       <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
     </section>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.4</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.5</span></div>
   </aside>
 </div>
 
@@ -307,6 +308,7 @@ async function call(method, path, body) {
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401) { location.href = "/login"; throw new Error("Signed out. Redirecting to the sign-in page…"); }
   if (res.status === 404 && method === "GET") return null;   // day not created yet = empty column
   if (!res.ok) throw new Error(`${method} ${path} failed (${res.status}): ${await res.text()}`);
   return res.json();
@@ -1055,6 +1057,7 @@ for (const [el, k] of [[fCompleted, "sCompleted"], [fTodos, "sTodos"], [fNotes, 
 // GET a JSON answer from one of this server's own helper endpoints (/search, /item).
 async function api(path) {
   const res = await fetch(path);
+  if (res.status === 401) { location.href = "/login"; throw new Error("Signed out. Redirecting to the sign-in page…"); }
   let data = null;
   try { data = await res.json(); } catch (e) { /* not JSON */ }
   if (!res.ok) throw new Error((data && data.error) || `${path.split("?")[0]} failed (${res.status})`);
@@ -1238,6 +1241,18 @@ searchInput.addEventListener("keydown", (e) => {
     if (el) el.click();
   }
 });
+// Hosted mode (vps or fly): the server asks for a password, so offer a way to sign out.
+if (document.querySelector('meta[name="remote"]').content === "1") {
+  const out = document.createElement("a");
+  out.href = "#"; out.textContent = "Sign out"; out.style.cssText = "cursor:pointer;color:inherit;font-weight:400;text-decoration:underline";
+  out.onclick = async (e) => {
+    e.preventDefault();
+    try { await fetch("/logout", { method: "POST" }); } catch (err) { /* leave anyway */ }
+    location.href = "/login";
+  };
+  document.getElementById("ver").append(" · ", out);
+}
+
 // Update check: the server looks at GitHub (at most every 6 hours) and tells us the newest version.
 function newer(a, b) {      // is version a newer than b?
   const x = a.split(".").map(Number), y = b.split(".").map(Number);

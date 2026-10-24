@@ -1,0 +1,35 @@
+# Fly.io settings for the Workflowy Week Board.
+# 1. Change both CHANGE-ME values below (the app name must be unique across Fly).
+# 2. Secrets (your WorkFlowy key and the sign-in password) are NOT stored here. Set them with:
+#      fly secrets set WORKFLOWY_API_KEY=... BOARD_PASSWORD=...
+app = "CHANGE-ME"
+primary_region = "iad"          # pick the region closest to you: https://fly.io/docs/reference/regions/
+
+[build]
+
+[env]
+  DEPLOY_MODE = "fly"
+  PORT = "8080"
+  PUBLIC_URL = "https://CHANGE-ME.fly.dev"   # must match the address you visit (use your own domain if you add one)
+  # NOTES_NAME = "WB-Notes"
+  # IDLE_PURGE_MINUTES = "10"
+  # SESSION_DAYS = "7"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # One machine, always on: sign-in sessions and the search copy live in its memory.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"              # your whole outline is held in memory while search is in use

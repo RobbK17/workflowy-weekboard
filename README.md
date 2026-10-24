@@ -4,7 +4,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.0.4**
+**Version 1.0.5**
 
 ## What's in the box
 
@@ -12,6 +12,8 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 |------|--------------|
 | `server.js` | A tiny Node server. It holds your API key, forwards requests to WorkFlowy, and serves the page. Your key never reaches the browser. |
 | `index.html` | The board itself (a single page, no build step, no dependencies). |
+| `Dockerfile`, `fly.toml`, `.dockerignore` | Only for Option 3 (Fly.io). |
+| `deploy/weekboard.service`, `deploy/weekboard.env.example`, `deploy/Caddyfile` | Only for Option 2 (your own server). |
 
 ## Requirements
 
@@ -21,7 +23,30 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 No `npm install` is needed.
 
-## Installation
+## Choose how to run it (required)
+
+The server will not start until you choose, by setting `DEPLOY_MODE` to one of three values. There is no default, because the choice decides who can reach your outline.
+
+| `DEPLOY_MODE` | Where it runs | Who can reach it | Login | HTTPS |
+|---------------|---------------|------------------|-------|-------|
+| `local` | Your own computer | Only that computer (`http://localhost`) | None | Not needed |
+| `vps` | Your own server (a VPS) behind Caddy | Anyone who can open your address, after signing in | Password | Caddy, automatic |
+| `fly` | Fly.io | Anyone who can open your address, after signing in | Password | Fly, automatic |
+
+- Pick **local** to use it on one computer. Nothing else on your network can connect.
+- Pick **vps** or **fly** to use it from several devices. Your whole outline is then behind a login on the internet, so follow the steps for that option closely.
+- `vps` and `fly` refuse to start without `BOARD_PASSWORD` (at least 12 characters) and `PUBLIC_URL` (the `https://` address you will visit).
+- Start it without `DEPLOY_MODE` and the server prints these three choices and exits.
+
+What the hosted modes (`vps` and `fly`) add:
+- A sign-in page in front of everything. A wrong password is slowed down, and 5 wrong tries from one address lock that address out for 15 minutes.
+- A sign-in cookie that only works over HTTPS, can't be read by scripts, and isn't sent from other websites. Sessions last 7 days (`SESSION_DAYS`) and end at **Sign out** (bottom right of the sidebar) or when the server restarts.
+- Plain `http://` requests are redirected to `https://`, and only your own address is accepted.
+- Changes (adding, editing, deleting) are only accepted from the board's own page, so another website can't make them for you.
+
+All modes also check the address in the browser's request, which blocks "DNS rebinding" tricks, and send security headers.
+
+## Option 1: Localhost (`DEPLOY_MODE=local`)
 
 1. Put `server.js` and `index.html` in the same folder.
 2. Get your API key from <https://workflowy.com/api-key>.
@@ -29,6 +54,7 @@ No `npm install` is needed.
 
 **Windows, Command Prompt:**
 ```
+set DEPLOY_MODE=local
 set WORKFLOWY_API_KEY=your_key_here
 node server.js
 ```
@@ -36,18 +62,19 @@ Don't put quotes around the key or spaces around the `=`.
 
 **Windows, PowerShell:**
 ```
+$env:DEPLOY_MODE="local"
 $env:WORKFLOWY_API_KEY="your_key_here"
 node server.js
 ```
 
 **Mac or Linux:**
 ```
-WORKFLOWY_API_KEY=your_key_here node server.js
+DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key_here node server.js
 ```
 
 4. Open <http://localhost:3000> in your browser.
 
-On Windows the key only lasts for that terminal window, so set it again each time you open a new one.
+On Windows the settings only last for that terminal window, so set them again each time you open a new one.
 
 ### Windows: use the Windows certificates (if needed)
 
@@ -56,6 +83,7 @@ If you're on Windows and see a certificate error such as `UNABLE_TO_GET_ISSUER_C
 **Command Prompt:**
 ```
 set NODE_USE_SYSTEM_CA=1
+set DEPLOY_MODE=local
 set WORKFLOWY_API_KEY=your_key_here
 node server.js
 ```
@@ -63,21 +91,111 @@ node server.js
 **PowerShell:**
 ```
 $env:NODE_USE_SYSTEM_CA="1"
+$env:DEPLOY_MODE="local"
 $env:WORKFLOWY_API_KEY="your_key_here"
 node server.js
 ```
 
 Like the API key, this only lasts for that terminal window. If you'd like it to stick, set it as a permanent user environment variable instead (`setx NODE_USE_SYSTEM_CA 1`, then open a new terminal).
 
-### Configuration
+## Option 2: Your own server (`DEPLOY_MODE=vps`)
+
+The board runs as a service on a Linux VPS (these steps assume Ubuntu or Debian). The app only listens on that machine, and Caddy sits in front of it, handles HTTPS, and passes requests through.
+
+**You need:** a VPS you control, a domain or subdomain (for example `board.example.com`), and root (`sudo`) access.
+
+1. **Point your domain at the server.** Create a DNS `A` record for the name pointing at the server's IP address.
+2. **Lock down the server.** Use SSH keys only, and open just the ports you need:
+   ```
+   sudo ufw allow OpenSSH
+   sudo ufw allow 80
+   sudo ufw allow 443
+   sudo ufw enable
+   ```
+   Don't open port 3000. The app is only reachable through Caddy.
+3. **Install Node.js 22 and Caddy.** See <https://nodejs.org/en/download> and <https://caddyserver.com/docs/install>. Check with `node --version` and `which node` (the service file expects `/usr/bin/node`).
+4. **Create a user and put the files in place:**
+   ```
+   sudo useradd --system --home /opt/weekboard --shell /usr/sbin/nologin weekboard
+   sudo mkdir -p /opt/weekboard
+   sudo cp server.js index.html /opt/weekboard/
+   ```
+5. **Store the secrets** outside the project folder, readable only by root. Make a password first with `openssl rand -base64 24` and save it in your password manager.
+   ```
+   sudo cp deploy/weekboard.env.example /etc/weekboard.env
+   sudo chown root:root /etc/weekboard.env
+   sudo chmod 600 /etc/weekboard.env
+   sudo nano /etc/weekboard.env
+   ```
+   Fill in `WORKFLOWY_API_KEY`, `BOARD_PASSWORD` and `PUBLIC_URL` (for example `https://board.example.com`). `DEPLOY_MODE=vps` is already in the file.
+6. **Start the service:**
+   ```
+   sudo cp deploy/weekboard.service /etc/systemd/system/weekboard.service
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now weekboard
+   sudo journalctl -u weekboard -f
+   ```
+   The log should say `running at https://board.example.com (mode: vps, listening on 127.0.0.1:3000 ...)`. If it exits, the message says what's missing.
+7. **Set up HTTPS.** Edit `deploy/Caddyfile` so the first line is your domain (it must match `PUBLIC_URL`), then:
+   ```
+   sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+   sudo systemctl reload caddy
+   ```
+   Caddy gets and renews the certificate by itself.
+8. Open your `https://` address and sign in with `BOARD_PASSWORD`.
+
+**Check it's closed properly:** `sudo ss -ltnp | grep 3000` should show `127.0.0.1:3000` and not `0.0.0.0:3000`. From another computer, `http://YOUR_SERVER_IP:3000` should not connect.
+
+**Updating:** copy the new `server.js` and `index.html` into `/opt/weekboard/`, then `sudo systemctl restart weekboard`.
+**Changing a secret:** edit `/etc/weekboard.env`, then `sudo systemctl restart weekboard`. If your WorkFlowy key may have leaked, create a new one at <https://workflowy.com/api-key> and put that in.
+
+## Option 3: Fly.io (`DEPLOY_MODE=fly`)
+
+Fly builds a small container from the `Dockerfile` and runs it with HTTPS and a `*.fly.dev` address.
+
+**You need:** a Fly.io account and the `flyctl` command (<https://fly.io/docs/flyctl/install/>).
+
+1. **Put these files in one folder:** `server.js`, `index.html`, `Dockerfile`, `.dockerignore`, `fly.toml`.
+2. **Sign in:** `fly auth login`
+3. **Edit `fly.toml`.** Change `app` to a unique name (for example `my-weekboard`), and change `PUBLIC_URL` to `https://my-weekboard.fly.dev` (the same name). Optionally change `primary_region`.
+4. **Create the app (without deploying yet):**
+   ```
+   fly launch --no-deploy --copy-config --name my-weekboard
+   ```
+   If it asks to change settings, say no. Your `fly.toml` is already set up.
+5. **Set the secrets.** Make a password with `openssl rand -base64 24` and save it in your password manager, then:
+   ```
+   fly secrets set WORKFLOWY_API_KEY=your_key_here BOARD_PASSWORD=your_password_here
+   ```
+   Secrets are stored encrypted by Fly and are never written into `fly.toml` or the image.
+6. **Deploy, and keep it to one machine:**
+   ```
+   fly deploy
+   fly scale count 1
+   ```
+7. Open `https://my-weekboard.fly.dev` (or `fly open`) and sign in. Watch the log with `fly logs`.
+
+**Why one machine:** sign-in sessions and the search copy live in that machine's memory, so a second machine would sign you out at random. `fly.toml` also keeps the machine always on, so the sessions aren't lost when it would otherwise stop for being idle.
+**Memory:** `fly.toml` asks for 512 MB because your outline is held in memory while search is in use. Raise it with `fly scale memory 1024` if search fails on a very large outline.
+**Your own domain:** `fly certs add board.example.com`, point DNS where it says, then change `PUBLIC_URL` in `fly.toml` and run `fly deploy`.
+**Updating:** replace `server.js` and `index.html`, then `fly deploy`.
+**Changing a secret:** run `fly secrets set ...` again. The app restarts.
+**Never commit** secrets or put them in `fly.toml`.
+
+## Configuration
 
 All settings are environment variables, set the same way as the key above.
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
+| `DEPLOY_MODE` | **Yes** | none | `local`, `vps` or `fly`. See "Choose how to run it". The server won't start without it. |
 | `WORKFLOWY_API_KEY` | Yes | none | Your WorkFlowy API key. |
+| `BOARD_PASSWORD` | `vps` and `fly` | none | The sign-in password, at least 12 characters. Not used in `local`. |
+| `PUBLIC_URL` | `vps` and `fly` | none | The `https://` address you visit, for example `https://board.example.com`. Only requests for this address are accepted. |
+| `SESSION_DAYS` | No | `7` | How many days a sign-in lasts. |
+| `HOST` | No | `127.0.0.1` (`fly`: `0.0.0.0`) | Address to listen on. Rarely needed. `local` only allows `127.0.0.1`. |
 | `WORKFLOWY_BASE_URL` | No | `https://workflowy.com/api/v1` | API address. If you get errors, try `https://beta.workflowy.com/api/v1` (WorkFlowy's reference docs use that address). |
-| `PORT` | No | `3000` | Port to serve the board on. |
+| `PORT` | No | `3000` | Port to serve the board on (`fly.toml` sets 8080). |
 | `NOTES_NAME` | No | `WB-Notes` | Default name of the notes bullet on today's page. Each browser can override it with the ✎ button (see below). |
 | `UPDATE_CHECK` | No | on | Set to `0` to stop the board checking GitHub for a newer version. |
 | `UPDATE_URL` | No | this project's `server.js` on GitHub (`main` branch) | Raw address of a `server.js` to compare versions against (useful for a fork). |
@@ -164,6 +282,21 @@ Your antivirus or company network inspects HTTPS, and Node doesn't trust its cer
 
 Avoid `NODE_TLS_REJECT_UNAUTHORIZED=0`. It turns off certificate checking, so your key would go over an unverified connection.
 
+**The server exits right away saying to choose where you are running it**
+Set `DEPLOY_MODE` to `local`, `vps` or `fly` (see "Choose how to run it"). On Windows set it on its own line first, like the API key.
+
+**`vps` or `fly` exits asking for `BOARD_PASSWORD` or `PUBLIC_URL`**
+Both are required in the hosted modes. The password needs at least 12 characters, and `PUBLIC_URL` must start with `https://`.
+
+**"Use https://..." or a redirect loop on a hosted mode**
+The address you typed doesn't match `PUBLIC_URL`, or the proxy isn't passing the original address along. On a VPS check that the Caddyfile name matches `PUBLIC_URL` and that the file uses `reverse_proxy` as in `deploy/Caddyfile`.
+
+**"Too many attempts"**
+Five wrong passwords lock that address out for 15 minutes. Restarting the server also clears the lockout.
+
+**Signed out on its own**
+Sessions last 7 days and are cleared when the server restarts or redeploys. On Fly, make sure there is only one machine (`fly scale count 1`).
+
 **401 or 403 errors**
 The API key is wrong or missing. Generate a fresh one at <https://workflowy.com/api-key>.
 
@@ -192,9 +325,15 @@ Other easy changes:
 
 ## Security
 
-- The server listens on **localhost only** and only forwards the node endpoints the board needs (the browser can't reach the full export; only the server uses it, to build the search copy).
-- Your API key can read and change your whole outline. Keep it out of the browser, git repositories, and screenshots.
-- **Don't put this on a public address as-is.** There's no login, so anyone who could reach it could read, edit, and delete your outline. Before hosting on a VPS or Fly.io, add password protection and HTTPS, and set the key through the host's secret storage.
+- **Choice of mode.** `local` listens on `127.0.0.1` only. `vps` and `fly` are reachable from the internet and are protected by the password login, HTTPS-only cookies, the address check and the cross-site write check described under "Choose how to run it".
+- Your API key can read and change your whole outline. The browser never sees it. Keep it out of git repositories, screenshots and shared folders. On a VPS keep it in `/etc/weekboard.env` (root only, `chmod 600`). On Fly use `fly secrets`.
+- The browser can't reach WorkFlowy's full export. Only the server uses it, to build the search copy.
+- **Use a long, unique password** (`openssl rand -base64 24`). It is the only thing between the internet and your outline. There's no second step such as a one-time code, and the lockout is per address, so a very large distributed guessing attack is only limited by the password's strength.
+- **Your outline sits in the host's memory while search is in use,** unencrypted, and is cleared after 10 idle minutes (`IDLE_PURGE_MINUTES`). Use a host you trust. For `fly`, Fly staff and their infrastructure can in principle access a running machine.
+- It's a single-user app (one WorkFlowy key, one password). Don't share the password.
+- Sessions are kept in memory, so restarting the server signs everyone out. Run one instance only.
+- Keep the server patched (`sudo apt update && sudo apt upgrade`, or let unattended upgrades do it) and update Node.js and the board when new versions come out. On Fly, redeploy now and then to pick up a newer Node image.
+- If you'd rather not expose it publicly at all, run `vps` on a machine reachable only over a private network such as Tailscale, and keep the password on top.
 
 ## Known limitations
 
@@ -205,7 +344,7 @@ Other easy changes:
 - The Today's page view can complete todos, edit text, add lines under a bullet, and indent a line (**>**). It can't outdent, reorder, or delete lines, because the API can only place a moved or new line at the top or bottom of a parent, not right after a specific line. New lines (from the pad or the **+** button) always go to the bottom of their parent.
 - Dots on the calendar only appear for days already loaded.
 - Search works on the server's copy of your outline. Changes made in WorkFlowy itself appear after a refresh (Refresh index) or once the copy is more than 5 minutes old. Edits made through the board are applied to the copy, but a new task added to a day may show with no path (calendar pages) until the next refresh.
-- The whole outline is held in the server's memory while search is in use. That's fine for tens of thousands of items but heavy for very large outlines. It isn't encrypted, so the protection is the idle purge, the server listening on localhost only, and your own disk and account security.
+- The whole outline is held in the server's memory while search is in use. That's fine for tens of thousands of items but heavy for very large outlines. It isn't encrypted, so the protection is the idle purge, the login (hosted modes) or localhost-only access (`local`), and your own disk and account security.
 - Calendar day pages (such as 2026-10-23) can show up in results with their date as the path.
 - Settings are stored in the browser (`localStorage`), so they're per browser.
 - The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. It was tested against a mock of that API, so report anything that behaves differently on a real account.
