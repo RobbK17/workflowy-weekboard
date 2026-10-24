@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.5">
+<meta name="version" content="1.0.6">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <title>Workflowy Week Board</title>
@@ -104,12 +104,21 @@
   .pl { display: flex; gap: 6px; align-items: flex-start; padding: 2px 0; }
   .pl .b { flex: none; width: 13px; text-align: center; color: var(--muted); }
   .pl input[type=checkbox] { flex: none; margin: 2px 0 0; }
-  .pl .t { flex: 1; word-break: break-word; cursor: text; }
+  .pl .t { flex: 1; min-width: 0; word-break: break-word; cursor: text; }
+  .pl .pn { display: block; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+  .pl-edit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .pl-edit textarea { width: 100%; box-sizing: border-box; resize: none; overflow: hidden; font: inherit; color: inherit;
+    background: var(--card); border: 1px solid var(--accent); border-radius: 4px; padding: 3px 5px; }
+  .pl-edit .pe-note { font-size: 12px; border-color: var(--border); }
+  .pl-edit .pe-note:focus { border-color: var(--accent); outline: none; }
+  .pl-edit .pe-title:focus { outline: none; }
+  .pl-edit .pe-hint { font-size: 10px; color: var(--muted); }
   #moveNotes { margin-left: auto; }
-  .pl .addc, .pl .indc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
+  .pl .addc, .pl .indc, .pl .delc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
   .pl .addc:hover, .pl .indc:hover { color: var(--accent); }
-  .pl:hover .addc, .pl:hover .indc, .pl:focus-within .addc, .pl:focus-within .indc { opacity: 1; }
-  @media (hover: none) { .pl .addc, .pl .indc { opacity: 1; } }
+  .pl .delc:hover { color: #c0392b; }
+  .pl:hover .addc, .pl:hover .indc, .pl:hover .delc, .pl:focus-within .addc, .pl:focus-within .indc, .pl:focus-within .delc { opacity: 1; }
+  @media (hover: none) { .pl .addc, .pl .indc, .pl .delc { opacity: 1; } }
   .pl-add { padding: 2px 0 4px; }
   .pl-add input { width: 100%; font: inherit; padding: 3px 6px; border: 1px dashed var(--border);
                   border-radius: 4px; background: var(--card); color: var(--text); }
@@ -204,7 +213,7 @@
         placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
       <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
     </section>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.5</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.6</span></div>
   </aside>
 </div>
 
@@ -833,6 +842,98 @@ async function saveOutline() {
 }
 outSave.onclick = saveOutline;
 
+/* ---------- Editing a line in place (keeps bold, links and other formatting) ---------- */
+
+// WorkFlowy stores formatting as markup inside the text. These helpers let you edit just the visible words.
+const entityCache = {};
+function decodeEntity(e) {
+  return entityCache[e] || (entityCache[e] = new DOMParser().parseFromString(e, "text/html").body.textContent);
+}
+// Splits stored text into tags (no visible text), <br> (a line break), entities like &amp; and ordinary characters.
+function tokenize(raw) {
+  const out = [];
+  for (const m of String(raw || "").matchAll(/<br\s*\/?>|<[^>]*>|&(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);|[\s\S]/gi)) {
+    const r = m[0];
+    if (/^<br/i.test(r)) out.push({ raw: r, text: "\n" });
+    else if (r.length > 1 && r[0] === "<") out.push({ raw: r, text: "" });
+    else if (r.length > 1 && r[0] === "&") out.push({ raw: r, text: decodeEntity(r) });
+    else out.push({ raw: r, text: r });
+  }
+  return out;
+}
+const visibleText = (raw) => tokenize(raw).map((t) => t.text).join("");
+const escapeMarkup = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// The stored text to save after the visible words were changed from what visibleText(raw) gave to `next`.
+// Plain text is sent as typed. Formatted text keeps its tags: only the words that changed are replaced.
+function applyEdit(raw, next) {
+  const toks = tokenize(raw);
+  const old = toks.map((t) => t.text).join("");
+  if (old === next) return raw;
+  if (!toks.some((t) => t.raw !== t.text)) return next;
+  let p = 0;
+  while (p < old.length && p < next.length && old[p] === next[p]) p++;
+  let s = 0;
+  while (s < old.length - p && s < next.length - p && old[old.length - 1 - s] === next[next.length - 1 - s]) s++;
+  const delStart = p, delEnd = old.length - s, insert = escapeMarkup(next.slice(p, next.length - s));
+  const pureInsert = delStart === delEnd;
+  let pos = 0, out = "", inserted = false;
+  if (pureInsert && delStart === 0) { out = insert; inserted = true; }   // typing at the very start
+  for (const t of toks) {
+    if (!t.text.length) { out += t.raw; continue; }          // tags stay where they are
+    const a = pos, b = pos + t.text.length;
+    pos = b;
+    if (!pureInsert && !inserted && a >= delStart) { out += insert; inserted = true; }   // replacing: new words go where the old ones were
+    if (a >= delStart && b <= delEnd && !pureInsert) continue;   // a removed character
+    out += t.raw;
+    if (pureInsert && !inserted && b === delStart) { out += insert; inserted = true; }   // typing continues the formatting of the character before
+  }
+  if (!inserted) out += insert;
+  return visibleText(out) === next ? out : escapeMarkup(next);   // safety net: never save something that reads differently
+}
+
+// Replaces the line's text with editing boxes (title, and its note). Enter saves, Esc cancels, clicking away saves.
+function startEdit(n, textEl, onSaved) {
+  const origName = n.name || "", origNote = n.note || "";
+  const titleText = visibleText(origName), noteText = visibleText(origNote);
+  const box = document.createElement("div");
+  box.className = "pl-edit";
+  const title = document.createElement("textarea");
+  title.className = "pe-title"; title.rows = 1; title.value = titleText;
+  const note = document.createElement("textarea");
+  note.className = "pe-note"; note.rows = 2; note.value = noteText; note.placeholder = "Note";
+  const hint = document.createElement("div");
+  hint.className = "pe-hint"; hint.textContent = "Enter saves · Esc cancels · Shift+Enter: new line in the note";
+  box.append(title, note, hint);
+  textEl.replaceWith(box);
+  const fit = (el) => { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; };
+  [title, note].forEach((el) => { el.addEventListener("input", () => fit(el)); fit(el); });
+
+  let finished = false;
+  const finish = async (save) => {
+    if (finished) return;
+    finished = true;
+    if (!save) { box.replaceWith(textEl); return; }
+    const nextTitle = title.value.replace(/\s*\n\s*/g, " ").trim();
+    const nextNote = note.value.replace(/\s+$/, "");
+    const body = {};
+    if (nextTitle && nextTitle !== titleText) body.name = applyEdit(origName, nextTitle);
+    if (nextNote !== noteText) body.note = nextNote === "" ? "" : applyEdit(origNote, nextNote);
+    if (!Object.keys(body).length) { box.replaceWith(textEl); return; }
+    title.disabled = note.disabled = true;
+    try { await call("POST", `/nodes/${n.id}`, body); await onSaved(); }
+    catch (e) { showError(e.message); finished = false; title.disabled = note.disabled = false; title.focus(); }
+  };
+  const keys = (multiline) => (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); }
+    else if (e.key === "Enter" && !(multiline && e.shiftKey)) { e.preventDefault(); finish(true); }
+  };
+  title.addEventListener("keydown", keys(false));
+  note.addEventListener("keydown", keys(true));
+  box.addEventListener("focusout", () => setTimeout(() => { if (!finished && !box.contains(document.activeElement)) finish(true); }, 0));
+  title.focus(); title.select();
+}
+
 /* ---------- Today's page (read from WorkFlowy, shown above the pad) ---------- */
 
 const PAGE_DEPTH = 12;       // how many levels of nesting to read (each bullet costs one request)
@@ -888,14 +989,16 @@ function renderPage() {
     tree.innerHTML = `<div class="empty">No notes on today's page yet</div>`;
     return;
   }
-  const walk = (nodes, level) => {
+  // inNotes: this line is the notes bullet or sits inside it. Those lines can't be removed from here.
+  const walk = (nodes, level, inNotes) => {
     nodes.forEach((n, i) => {
-      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null));
-      if (n.children) walk(n.children, level + 1);
+      const here = inNotes || (!viewItem && level === 0 && sameName(plain(n.name), notesName));
+      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, !viewItem && !here));
+      if (n.children) walk(n.children, level + 1, here);
       if (addingFor === n.id) tree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
     });
   };
-  walk(roots, 0);
+  walk(roots, 0, false);
   tree.scrollTop = keepScroll;
   const box = tree.querySelector(".pl-add input");
   if (box) box.focus();
@@ -924,7 +1027,7 @@ function addRow(parent, level) {
 
 // One line of today's page. Todos get a checkbox; double-click any line to edit its text.
 // `prev` is the line directly above at the same level (none for the first line of a group).
-function pageLine(n, level, prev) {
+function pageLine(n, level, prev, removable) {
   const mode = (n.data && n.data.layoutMode) || "bullets";
   const row = document.createElement("div");
   row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "");
@@ -951,17 +1054,19 @@ function pageLine(n, level, prev) {
 
   const t = document.createElement("span");
   t.className = "t";
-  t.textContent = plain(n.name) || "(empty)";
-  t.title = "Double-click to edit";
-  t.addEventListener("dblclick", async () => {
-    const current = plain(n.name);
-    const next = prompt("Edit line", current);
-    if (next === null || next.trim() === "" || next === current) return;
-    try {
-      await call("POST", `/nodes/${n.id}`, { name: next.trim() });
+  t.textContent = visibleText(n.name) || "(empty)";
+  if (n.note && n.note.trim()) {                       // first line of the note, small and grey
+    const pn = document.createElement("small");
+    pn.className = "pn"; pn.textContent = visibleText(n.note).split("\n")[0];
+    t.appendChild(pn);
+  }
+  t.title = "Click to edit";
+  t.addEventListener("click", () => {
+    if (String(window.getSelection && window.getSelection()) !== "") return;   // selecting text isn't editing
+    startEdit(n, t, async () => {
       if (viewItem) await reloadItem();
       else { await Promise.all([loadPage(), loadDay(key(new Date()))]); render(); }
-    } catch (e) { showError(e.message); }
+    });
   });
   row.appendChild(t);
 
@@ -983,6 +1088,22 @@ function pageLine(n, level, prev) {
   plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one";
   plus.addEventListener("click", () => { addingFor = addingFor === n.id ? null : n.id; renderPage(); });
   row.appendChild(plus);
+
+  // "−" removes a line (and anything under it) from today's page. Not offered inside the notes bullet.
+  if (removable) {
+    const countBelow = (x) => (x.children || []).reduce((t, c) => t + 1 + countBelow(c), 0);
+    const minus = document.createElement("button");
+    minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
+    minus.addEventListener("click", async () => {
+      const below = countBelow(n);
+      const label = plain(n.name) || "(empty)";
+      if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
+      minus.disabled = true;
+      try { await call("DELETE", `/nodes/${n.id}`); await loadPage(); }
+      catch (e) { showError(e.message); minus.disabled = false; }
+    });
+    row.appendChild(minus);
+  }
   return row;
 }
 

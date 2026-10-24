@@ -4,7 +4,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.0.5**
+**Version 1.0.6**
 
 ## What's in the box
 
@@ -227,10 +227,13 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 **Sidebar (far right)**
 - **Calendar:** click a day to jump the board to that week. Today is outlined, the days on screen are shaded, and a dot marks days with open tasks (only for days the board has already loaded).
 - **Past due / Upcoming** panels appear under the calendar when switched on.
-- **Today's page:** shows the notes on today's WorkFlowy daily page, nested like the outline (up to 12 levels; the pane scrolls when it's long). Tasks are left out: any todo sitting directly on the page appears on the board, not here. (A todo nested deeper, such as inside WB-Notes, still shows with a checkbox, since the board doesn't display those.) Double-click any line to edit its text. It reloads when you open the board, after you save from the pad, and with its own ↻ button.
+- **Today's page:** shows the notes on today's WorkFlowy daily page, nested like the outline (up to 12 levels; the pane scrolls when it's long). Tasks are left out: any todo sitting directly on the page appears on the board, not here. (A todo nested deeper, such as inside WB-Notes, still shows with a checkbox, since the board doesn't display those.) Click a line's text to edit it in place (see below). It reloads when you open the board, after you save from the pad, and with its own ↻ button.
   - The **⤢** button in the pane's header expands it to fill the whole sidebar (the calendar and Past due / Upcoming panels are hidden, and the add pad stays underneath). Click **⤡** to go back. Your choice is remembered.
   - The sidebar always fits the window. The calendar and the Past due / Upcoming panels keep their size, Today's page takes the room that's left, and it scrolls inside itself (so the sidebar doesn't scroll as a whole, except on a very small window).
+  - **Editing a line in place:** click a line's text and it turns into a box right where it is, with the text selected. **Enter** saves, **Esc** cancels, and clicking away saves. A second box underneath holds the line's **note** (the smaller grey text WorkFlowy can show under a bullet). **Shift+Enter** starts a new line in the note, and saving an empty note removes it. A line that has a note shows its first line in small grey type under the title. Only what you changed is saved, and an empty title is ignored.
+  - **Formatting survives.** WorkFlowy stores bold, italics and links as markup inside the text. The box shows only the words, and on saving, only the words you changed are replaced, so formatting around them stays. Words typed right after a bold word become bold, like in a normal editor. If a line's formatting can't be matched safely, the line is saved as plain text rather than risk garbling it.
   - Hover a line and click **>** to indent it: it becomes the last child of the line above it and takes its own sub-bullets along. The first line in a group has no **>**, since there's nothing above it to indent under.
+  - Hover a line and click **−** to delete it. It asks first, and anything under the line is deleted too (the confirmation says how many lines). The **−** is not offered on the notes bullet (WB-Notes) or on anything inside it, so your notes can't be removed from here. Deleting is permanent.
   - Hover a line and click **+** to add a new line under it (as its last child). The box stays open so you can add several in a row; press Enter to add and Esc to close.
 - **Add to WB-Notes:** a pad underneath for your daily notes. Everything you save goes into a single bullet on today's page (named **WB-Notes** by default), so your notes stay together.
   - The board finds the WB-Notes bullet by name each day and creates it (at the bottom of the page) if it isn't there yet, so saving again and again just keeps adding to it.
@@ -249,7 +252,7 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 - Results show 50 at a time, each with its path (the lines above it) and the match highlighted. Click **Show 50 more** at the bottom of the list to see the rest.
 - **Filters:** *Include completed*, *Todos only*, and *Search notes* (the text under an item). They're remembered in your browser.
 - Use the arrow keys and Enter, or click a result, to open it. Esc closes the window.
-- The item opens in an **editor over the list**, inside the search window, so Today's page in the sidebar stays as it was. Edit it like Today's page: double-click to edit text, tick todos, **+** to add a child, **>** to indent. Click **← Results** (or press Esc) to go back to the list with your search still in place. **Open in WorkFlowy ↗** jumps to the item in WorkFlowy, and **↻** in the editor's header downloads a fresh copy.
+- The item opens in an **editor over the list**, inside the search window, so Today's page in the sidebar stays as it was. Edit it like Today's page: click the text to edit it in place (title and note), tick todos, **+** to add a child, **>** to indent. Click **← Results** (or press Esc) to go back to the list with your search still in place. **Open in WorkFlowy ↗** jumps to the item in WorkFlowy, and **↻** in the editor's header downloads a fresh copy.
 - The window's **Refresh index** button (and the **↻** in the item editor) downloads a fresh copy. WorkFlowy allows the export once a minute, so the server declines refreshes sooner than a minute apart (you'll see a note). The server also re-downloads on its own when the copy is more than 5 minutes old and you search.
 - **Idle purge:** after 10 minutes without a search, the server throws its copy away, so nothing sits in memory while you aren't using search. The next search downloads it again (a few seconds). Change the time with `IDLE_PURGE_MINUTES` (`0` keeps it until the server stops).
 - Edits made through the board or the item editor are applied to the server's copy as they happen, so they're searchable straight away.
@@ -339,9 +342,9 @@ Other easy changes:
 
 - No live sync with WorkFlowy (reload to pick up outside changes).
 - Dragging between days uses mouse events and doesn't work by touch.
-- Editing a task shows it as plain text, so bold, links, and other formatting are lost if you save an edit.
+- Editing a task **on the board** (double-click, in a dialog) shows it as plain text, so bold, links, and other formatting are lost if you save an edit. Editing in Today's page or the item editor keeps formatting (see "Editing a line in place").
 - Reordering tasks within a day isn't supported, only moving between days.
-- The Today's page view can complete todos, edit text, add lines under a bullet, and indent a line (**>**). It can't outdent, reorder, or delete lines, because the API can only place a moved or new line at the top or bottom of a parent, not right after a specific line. New lines (from the pad or the **+** button) always go to the bottom of their parent.
+- The Today's page view can complete todos, edit text, add lines under a bullet, and indent a line (**>**). It can't outdent or reorder lines, because the API can only place a moved or new line at the top or bottom of a parent, not right after a specific line. It can delete lines (**−**), except the notes bullet and what's inside it. New lines (from the pad or the **+** button) always go to the bottom of their parent.
 - Dots on the calendar only appear for days already loaded.
 - Search works on the server's copy of your outline. Changes made in WorkFlowy itself appear after a refresh (Refresh index) or once the copy is more than 5 minutes old. Edits made through the board are applied to the copy, but a new task added to a day may show with no path (calendar pages) until the next refresh.
 - The whole outline is held in the server's memory while search is in use. That's fine for tens of thousands of items but heavy for very large outlines. It isn't encrypted, so the protection is the idle purge, the login (hosted modes) or localhost-only access (`local`), and your own disk and account security.

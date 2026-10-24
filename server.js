@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.0.5
+// Version 1.0.6
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.0.5";
+const VERSION = "1.0.6";
 
 const http = require("http");
 const fs = require("fs");
@@ -256,7 +256,7 @@ function sortedKids(id) {
 
 function itemTree(n, depth) {
   return {
-    id: n.id, name: n.name, data: { layoutMode: n.layoutMode }, completedAt: n.completedAt,
+    id: n.id, name: n.name, note: n.note, data: { layoutMode: n.layoutMode }, completedAt: n.completedAt,
     children: depth > 1 ? sortedKids(n.id).map((c) => itemTree(c, depth - 1)) : [],
   };
 }
