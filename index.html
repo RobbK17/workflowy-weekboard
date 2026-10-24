@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.6">
+<meta name="version" content="1.0.7">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <title>Workflowy Week Board</title>
@@ -21,8 +21,21 @@
          height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
   header { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 16px; flex-wrap: wrap; }
   header h1 { font-size: 17px; margin: 0 8px 0 0; flex: 0 1 auto; min-width: 200px; }
-  .hsearch { flex: 1; display: flex; justify-content: center; min-width: 0; }
+  .hsearch { flex: 1; display: flex; justify-content: center; min-width: max-content; }
+  #searchBtn { white-space: nowrap; }
+  .opts select { font: inherit; font-size: 13px; padding: 1px 2px; }
   header h1 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; white-space: nowrap; }
+  .settings { position: relative; }
+  .pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; width: 300px; max-width: calc(100vw - 24px); box-sizing: border-box;
+         background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px;
+         box-shadow: 0 8px 24px rgba(0,0,0,.25); display: flex; flex-direction: column; }
+  .pop[hidden] { display: none; }
+  .pop label { display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .pop label:hover { background: rgba(127,127,127,.14); }
+  .pop label span { flex: 1; min-width: 0; }
+  .pop label small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .pop input[type=checkbox] { margin-top: 3px; }
+  .pop select { flex: none; font: inherit; font-size: 13px; padding: 2px 4px; }
   .opts { display: flex; gap: 12px; align-items: center; font-size: 13px; flex-wrap: wrap; }
   .opts label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
   button { font: inherit; background: var(--card); color: var(--text); border: 1px solid var(--border);
@@ -43,7 +56,7 @@
   #main { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 0 16px 16px; }
   #board { flex: 1; min-width: 0; display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; align-items: flex-start; }
   /* The sidebar is exactly as tall as the window area. Its panels flex to fit and scroll inside themselves
-     (Today's page takes whatever room is left), so the column as a whole only scrolls on a tiny window. */
+     (Daily page takes whatever room is left), so the column as a whole only scrolls on a tiny window. */
   #side { flex: 0 0 300px; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
   #extras { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
   #extras:empty { display: none; }
@@ -51,6 +64,15 @@
   .panel h3 { font-size: 13px; margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
   .panel h3 span { color: var(--muted); font-weight: 400; margin-left: auto; }
   .panel h3 .mini { padding: 0 6px; font-size: 12px; }
+  /* The Daily page header stays on one line: [title] [‹ date ›] [expand] [reload]. Only the date shrinks (with …) if space runs out. */
+  #pageHead { flex-wrap: nowrap; gap: 4px; overflow: hidden; white-space: nowrap; }
+  #pageHead > * { flex: none; }
+  #pageHead .mini { padding: 0 5px; }
+  #pageHead .mini.nav { font-size: 18px; line-height: 1; padding: 0 6px 2px; }
+  #pageHead #pagePrev { margin-left: auto; }
+  #pageHead #outTitle { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  #pageHead #outTitle.away { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  #pageHead #pageExpand { margin-left: 4px; }
 
   /* Day columns: header (title + add box) stays put, tasks scroll underneath. */
   .col { flex: 1 0 220px; display: flex; flex-direction: column; max-height: 100%;
@@ -72,9 +94,42 @@
   .card input[type=checkbox] { margin-top: 3px; }
   .txt { flex: 1; word-break: break-word; }
   .note, .badge { display: block; font-size: 12px; color: var(--muted); }
-  .del { border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
-  .card:hover .del, .card:focus-within .del { opacity: 1; }
-  @media (hover: none) { .del { opacity: 1; } }
+  .via { display: block; font-size: 11px; color: var(--muted); margin-bottom: 1px; }
+  .card.nested { cursor: default; }
+  .grp { background: var(--card); border-radius: 6px; padding: 8px; margin-bottom: 6px; box-shadow: 0 1px 1px rgba(0,0,0,.12); cursor: grab; }
+  .grp.dragging { opacity: .4; }
+  .grp .gh { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .grp .gh .ga { flex: none; border: none; background: none; color: var(--text); opacity: .8; font-size: 14px; line-height: 1; padding: 0 2px; cursor: pointer; width: 16px; }
+  .grp .gh .ga:hover { color: var(--accent); opacity: 1; }
+  .grp .gh .gt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grp .gh .mv { flex: none; }
+  .grp .gh .gc { flex: none; font-weight: 400; font-size: 11px; color: var(--muted); background: rgba(127,127,127,.18); border-radius: 10px; padding: 0 7px; white-space: nowrap; }
+  .grp .gl { margin-top: 6px; padding-left: 4px; border-left: 2px solid rgba(127,127,127,.25); }
+  .grp .gh .badge { display: inline; margin-left: 6px; font-weight: 400; }
+  .subtog { display: inline-block; margin-top: 3px; padding: 0 6px; border: none; border-radius: 10px; background: rgba(127,127,127,.18);
+            color: var(--muted); font-size: 11px; cursor: pointer; }
+  .subtog:hover { color: var(--accent); }
+  .sublist { margin: 4px 0 0; padding-left: 4px; border-left: 2px solid rgba(127,127,127,.25); }
+  .sublist .sublist { margin-left: 10px; }
+  .si { display: flex; gap: 6px; align-items: flex-start; font-size: 13px; padding: 1px 0; cursor: default; }
+  .si .sb { flex: none; width: 13px; text-align: center; color: var(--muted); }
+  .si input[type=checkbox] { margin: 2px 0 0; }
+  .si.done .st2 { text-decoration: line-through; color: var(--muted); }
+  .si .st2 { flex: 1; min-width: 0; word-break: break-word; }
+  .subload { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .del, .mv { border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; display: inline-flex; align-items: center; justify-content: center; height: 20px; line-height: 1; flex: none; }
+  .card:hover .del, .card:focus-within .del, .card:hover .mv, .card:focus-within .mv, .grp:hover .mv, .grp:focus-within .mv { opacity: 1; }
+  @media (hover: none) { .del, .mv { opacity: 1; } }
+  .mv:hover { color: var(--accent); }
+  .del:hover { color: #de350b; }
+  .card { position: relative; }
+  .movepop { position: fixed; z-index: 80; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 8px; width: 250px; font-size: 13px; }
+  .movepop .mq, .movepop .mr { display: flex; gap: 6px; }
+  .movepop button { padding: 5px 9px; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--text); cursor: pointer; font: inherit; }
+  .movepop .mq button { flex: 1; white-space: nowrap; padding: 5px 4px; }
+  .movepop .mr input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  .movepop .go { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .movepop .cancel { color: var(--muted); }
   .add { display: block; width: 100%; padding: 7px 8px; border: 1px dashed var(--border); border-radius: 6px;
          background: transparent; color: var(--text); font: inherit; }
   .empty { color: var(--muted); font-size: 12px; padding: 2px 4px 8px; }
@@ -93,8 +148,8 @@
                     border-radius: 50%; background: var(--accent); }
 
   /* Outliner */
-  /* Today's page: read from WorkFlowy, nested like the outline */
-  /* Today's page fills the space left in the sidebar and scrolls inside itself. */
+  /* Daily page: read from WorkFlowy, nested like the outline */
+  /* Daily page fills the space left in the sidebar and scrolls inside itself. */
   #outliner { flex: 1 1 0; min-height: 300px; display: flex; flex-direction: column; }
   #outliner > h3, #outliner > #outline, #outliner > .outbar, #outliner > .viewbar { flex: none; }
   .pagetree { flex: 1 1 0; min-height: 60px; overflow-y: auto; scrollbar-width: thin; background: var(--card);
@@ -102,6 +157,10 @@
   /* Expanded: the calendar and Past due / Upcoming panels hide, so the page (and the add pad) get the whole sidebar. */
   #side.expanded #cal, #side.expanded #extras { display: none; }
   .pl { display: flex; gap: 6px; align-items: flex-start; padding: 2px 0; }
+  .pl .tg { flex: none; width: 20px; padding: 0; border: none; background: none; color: var(--text); opacity: .8; font-size: 17px; line-height: 1.15; text-align: center; }
+  .pl button.tg { cursor: pointer; border-radius: 4px; }
+  .pl button.tg:hover { color: var(--accent); opacity: 1; background: rgba(127,127,127,.18); }
+  .pl .pc { color: var(--muted); font-size: 11px; margin-left: 6px; white-space: nowrap; }
   .pl .b { flex: none; width: 13px; text-align: center; color: var(--muted); }
   .pl input[type=checkbox] { flex: none; margin: 2px 0 0; }
   .pl .t { flex: 1; min-width: 0; word-break: break-word; cursor: text; }
@@ -186,10 +245,16 @@
 <header>
   <h1>Workflowy Week Board <small id="range"></small></h1>
   <div class="hsearch"><button id="searchBtn" title="Search your whole outline (Ctrl+K)">&#128269; Search nodes</button></div>
-  <div class="opts">
-    <label><input type="checkbox" id="optHide"> Hide completed</label>
-    <label><input type="checkbox" id="optLate"> Past due</label>
-    <label><input type="checkbox" id="optSoon"> Upcoming</label>
+  <div class="settings">
+    <button id="settingsBtn" aria-haspopup="true" aria-expanded="false" title="Hide completed, Past due, Upcoming, Nested and Sub-items">&#9881; Settings</button>
+    <div class="pop" id="settingsPop" role="menu" hidden>
+      <label><input type="checkbox" id="optHide"><span>Hide completed<small>Leave ticked tasks out</small></span></label>
+      <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
+      <label><input type="checkbox" id="optSoon"><span>Upcoming<small>Tasks in the 14 days after the days shown</small></span></label>
+      <label class="sel"><span>Nested<small>Tasks indented under a plain bullet. Group: one card per bullet. Flatten: each task its own card.</small></span>
+        <select id="optNested"><option value="off">Off</option><option value="group">Group</option><option value="flatten">Flatten</option></select></label>
+      <label><input type="checkbox" id="optSubs"><span>Sub-items<small>Count on tasks that have sub-items, and a checklist you can open</small></span></label>
+    </div>
   </div>
   <div class="seg" id="seg" title="Days to show">
     <button data-span="3">3</button><button data-span="5">5</button><button data-span="7">7</button>
@@ -206,14 +271,14 @@
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
-      <h3><strong>Today's page</strong> <span id="outTitle"></span><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload">&#8635;</button></h3>
+      <h3 id="pageHead"><strong id="pageHeading">Daily page</strong><button class="mini nav" id="pagePrev" title="Previous day's page">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's page">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload">&#8635;</button></h3>
       <div class="pagetree" id="pageTree">Loading…</div>
       <h3><strong id="notesHeading">Add to WB-Notes</strong><button class="mini" id="notesEdit" title="Change the name of the notes bullet">&#9998;</button><button class="mini" id="moveNotes" title="Move today's plain bullets into the notes bullet">Move notes in</button></h3>
       <textarea id="outline" spellcheck="true"
         placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
       <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
     </section>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.6</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.7</span></div>
   </aside>
 </div>
 
@@ -256,10 +321,14 @@ function loadNotesName() {
 function sameName(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase(); }   // ignores case and stray spaces
 
 const cache = {};        // dateKey -> sorted node array
+const dayBullets = {};   // dateKey -> plain bullets / headings under that day (they may hold tasks; see Nested)
+const nest = {};         // bulletId -> { todos: tasks indented under that bullet }
+const nestQueued = new Set();
 
 function getPref(k) { try { return localStorage.getItem(k) === "1"; } catch (e) { return false; } }
 function setPref(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} }
-const prefs = { hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon") };
+function loadNestedMode() { try { const v = localStorage.getItem("nested"); return v === "group" || v === "flatten" ? v : "off"; } catch (e) { return "off"; } }
+const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true) };
 
 // Past due range: "1".."4" weeks back, or "all". Default is 2 weeks.
 let lateRange = loadLateRange();
@@ -329,6 +398,11 @@ async function loadDay(k) {
   // Tasks only: skip plain bullets, headers, quotes and code blocks (anything not layoutMode "todo").
   const tasks = nodes.filter((n) => n.data && n.data.layoutMode === "todo");
   cache[k] = tasks.sort((a, b) => a.priority - b.priority);
+  // Plain bullets and headings, kept so tasks indented under them can be found. The notes bullet is left out on purpose.
+  dayBullets[k] = nodes.filter((n) => {
+    const mode = (n.data && n.data.layoutMode) || "bullets";
+    return /^(bullets|h[1-3])$/.test(mode) && !sameName(plain(n.name), notesName);
+  }).sort((a, b) => a.priority - b.priority);
 }
 
 // Loads many days with a small worker pool. Returns the first error message, if any.
@@ -430,16 +504,59 @@ function collect(keys, onlyOpen) {
   return out;
 }
 
+// Everything shown for one day, in outline order: its tasks, plus (when Nested is on) tasks indented under its bullets.
+//   kind "task": a todo directly under the day.  "group": one card for a bullet and its tasks (Group mode).
+//   kind "nested": one task that sits under a bullet (Flatten mode).
+function entries(k, onlyOpen) {
+  const hide = (n) => (onlyOpen || prefs.hideDone) && n.completedAt;
+  const out = [];
+  for (const n of cache[k] || []) if (!hide(n)) out.push({ kind: "task", n, k, p: n.priority, s: 0 });
+  if (prefs.nested !== "off") {
+    for (const b of dayBullets[k] || []) {
+      const info = nest[b.id];
+      if (!info || !info.todos.length) continue;
+      if (prefs.nested === "group") {
+        if (info.todos.some((t) => !hide(t)) || !(onlyOpen || prefs.hideDone)) out.push({ kind: "group", b, k, todos: info.todos, hideDone: !!(onlyOpen || prefs.hideDone), p: b.priority, s: 0 });
+      } else {
+        for (const t of info.todos) if (!hide(t)) out.push({ kind: "nested", n: t, b, k, p: b.priority, s: t.priority });
+      }
+    }
+  }
+  return out.sort((a, b) => a.p - b.p || a.s - b.s);
+}
+const entriesFor = (keys, onlyOpen) => keys.flatMap((k) => entries(k, onlyOpen));
+function entryOpen(e) {
+  if (e.kind === "group") return e.todos.filter((t) => !t.completedAt).length;
+  return e.n.completedAt ? 0 : 1;
+}
+// Open tasks for a day, counting the ones under bullets when Nested is on (in either mode).
+function openCount(k) {
+  let n = (cache[k] || []).filter((t) => !t.completedAt).length;
+  if (prefs.nested !== "off") {
+    for (const b of dayBullets[k] || []) for (const t of (nest[b.id] && nest[b.id].todos) || []) if (!t.completedAt) n++;
+  }
+  return n;
+}
+function entryEl(e, showDate) {
+  if (e.kind === "group") return groupCard(e, showDate);
+  if (e.kind === "nested") return card(e.n, e.k, showDate, { bullet: e.b });
+  return card(e.n, e.k, showDate);
+}
+
 function render() {
   const days = weekDays();
   const fmt = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const last = days[days.length - 1];
   document.getElementById("range").textContent = `${fmt(days[0])} – ${fmt(last)}, ${last.getFullYear()}`;
   document.querySelectorAll("#seg button").forEach((b) => b.classList.toggle("on", Number(b.dataset.span) === span));
-  document.getElementById("outTitle").textContent =
-    new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  updatePageHeader();
 
   const board = document.getElementById("board");
+  const scrolls = {};                                   // keep each column's scroll position across a redraw
+  document.querySelectorAll("#board .col, #extras .col").forEach((c) => {
+    const t = c.querySelector(".tasks");
+    if (t && t.scrollTop) scrolls[c.dataset.key || c.className] = t.scrollTop;
+  });
   board.innerHTML = "";
   const todayKey = key(new Date());
   const extra = extraKeys();
@@ -450,9 +567,9 @@ function render() {
     col.className = "col" + (k === todayKey ? " today" : "");
     col.dataset.key = k;
 
-    const items = cache[k] || [];
-    const shown = prefs.hideDone ? items.filter((n) => !n.completedAt) : items;
-    const open = items.filter((n) => !n.completedAt).length;
+    const ents = entries(k, false);
+    const hasAny = (cache[k] || []).length > 0 || ents.length > 0;
+    const open = openCount(k);
 
     // Header (day title + add box) stays fixed; only the task list below it scrolls.
     const head = document.createElement("div");
@@ -460,11 +577,11 @@ function render() {
     head.innerHTML = `<h2>${DAY_NAMES[d.getDay()]} ${d.getDate()}<span>${open} open</span></h2>`;
     const list = document.createElement("div");
     list.className = "tasks";
-    if (!shown.length) {
+    if (!ents.length) {
       list.insertAdjacentHTML("beforeend",
-        `<div class="empty">${items.length ? "All done" : "Nothing yet"}</div>`);
+        `<div class="empty">${hasAny ? "All done" : "Nothing yet"}</div>`);
     }
-    for (const n of shown) list.appendChild(card(n, k, false));
+    for (const e of ents) list.appendChild(entryEl(e, false));
 
     const add = document.createElement("input");
     add.className = "add"; add.placeholder = "+ Add task"; add.enterKeyHint = "done";
@@ -492,6 +609,7 @@ function render() {
     });
 
     board.appendChild(col);
+    if (scrolls[k]) list.scrollTop = scrolls[k];
   }
 
   // Sidebar: calendar, then Past due / Upcoming (when turned on). The outliner below is static.
@@ -501,13 +619,16 @@ function render() {
   if (prefs.showLate) {
     const sub = lateRange === "all" ? "All open tasks before this view"
       : `Open tasks from the ${lateRange} ${lateRange === "1" ? "week" : "weeks"} before this view`;
-    extras.appendChild(extraColumn("Past due", sub, collect(extra.late, true), "late",
+    extras.appendChild(extraColumn("Past due", sub, entriesFor(extra.late, true), "late",
       loadingExtras ? "Loading…" : "Nothing past due"));
   }
   if (prefs.showSoon) {
     extras.appendChild(extraColumn("Upcoming", `Tasks in the next ${LOOKAHEAD} days after this view`,
-      collect(extra.soon, false), "soon", loadingExtras ? "Loading…" : "Nothing upcoming"));
+      entriesFor(extra.soon, false), "soon", loadingExtras ? "Loading…" : "Nothing upcoming"));
   }
+  extras.querySelectorAll(".col").forEach((c) => { const t = c.querySelector(".tasks"); if (t && scrolls[c.className]) t.scrollTop = scrolls[c.className]; });
+  scheduleKids();                                    // sub-item counts load in the background
+  scheduleNested();                                  // so do the tasks under bullets (Nested)
 }
 
 // Panel for tasks from days outside the visible range. Cards show their date;
@@ -515,7 +636,7 @@ function render() {
 function extraColumn(title, sub, items, cls, emptyText) {
   const col = document.createElement("div");
   col.className = "col " + cls;
-  const open = items.filter(({ n }) => !n.completedAt).length;
+  const open = items.reduce((t, e) => t + entryOpen(e), 0);
   const head = document.createElement("div");
   head.className = "colhead";
   head.innerHTML = `<h2>${title}<span>${open} open</span></h2><div class="sub">${sub}</div>`;
@@ -531,15 +652,222 @@ function extraColumn(title, sub, items, cls, emptyText) {
   const list = document.createElement("div");
   list.className = "tasks";
   if (!items.length) list.insertAdjacentHTML("beforeend", `<div class="empty">${emptyText}</div>`);
-  for (const { n, k } of items) list.appendChild(card(n, k, true));
+  for (const e of items) list.appendChild(entryEl(e, true));
   col.append(head, list);
   return col;
 }
 
-function card(n, k, showDate) {
+/* ---------- Sub-items on task cards ---------- */
+
+// kids[taskId] = { count: direct sub-items, tree?: all sub-items once opened }. Counts are fetched in the background,
+// one small request per visible task, and remembered until you press the reload button.
+const kids = {};
+const kidsQueued = new Set();
+function loadOpenCards() { try { return new Set(JSON.parse(localStorage.getItem("openCards") || "[]")); } catch (e) { return new Set(); } }
+const openCards = loadOpenCards();
+function saveOpenCards() { try { localStorage.setItem("openCards", JSON.stringify([...openCards].slice(-1000))); } catch (e) {} }
+
+function scheduleKids() {
+  if (!prefs.showSubs) return;
+  const { late, soon } = extraKeys();
+  const items = [...collect(weekDays().map(key), false), ...collect(late, true), ...collect(soon, false)];
+  for (const { n } of items) {
+    if (kids[n.id] || kidsQueued.has(n.id)) continue;
+    kidsQueued.add(n.id);
+    gate(() => call("GET", `/nodes?parent_id=${n.id}`))
+      .then((data) => { kids[n.id] = { count: data && data.nodes ? data.nodes.length : 0 }; })
+      .catch(() => { kids[n.id] = { count: 0, failed: true }; })
+      .finally(() => { kidsQueued.delete(n.id); refreshSubs(n.id); });
+  }
+}
+
+function refreshSubs(id) {
+  document.querySelectorAll(`.subwrap[data-id="${id}"]`).forEach((w) => fillSubs(w, id));
+}
+
+async function ensureTree(id) {
+  const info = kids[id];
+  if (!info || info.tree || info.loading) return;
+  info.loading = true;
+  try { info.tree = await fetchTree(id, PAGE_DEPTH); }
+  catch (e) { info.tree = []; showError(e.message); }
+  info.loading = false;
+  refreshSubs(id);
+}
+
+function toggleSubs(id) {
+  if (openCards.has(id)) openCards.delete(id); else openCards.add(id);
+  saveOpenCards();
+  refreshSubs(id);
+}
+
+// The sub-items of a task as a small checklist (nested as deep as they go).
+function subList(nodes) {
+  const box = document.createElement("div");
+  box.className = "sublist";
+  for (const c of nodes) {
+    const todo = c.data && c.data.layoutMode === "todo";
+    if (prefs.hideDone && todo && c.completedAt) continue;
+    const row = document.createElement("div");
+    row.className = "si" + (todo && c.completedAt ? " done" : "");
+    if (todo) {
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = !!c.completedAt;
+      cb.addEventListener("change", async () => {
+        try {
+          await call("POST", `/nodes/${c.id}/${cb.checked ? "complete" : "uncomplete"}`);
+          c.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
+          row.classList.toggle("done", cb.checked);
+        } catch (e) { showError(e.message); cb.checked = !cb.checked; }
+      });
+      row.appendChild(cb);
+    } else {
+      const b = document.createElement("span");
+      b.className = "sb"; b.textContent = "•";
+      row.appendChild(b);
+    }
+    const t = document.createElement("span");
+    t.className = "st2"; t.textContent = visibleText(c.name) || "(empty)";
+    row.appendChild(t);
+    box.appendChild(row);
+    if (c.children && c.children.length) box.appendChild(subList(c.children));
+  }
+  return box;
+}
+
+// Fills a card's sub-item area: a "▸ 3 sub-items" button, and the checklist when it's open.
+function fillSubs(wrap, id) {
+  wrap.innerHTML = "";
+  const info = prefs.showSubs ? kids[id] : null;
+  if (!info || !info.count) return;
+  const open = openCards.has(id);
+  const b = document.createElement("button");
+  b.className = "subtog";
+  b.textContent = `${open ? "▾" : "▸"} ${info.count} sub-item${info.count === 1 ? "" : "s"}`;
+  b.title = open ? "Hide sub-items" : "Show sub-items";
+  b.addEventListener("click", (e) => { e.stopPropagation(); toggleSubs(id); });
+  wrap.appendChild(b);
+  if (!open) return;
+  if (info.tree) wrap.appendChild(subList(info.tree));
+  else {
+    const l = document.createElement("div");
+    l.className = "subload"; l.textContent = "Loading…";
+    wrap.appendChild(l);
+    ensureTree(id);
+  }
+}
+
+/* ---------- Nested tasks: plain bullets with tasks indented under them ---------- */
+
+function loadGroupsClosed() { try { return new Set(JSON.parse(localStorage.getItem("groupsClosed") || "[]")); } catch (e) { return new Set(); } }
+const groupsClosed = loadGroupsClosed();
+function saveGroupsClosed() { try { localStorage.setItem("groupsClosed", JSON.stringify([...groupsClosed].slice(-1000))); } catch (e) {} }
+
+// Group mode: one card for the bullet, its tasks as a checklist inside it. Drag it to move the bullet (and its tasks) to another day.
+function groupCard(e, showDate) {
+  const b = e.b, k = e.k;
   const el = document.createElement("div");
-  el.className = "card" + (n.completedAt ? " done" : "");
+  el.className = "grp";
+  el.dataset.id = b.id;
   el.draggable = true;
+  el.addEventListener("dragstart", (ev) => {
+    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k }));
+    el.classList.add("dragging");
+  });
+  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+
+  const closed = groupsClosed.has(b.id);
+  const open = e.todos.filter((t) => !t.completedAt).length;
+  const head = document.createElement("div");
+  head.className = "gh";
+  const arrow = document.createElement("button");
+  arrow.className = "ga"; arrow.textContent = closed ? "▸" : "▾"; arrow.title = closed ? "Show tasks" : "Hide tasks";
+  arrow.addEventListener("click", () => { if (closed) groupsClosed.delete(b.id); else groupsClosed.add(b.id); saveGroupsClosed(); render(); });
+  const title = document.createElement("span");
+  title.className = "gt"; title.textContent = visibleText(b.name) || "(empty)"; title.title = title.textContent;
+  if (showDate) {
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    title.appendChild(badge);
+  }
+  const pill = document.createElement("span");
+  pill.className = "gc"; pill.textContent = `${open} of ${e.todos.length} open`;
+  pill.title = "Tasks indented under this bullet";
+  const mv = document.createElement("button");
+  mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move this group (the bullet and its tasks) to a date…";
+  mv.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    openMovePop(mv, k, (to) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || to === k) return;
+      act(async () => {
+        await call("POST", `/nodes/${b.id}/move`, { parent_id: to, position: "bottom" });
+        await Promise.all([loadDay(k), loadDay(to)]);
+      });
+    });
+  });
+  head.append(arrow, title, pill, mv);
+  el.appendChild(head);
+
+  if (!closed) {
+    const list = document.createElement("div");
+    list.className = "gl";
+    for (const t of e.todos) {
+      if (e.hideDone && t.completedAt) continue;
+      const row = document.createElement("div");
+      row.className = "si" + (t.completedAt ? " done" : "");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = !!t.completedAt;
+      cb.addEventListener("change", () => act(async () => {
+        await call("POST", `/nodes/${t.id}/${cb.checked ? "complete" : "uncomplete"}`);
+        t.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
+      }));
+      const txt = document.createElement("span");
+      txt.className = "st2"; txt.textContent = visibleText(t.name) || "(empty)";
+      row.append(cb, txt);
+      list.appendChild(row);
+    }
+    el.appendChild(list);
+  }
+  return el;
+}
+
+// Fetches the tasks under each visible plain bullet, in the background, one small request per bullet (cached until ↻).
+let nestTimer = null;
+function scheduleNested() {
+  if (prefs.nested === "off") return;
+  const { late, soon } = extraKeys();
+  for (const k of [...weekDays().map(key), ...late, ...soon]) {
+    for (const b of dayBullets[k] || []) {
+      if (nest[b.id] || nestQueued.has(b.id)) continue;
+      nestQueued.add(b.id);
+      gate(() => call("GET", `/nodes?parent_id=${b.id}`))
+        .then((data) => {
+          const todos = (data && data.nodes ? data.nodes : []).filter((n) => n.data && n.data.layoutMode === "todo");
+          nest[b.id] = { todos: todos.sort((x, y) => x.priority - y.priority) };
+        })
+        .catch(() => { nest[b.id] = { todos: [], failed: true }; })
+        .finally(() => { nestQueued.delete(b.id); redrawSoon(); });
+    }
+  }
+}
+// Redraws once after a burst of results, but never while you're typing in a box.
+function redrawSoon() {
+  if (nestTimer) return;
+  nestTimer = setTimeout(function again() {
+    const a = document.activeElement;
+    if (a && a.matches && a.matches("#board input, #extras input")) { nestTimer = setTimeout(again, 600); return; }
+    nestTimer = null;
+    render();
+  }, 300);
+}
+
+function card(n, k, showDate, opts) {
+  const nested = opts && opts.bullet;                    // a task sitting under a bullet (Nested: Flatten)
+  const el = document.createElement("div");
+  el.className = "card" + (n.completedAt ? " done" : "") + (nested ? " nested" : "");
+  el.dataset.id = n.id;
+  el.draggable = !nested;                                // moving it out of its bullet would be a surprise
   el.addEventListener("dragstart", (e) => {
     e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: k }));
     el.classList.add("dragging");
@@ -550,12 +878,18 @@ function card(n, k, showDate) {
   cb.type = "checkbox"; cb.checked = !!n.completedAt;
   cb.addEventListener("change", () => act(async () => {
     await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`);
-    await loadDay(k);
+    if (nested) n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
+    else await loadDay(k);
   }));
 
   const txt = document.createElement("div");
   txt.className = "txt";
   txt.textContent = plain(n.name);
+  if (nested) {                                          // which bullet it belongs to
+    const via = document.createElement("span");
+    via.className = "via"; via.textContent = (visibleText(opts.bullet.name) || "(empty)") + " ›";
+    txt.prepend(via);
+  }
   if (showDate) {
     const badge = document.createElement("span");
     badge.className = "badge";
@@ -567,24 +901,95 @@ function card(n, k, showDate) {
     note.className = "note"; note.textContent = plain(n.note);
     txt.appendChild(note);
   }
+  const subs = document.createElement("div");
+  subs.className = "subwrap"; subs.dataset.id = n.id;
+  if (nested) subs.hidden = true;                          // (sub-item counts are only fetched for top-level tasks)
+  subs.addEventListener("dblclick", (e) => e.stopPropagation());   // double-clicking a sub-item isn't editing the task
+  fillSubs(subs, n.id);
+  txt.appendChild(subs);
   txt.title = "Double-click to edit";
   txt.addEventListener("dblclick", () => {
     const current = plain(n.name);
     const next = prompt("Edit task", current);
     if (next === null || next.trim() === "" || next === current) return;
-    act(async () => { await call("POST", `/nodes/${n.id}`, { name: next.trim() }); await loadDay(k); });
+    act(async () => {
+      await call("POST", `/nodes/${n.id}`, { name: next.trim() });
+      if (nested) n.name = next.trim(); else await loadDay(k);
+    });
   });
 
   const del = document.createElement("button");
-  del.className = "del"; del.textContent = "✕"; del.title = "Delete";
+  del.className = "del"; del.innerHTML = X_ICON; del.title = "Delete";
   del.addEventListener("click", () => {
-    if (!confirm("Delete this task permanently?")) return;
-    act(async () => { await call("DELETE", `/nodes/${n.id}`); await loadDay(k); });
+    const sc = prefs.showSubs && kids[n.id] ? kids[n.id].count : 0;
+    if (!confirm(sc ? `Delete this task and its ${sc} sub-item${sc === 1 ? "" : "s"} (and anything under them) permanently?` : "Delete this task permanently?")) return;
+    act(async () => {
+      await call("DELETE", `/nodes/${n.id}`);
+      if (nested) { const info = nest[opts.bullet.id]; if (info) info.todos = info.todos.filter((x) => x !== n); }
+      else await loadDay(k);
+    });
   });
 
-  el.append(cb, txt, del);
+  const mv = document.createElement("button");
+  mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move to a date…";
+  const moveTo = (to) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || to === k) return;
+    act(async () => {
+      await call("POST", `/nodes/${n.id}/move`, { parent_id: to, position: "bottom" });
+      if (nested) { const info = nest[opts.bullet.id]; if (info) info.todos = info.todos.filter((x) => x !== n); }
+      await Promise.all([nested ? null : loadDay(k), loadDay(to)]);
+    });
+  };
+  mv.addEventListener("click", (e) => { e.stopPropagation(); openMovePop(mv, k, moveTo); });
+
+  el.append(cb, txt, mv, del);
   return el;
 }
+
+/* ---------- Move-to-date popover (closes on Cancel, Esc, or a click elsewhere) ---------- */
+const CAL_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+const X_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="display:block"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>';
+let movePop = null;
+function closeMovePop() { if (movePop) { movePop.remove(); movePop = null; } }
+function openMovePop(anchor, from, onPick) {
+  const wasMine = movePop && movePop._anchor === anchor;
+  closeMovePop();
+  if (wasMine) return;                                     // clicking 📅 again just closes it
+  const pop = document.createElement("div");
+  pop.className = "movepop"; pop._anchor = anchor;
+  pop.addEventListener("click", (e) => e.stopPropagation());
+  const quick = document.createElement("div");
+  quick.className = "mq";
+  const today = new Date();
+  const nextMon = addDays(today, ((8 - today.getDay()) % 7) || 7);
+  for (const [label, d] of [["Today", today], ["Tomorrow", addDays(today, 1)], ["Mon", nextMon]]) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label;
+    b.addEventListener("click", () => { closeMovePop(); onPick(key(d)); });
+    quick.appendChild(b);
+  }
+  const row = document.createElement("div");
+  row.className = "mr";
+  const inp = document.createElement("input");
+  inp.type = "date"; inp.value = from;
+  const go = document.createElement("button");
+  go.type = "button"; go.textContent = "Move"; go.className = "go";
+  go.addEventListener("click", () => { if (inp.value) { closeMovePop(); onPick(inp.value); } });
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") go.click(); });
+  row.append(inp, go);
+  const cancel = document.createElement("button");
+  cancel.type = "button"; cancel.textContent = "Cancel"; cancel.className = "cancel";
+  cancel.addEventListener("click", closeMovePop);
+  pop.append(quick, row, cancel);
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+  pop.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+  movePop = pop;
+}
+document.addEventListener("click", closeMovePop);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && movePop) { closeMovePop(); e.stopPropagation(); } }, true);
+window.addEventListener("scroll", closeMovePop, true);
 
 async function act(fn) {
   showError("");
@@ -934,12 +1339,24 @@ function startEdit(n, textEl, onSaved) {
   title.focus(); title.select();
 }
 
-/* ---------- Today's page (read from WorkFlowy, shown above the pad) ---------- */
+/* ---------- Daily page (read from WorkFlowy, shown above the pad) ---------- */
 
 const PAGE_DEPTH = 12;       // how many levels of nesting to read (each bullet costs one request)
 const pageTree = document.getElementById("pageTree");
 const itemTree = document.getElementById("itemTree");
+
+// Collapsed lines (their sub-bullets are hidden). Kept in this browser only: WorkFlowy's API can't read or change it.
+function loadCollapsed() { try { return new Set(JSON.parse(localStorage.getItem("collapsed") || "[]")); } catch (e) { return new Set(); } }
+const collapsed = loadCollapsed();
+function setCollapsed(id, on) {
+  if (on) collapsed.add(id); else collapsed.delete(id);
+  try { localStorage.setItem("collapsed", JSON.stringify([...collapsed].slice(-3000))); } catch (e) { /* not remembered */ }
+}
+const countBelow = (x) => (x.children || []).reduce((t, c) => t + 1 + countBelow(c), 0);
 let pageNodes = [];
+let pageOffset = 0;          // which day's page the pane shows: 0 = today, -1 = yesterday, 1 = tomorrow...
+const pageDay = () => addDays(new Date(), pageOffset);
+const pageKey = () => key(pageDay());
 let pageToken = 0;
 let addingFor = null;        // id of the line that currently has its "add under this line" box open
 let gateActive = 0;
@@ -965,36 +1382,42 @@ async function fetchTree(parent, depth, topLevel = false) {
 }
 
 async function loadPage() {
-  if (viewItem) return;                       // the item editor is open; Today's page reloads when you go back
+  if (viewItem) return;                       // the item editor is open; Daily page reloads when you go back
   const token = ++pageToken;
   if (!pageNodes.length) pageTree.textContent = "Loading…";
   try {
-    const tree = await fetchTree(key(new Date()), PAGE_DEPTH, true);
+    const tree = await fetchTree(pageKey(), PAGE_DEPTH, true);
     if (token !== pageToken) return;
     pageNodes = tree;
     renderPage();
   } catch (e) {
     if (token !== pageToken) return;
-    pageTree.textContent = "Couldn't load today's page: " + e.message;
+    pageTree.textContent = "Couldn't load the page: " + e.message;
   }
 }
 
-// Draws Today's page in the sidebar, or (when a search result is open) the item editor inside the search window.
+// Draws Daily page in the sidebar, or (when a search result is open) the item editor inside the search window.
 function renderPage() {
   const tree = viewItem ? itemTree : pageTree;
   const roots = viewItem ? itemNodes : pageNodes;
   const keepScroll = tree.scrollTop;          // stay where you were after a reload or edit
   tree.innerHTML = "";
   if (!roots.length) {
-    tree.innerHTML = `<div class="empty">No notes on today's page yet</div>`;
+    tree.innerHTML = `<div class="empty">${viewItem ? "Nothing here" : "No notes on this page yet"}</div>`;
     return;
   }
-  // inNotes: this line is the notes bullet or sits inside it. Those lines can't be removed from here.
+  // inNotes: this line is the notes bullet or sits inside it. The notes bullet itself can't be removed from here.
   const walk = (nodes, level, inNotes) => {
     nodes.forEach((n, i) => {
-      const here = inNotes || (!viewItem && level === 0 && sameName(plain(n.name), notesName));
-      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, !viewItem && !here));
-      if (n.children) walk(n.children, level + 1, here);
+      const isNotesBullet = !inNotes && !viewItem && level === 0 && sameName(plain(n.name), notesName);
+      const here = inNotes || isNotesBullet;
+      const hasKids = !!(n.children && n.children.length);
+      const closed = hasKids && collapsed.has(n.id) && addingFor !== n.id;   // adding under a line opens it
+      // "−" is offered everywhere on Daily page except the notes bullet itself, and inside it only on lines with nothing underneath
+      // In the item editor from search: only lines with nothing underneath, and never the opened item itself.
+      const removable = viewItem ? (level > 0 && !hasKids) : (!isNotesBullet && (!here || !hasKids));
+      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, removable, hasKids ? (closed ? "closed" : "open") : ""));
+      if (hasKids && !closed) walk(n.children, level + 1, here);
       if (addingFor === n.id) tree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
     });
   };
@@ -1027,11 +1450,21 @@ function addRow(parent, level) {
 
 // One line of today's page. Todos get a checkbox; double-click any line to edit its text.
 // `prev` is the line directly above at the same level (none for the first line of a group).
-function pageLine(n, level, prev, removable) {
+function pageLine(n, level, prev, removable, fold) {
   const mode = (n.data && n.data.layoutMode) || "bullets";
   const row = document.createElement("div");
   row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "");
   row.style.paddingLeft = level * 16 + "px";
+
+  // ▾ / ▸ hides or shows the lines underneath (a blank spacer keeps lines without children lined up)
+  const tg = document.createElement(fold ? "button" : "span");
+  tg.className = "tg";
+  if (fold) {
+    tg.textContent = fold === "open" ? "▾" : "▸";
+    tg.title = fold === "open" ? "Collapse" : "Expand";
+    tg.addEventListener("click", () => { setCollapsed(n.id, fold === "open"); renderPage(); });
+  }
+  row.appendChild(tg);
 
   if (mode === "todo") {
     const cb = document.createElement("input");
@@ -1042,7 +1475,7 @@ function pageLine(n, level, prev, removable) {
         n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
         n.completed = !!n.completedAt;
         renderPage();
-        if (!viewItem) { await loadDay(key(new Date())); render(); }
+        if (!viewItem) { await loadDay(pageKey()); render(); }
       } catch (e) { showError(e.message); cb.checked = !cb.checked; }
     });
     row.appendChild(cb);
@@ -1055,6 +1488,12 @@ function pageLine(n, level, prev, removable) {
   const t = document.createElement("span");
   t.className = "t";
   t.textContent = visibleText(n.name) || "(empty)";
+  if (fold === "closed") {                             // how many lines are hidden
+    const pc = document.createElement("span");
+    const hidden = countBelow(n);
+    pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`;
+    t.appendChild(pc);
+  }
   if (n.note && n.note.trim()) {                       // first line of the note, small and grey
     const pn = document.createElement("small");
     pn.className = "pn"; pn.textContent = visibleText(n.note).split("\n")[0];
@@ -1065,7 +1504,7 @@ function pageLine(n, level, prev, removable) {
     if (String(window.getSelection && window.getSelection()) !== "") return;   // selecting text isn't editing
     startEdit(n, t, async () => {
       if (viewItem) await reloadItem();
-      else { await Promise.all([loadPage(), loadDay(key(new Date()))]); render(); }
+      else { await Promise.all([loadPage(), loadDay(pageKey())]); render(); }
     });
   });
   row.appendChild(t);
@@ -1078,6 +1517,7 @@ function pageLine(n, level, prev, removable) {
       ind.disabled = true;
       try {
         await call("POST", `/nodes/${n.id}/move`, { parent_id: prev.id, position: "bottom" });
+        setCollapsed(prev.id, false);
         if (viewItem) await reloadItem(); else await loadPage();
       } catch (e) { showError(e.message); ind.disabled = false; }
     });
@@ -1091,7 +1531,6 @@ function pageLine(n, level, prev, removable) {
 
   // "−" removes a line (and anything under it) from today's page. Not offered inside the notes bullet.
   if (removable) {
-    const countBelow = (x) => (x.children || []).reduce((t, c) => t + 1 + countBelow(c), 0);
     const minus = document.createElement("button");
     minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
     minus.addEventListener("click", async () => {
@@ -1099,7 +1538,7 @@ function pageLine(n, level, prev, removable) {
       const label = plain(n.name) || "(empty)";
       if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
       minus.disabled = true;
-      try { await call("DELETE", `/nodes/${n.id}`); await loadPage(); }
+      try { await call("DELETE", `/nodes/${n.id}`); if (viewItem) await reloadItem(); else await loadPage(); }
       catch (e) { showError(e.message); minus.disabled = false; }
     });
     row.appendChild(minus);
@@ -1108,6 +1547,25 @@ function pageLine(n, level, prev, removable) {
 }
 
 document.getElementById("pageRefresh").onclick = () => loadPage();
+
+// ‹ › step the pane through other days' pages. Clicking the date (shown as a link when away from today) returns to today. (The notes pad below always saves to today.)
+function updatePageHeader() {
+  const d = pageDay();
+  const other = d.getFullYear() !== new Date().getFullYear();
+  const label = d.toLocaleDateString(undefined, other ? { month: "short", day: "numeric", year: "numeric" } : { weekday: "short", month: "short", day: "numeric" });
+  const el = document.getElementById("outTitle");
+  el.textContent = label;
+  el.classList.toggle("away", pageOffset !== 0);                  // away from today: the date is a link back to today
+  el.title = pageOffset === 0 ? label : "Back to today";
+}
+function goPage(offset) {
+  pageOffset = offset; addingFor = null; pageNodes = [];
+  updatePageHeader();
+  loadPage();
+}
+document.getElementById("pagePrev").onclick = () => goPage(pageOffset - 1);
+document.getElementById("pageNext").onclick = () => goPage(pageOffset + 1);
+document.getElementById("outTitle").onclick = () => { if (pageOffset !== 0) goPage(0); };
 
 // Expand: today's page (and the add pad) take over the whole sidebar; click again to bring the calendar back.
 const expandBtn = document.getElementById("pageExpand");
@@ -1118,7 +1576,7 @@ function setExpanded(on) {
   setPref("pageExpanded", on);
 }
 expandBtn.onclick = () => setExpanded(!document.getElementById("side").classList.contains("expanded"));
-setExpanded(getPref("pageExpanded"));
+setExpanded(getBool("pageExpanded", true));   // expanded unless you chose otherwise
 
 /* ---------- Controls ---------- */
 
@@ -1134,7 +1592,7 @@ document.getElementById("seg").onclick = (e) => {
   weekStart = baseStart();
   goToWeek();
 };
-document.getElementById("refresh").onclick = () => { loadWeek(true); loadPage(); };
+document.getElementById("refresh").onclick = () => { for (const id in kids) delete kids[id]; for (const id in nest) delete nest[id]; loadWeek(true); loadPage(); };
 document.getElementById("extras").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-range]");
   if (!b || b.dataset.range === lateRange) return;
@@ -1143,14 +1601,32 @@ document.getElementById("extras").addEventListener("click", (e) => {
   loadWeek();
 });
 
-for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["optSoon", "showSoon"]]) {
+const nestedSel = document.getElementById("optNested");
+nestedSel.value = prefs.nested;
+nestedSel.onchange = () => {
+  prefs.nested = nestedSel.value;
+  try { localStorage.setItem("nested", prefs.nested); } catch (e) {}
+  render();                                            // shows what's already loaded; missing bullets load in the background
+};
+
+for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["optSoon", "showSoon"], ["optSubs", "showSubs"]]) {
   const el = document.getElementById(id);
   el.checked = prefs[pref];
   el.onchange = () => {
     prefs[pref] = el.checked; setPref(pref, el.checked);
-    if (pref === "hideDone") render(); else loadWeek();   // hiding is instant; the others need to fetch days
+    if (pref === "hideDone" || pref === "showSubs") render(); else loadWeek();   // these are instant; the others need to fetch days
   };
 }
+
+// Settings menu: one button opens the board options. Click outside it, or press Esc, to close.
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsPop = document.getElementById("settingsPop");
+function setSettingsOpen(on) {
+  settingsPop.hidden = !on;
+  settingsBtn.setAttribute("aria-expanded", on ? "true" : "false");
+}
+settingsBtn.onclick = (e) => { e.stopPropagation(); setSettingsOpen(settingsPop.hidden); };
+document.addEventListener("click", (e) => { if (!settingsPop.hidden && !settingsPop.contains(e.target)) setSettingsOpen(false); });
 
 /* ---------- Search (done by the server; this page only gets the matches it asks for) ---------- */
 
@@ -1333,7 +1809,7 @@ function closeItem(quiet) {
   document.getElementById("itemPane").hidden = true;
   document.getElementById("listPane").hidden = false;
   if (!quiet) searchInput.focus();
-  loadPage();                                   // Today's page may have been affected (e.g. an item under it was edited)
+  loadPage();                                   // Daily page may have been affected (e.g. an item under it was edited)
 }
 function updateViewBar() {
   const bar = document.getElementById("viewBar");
@@ -1406,6 +1882,7 @@ document.getElementById("searchRefresh").onclick = async (e) => {
 };
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); }
+  else if (e.key === "Escape" && !settingsPop.hidden) { setSettingsOpen(false); settingsBtn.focus(); }
   else if (e.key === "Escape" && !searchModal.hidden) { if (viewItem) closeItem(); else closeSearch(); }
 });
 
