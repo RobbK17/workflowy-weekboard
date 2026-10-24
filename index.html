@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.3">
+<meta name="version" content="1.0.4">
 <meta name="notes-name" content="WB-Notes">
 <title>Workflowy Week Board</title>
 <style>
@@ -142,6 +142,7 @@
                 border-bottom: 1px solid var(--border); }
   .sm-filters label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
   .sm-results { flex: 1; min-height: 120px; overflow-y: auto; }
+  .sr-more { display: block; width: calc(100% - 24px); margin: 8px 12px; padding: 6px; }
   .sm-results .hint { padding: 16px 12px; color: var(--muted); font-size: 13px; }
   .sr { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
   .sr:hover, .sr.active { background: var(--col); }
@@ -202,7 +203,7 @@
         placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
       <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
     </section>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.3</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.4</span></div>
   </aside>
 </div>
 
@@ -254,9 +255,9 @@ const prefs = { hideDone: getPref("hideDone"), showLate: getPref("showLate"), sh
 let lateRange = loadLateRange();
 let loadingExtras = false;   // true while Past due / Upcoming days are still being fetched
 let loadToken = 0;           // lets a newer load cancel an older one
-let viewItem = null;
-let itemNodes = [];         // id of the search result open in the page pane, or null when showing Today's page
-let index = null;            // the downloaded copy of your whole outline, used by search (built on first search)
+let viewItem = null;         // id of the search result open in the item editor, or null
+let itemNodes = [];         // the open item (and its children) shown in the editor; viewItem is its id
+let itemPath = [];          // names of the lines above the open item
 const monthInfo = {};        // "YYYY-MM" -> does that calendar month exist? (used by "All")
 function loadLateRange() {
   try { const v = localStorage.getItem("lateRange"); if (["all", "1", "2", "3", "4"].includes(v)) return v; } catch (e) {}
@@ -912,8 +913,7 @@ function addRow(parent, level) {
     input.disabled = true;
     try {
       const res = await call("POST", "/nodes", { parent_id: parent.id, name, position: "bottom" });
-      if (viewItem) { addLocalChild(parent, name, res && res.item_id); renderPage(); }   // item view: update the local copy
-      else await loadPage();
+      if (viewItem) await reloadItem(); else await loadPage();
     } catch (err) { showError(err.message); input.disabled = false; }
   });
   wrap.appendChild(input);
@@ -957,7 +957,7 @@ function pageLine(n, level, prev) {
     if (next === null || next.trim() === "" || next === current) return;
     try {
       await call("POST", `/nodes/${n.id}`, { name: next.trim() });
-      if (viewItem) { setLocalName(n, next.trim()); renderPage(); }
+      if (viewItem) await reloadItem();
       else { await Promise.all([loadPage(), loadDay(key(new Date()))]); render(); }
     } catch (e) { showError(e.message); }
   });
@@ -971,8 +971,7 @@ function pageLine(n, level, prev) {
       ind.disabled = true;
       try {
         await call("POST", `/nodes/${n.id}/move`, { parent_id: prev.id, position: "bottom" });
-        if (viewItem) { reparentLocal(n, prev); renderPage(); }
-        else await loadPage();
+        if (viewItem) await reloadItem(); else await loadPage();
       } catch (e) { showError(e.message); ind.disabled = false; }
     });
     row.appendChild(ind);
@@ -1030,9 +1029,9 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
   };
 }
 
-/* ---------- Search (runs on a downloaded copy of your whole outline) ---------- */
+/* ---------- Search (done by the server; this page only gets the matches it asks for) ---------- */
 
-const SEARCH_LIMIT = 50;     // most results listed at once
+const SEARCH_LIMIT = 50;     // results fetched per page
 const searchModal = document.getElementById("searchModal");
 const searchInput = document.getElementById("searchInput");
 const searchResults = document.getElementById("searchResults");
@@ -1042,6 +1041,8 @@ const fTodos = document.getElementById("fTodos");
 const fNotes = document.getElementById("fNotes");
 let searchActive = -1;       // highlighted result (for the arrow keys)
 let searchTimer = null;
+let searchToken = 0;         // lets a newer search cancel an older one
+let searchTotal = 0, searchShown = 0, searchTerms = [], searchIndexTime = 0, searchCount = 0;
 
 function getBool(k, def) { try { const v = localStorage.getItem(k); return v === null ? def : v === "1"; } catch (e) { return def; } }
 fCompleted.checked = getBool("sCompleted", true);
@@ -1051,94 +1052,13 @@ for (const [el, k] of [[fCompleted, "sCompleted"], [fTodos, "sTodos"], [fNotes, 
   el.addEventListener("change", () => { setPref(k, el.checked); doSearch(); });
 }
 
-// Skips the (slower) HTML parsing for the many names that are already plain text.
-function plainFast(s) { return !s ? "" : (/[<&]/.test(s) ? plain(s) : s); }
-
-function buildIndex(list, loadedAt) {
-  const byId = {};
-  for (const n of list) {
-    n.children = [];
-    n._name = plainFast(n.name);
-    n._lname = n._name.toLowerCase();
-    n._note = n.note ? plainFast(n.note) : "";
-    n._lnote = n._note.toLowerCase();
-    byId[n.id] = n;
-  }
-  for (const n of list) { const p = n.parent_id ? byId[n.parent_id] : null; if (p) p.children.push(n); }
-  for (const n of list) if (n.children.length > 1) n.children.sort((a, b) => a.priority - b.priority);
-  return { nodes: list, byId, loadedAt };
-}
-
-// Downloads (or re-downloads) the whole outline. The server keeps a copy for a few minutes and only does a real
-// refresh once a minute, so a refresh can come back unchanged ("throttled").
-async function loadIndex(force) {
-  const res = await fetch(API + "/nodes-export" + (force ? "?refresh=1" : ""));
-  if (!res.ok) throw new Error(`GET /nodes-export failed (${res.status}): ${await res.text()}`);
-  const data = await res.json();
-  const loadedAt = Number(res.headers.get("X-Index-Time")) || Date.now();
-  const throttled = res.headers.get("X-Index-Throttled") === "1";
-  if (index && loadedAt === index.loadedAt) return { changed: false, throttled };   // same copy (it already has our edits)
-  index = buildIndex(Array.isArray(data.nodes) ? data.nodes : [], loadedAt);
-  if (viewItem) {                                         // re-point the open item at the new copy
-    const n = index.byId[viewItem];
-    if (n) { itemNodes = [n]; updateViewBar(); renderPage(); } else closeItem();
-  }
-  return { changed: true, throttled };
-}
-
-// Edits made while an item is open (after the API call succeeds) are applied to the local copy too.
-function setLocalName(n, text) { n.name = text; n._name = text; n._lname = text.toLowerCase(); }
-function lastPriority(parent) { return parent.children.reduce((m, c) => Math.max(m, c.priority || 0), 0); }
-function addLocalChild(parent, text, id) {
-  const todo = text.match(/^- \[( |x|X)\]\s+(.*)$/);
-  const label = todo ? todo[2] : text.replace(/^[-*•]\s+/, "");
-  const now = Math.floor(Date.now() / 1000);
-  const done = todo && todo[1] !== " ";
-  const node = {
-    id: id || "local-" + now + "-" + Math.random().toString(36).slice(2), parent_id: parent.id,
-    name: label, note: null, priority: lastPriority(parent) + 100, createdAt: now, modifiedAt: now,
-    data: { layoutMode: todo ? "todo" : "bullets" }, completedAt: done ? now : null, completed: !!done,
-    children: [], _name: label, _lname: label.toLowerCase(), _note: "", _lnote: "",
-  };
-  index.byId[node.id] = node; index.nodes.push(node); parent.children.push(node);
-}
-function reparentLocal(n, newParent) {
-  const old = n.parent_id && index.byId[n.parent_id];
-  if (old) old.children = old.children.filter((c) => c !== n);
-  n.priority = lastPriority(newParent) + 100;
-  n.parent_id = newParent.id;
-  newParent.children.push(n);
-}
-
-// Names of the lines above this one, from the top of the outline down.
-function pathOf(n) {
-  const out = [];
-  let p = n.parent_id ? index.byId[n.parent_id] : null;
-  for (let guard = 0; p && guard < 60; guard++) {
-    out.unshift(p._name || "(empty)");
-    p = p.parent_id ? index.byId[p.parent_id] : null;
-  }
-  return out;
-}
-
-function runSearch(q) {
-  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length || !index) return { terms, hits: [], total: 0 };
-  const inNotes = fNotes.checked, wantDone = fCompleted.checked, todosOnly = fTodos.checked;
-  const hits = [];
-  for (const n of index.nodes) {
-    if (!wantDone && n.completedAt) continue;
-    if (todosOnly && !(n.data && n.data.layoutMode === "todo")) continue;
-    let inName = true, inEither = true;                    // every word must match, in the text or (optionally) the note
-    for (const t of terms) {
-      const a = n._lname.includes(t);
-      if (!a) inName = false;
-      if (!a && !(inNotes && n._lnote.includes(t))) { inEither = false; break; }
-    }
-    if (inEither) hits.push({ n, nameHit: inName });
-  }
-  hits.sort((a, b) => (b.nameHit - a.nameHit) || ((b.n.modifiedAt || 0) - (a.n.modifiedAt || 0)));
-  return { terms, hits: hits.slice(0, SEARCH_LIMIT), total: hits.length };
+// GET a JSON answer from one of this server's own helper endpoints (/search, /item).
+async function api(path) {
+  const res = await fetch(path);
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* not JSON */ }
+  if (!res.ok) throw new Error((data && data.error) || `${path.split("?")[0]} failed (${res.status})`);
+  return data;
 }
 
 // Splits text into plain and <mark>ed pieces (built as DOM nodes, so nothing is treated as HTML).
@@ -1161,14 +1081,6 @@ function highlight(text, terms) {
   return out;
 }
 
-function noteSnippet(n, terms) {
-  let at = -1;
-  for (const t of terms) { const i = n._lnote.indexOf(t); if (i !== -1) { at = i; break; } }
-  if (at === -1) return "";
-  const start = Math.max(0, at - 30);
-  return (start ? "…" : "") + n._note.slice(start, start + 100) + (start + 100 < n._note.length ? "…" : "");
-}
-
 function ago(ms) {
   const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
   if (s < 60) return "updated just now";
@@ -1177,22 +1089,21 @@ function ago(ms) {
 }
 
 function resultEl(hit, terms, i) {
-  const n = hit.n;
   const row = document.createElement("div");
   row.className = "sr"; row.dataset.i = i;
-  const isTodo = n.data && n.data.layoutMode === "todo";
   const title = document.createElement("div");
-  title.className = "st" + (isTodo && n.completedAt ? " done" : "");
-  if (isTodo) title.append(n.completedAt ? "☑ " : "☐ ");
-  title.append(...highlight(n._name || "(empty)", terms));
+  title.className = "st" + (hit.todo && hit.done ? " done" : "");
+  if (hit.todo) title.append(hit.done ? "☑ " : "☐ ");
+  title.append(...highlight(hit.name || "(empty)", terms));
   const path = document.createElement("div");
-  path.className = "sp"; path.textContent = pathOf(n).join(" › ") || "Top level";
+  path.className = "sp"; path.textContent = hit.path.join(" › ") || "Top level";
   row.append(title, path);
-  if (!hit.nameHit) {                                      // matched in the note: show where
-    const snip = noteSnippet(n, terms);
-    if (snip) { const d = document.createElement("div"); d.className = "sp"; d.append("Note: ", ...highlight(snip, terms)); row.append(d); }
+  if (!hit.nameHit && hit.snippet) {                       // matched in the note: show where
+    const d = document.createElement("div");
+    d.className = "sp"; d.append("Note: ", ...highlight(hit.snippet, terms));
+    row.append(d);
   }
-  row.addEventListener("click", () => openFromSearch(n.id));
+  row.addEventListener("click", () => openItem(hit.id));
   return row;
 }
 
@@ -1205,74 +1116,118 @@ function setActive(i, scroll = true) {
   }
 }
 
-function doSearch() {
-  if (!index) return;
-  const { terms, hits, total } = runSearch(searchInput.value);
-  searchResults.innerHTML = "";
-  if (!terms.length) searchResults.innerHTML = `<div class="hint">Type to search ${index.nodes.length.toLocaleString()} items.</div>`;
-  else if (!hits.length) searchResults.innerHTML = `<div class="hint">No matches.</div>`;
-  hits.forEach((h, i) => searchResults.appendChild(resultEl(h, terms, i)));
-  setActive(hits.length ? 0 : -1, false);
-  searchInfo.textContent = terms.length
-    ? `${total} match${total === 1 ? "" : "es"}${total > SEARCH_LIMIT ? `, showing the first ${SEARCH_LIMIT}` : ""} · index ${ago(index.loadedAt).replace("updated ", "")}`
-    : `Index ${ago(index.loadedAt).replace("updated ", "")}`;
+function searchStatus(note) {
+  const age = "index " + ago(searchIndexTime).replace("updated ", "");
+  let s = searchTerms.length
+    ? `${searchTotal} match${searchTotal === 1 ? "" : "es"}${searchShown < searchTotal ? `, showing ${searchShown}` : ""} · ${age}`
+    : age[0].toUpperCase() + age.slice(1);
+  if (note) s += " · " + note;
+  searchInfo.textContent = s;
 }
 
-async function openSearch() {
+function searchMessage(text) {
+  searchResults.innerHTML = "";
+  const d = document.createElement("div");
+  d.className = "hint"; d.textContent = text;
+  searchResults.appendChild(d);
+}
+
+// Asks the server for a page of matches. A fresh search starts at the top; "Show more" adds the next page.
+async function doSearch(more, refresh) {
+  const token = ++searchToken;
+  const offset = more ? searchShown : 0;
+  const params = new URLSearchParams({
+    q: searchInput.value, offset: String(offset), limit: String(SEARCH_LIMIT),
+    done: fCompleted.checked ? "1" : "0", todos: fTodos.checked ? "1" : "0", notes: fNotes.checked ? "1" : "0",
+  });
+  if (refresh) params.set("refresh", "1");
+  if (!searchCount) { searchMessage("Indexing your outline…"); searchInfo.textContent = ""; }
+  let r;
+  try { r = await api("/search?" + params); }
+  catch (e) {
+    if (token !== searchToken) return;
+    searchMessage("Couldn't search your outline: " + e.message); searchInfo.textContent = "";
+    return;
+  }
+  if (token !== searchToken) return;
+  searchTerms = r.terms; searchTotal = r.total; searchIndexTime = r.indexTime; searchCount = r.count;
+  const note = refresh && r.throttled ? "WorkFlowy allows one refresh a minute" : "";
+  if (!r.terms.length) {
+    searchShown = 0; searchStatus(note);
+    searchMessage(`Type to search ${r.count.toLocaleString()} items. Use "quotes" for an exact phrase and -word to leave something out.`);
+    return;
+  }
+  if (!r.total) { searchShown = 0; searchStatus(note); searchMessage("No matches."); return; }
+  if (more) searchResults.querySelector(".sr-more")?.remove(); else searchResults.innerHTML = "";
+  r.hits.forEach((h, i) => searchResults.appendChild(resultEl(h, r.terms, offset + i)));
+  searchShown = offset + r.hits.length;
+  if (searchShown < searchTotal) {
+    const b = document.createElement("button");
+    b.className = "sr-more";
+    b.textContent = `Show ${Math.min(SEARCH_LIMIT, searchTotal - searchShown)} more (${searchTotal - searchShown} left)`;
+    b.onclick = () => { b.disabled = true; doSearch(true); };
+    searchResults.appendChild(b);
+  }
+  if (!more) setActive(0, false);
+  searchStatus(note);
+}
+
+function openSearch() {
   searchModal.hidden = false;
   searchInput.focus(); searchInput.select();
-  if (index) { doSearch(); return; }
-  searchResults.innerHTML = `<div class="hint">Indexing your outline…</div>`;
-  searchInfo.textContent = "";
-  try { await loadIndex(false); doSearch(); }
-  catch (e) {
-    searchResults.innerHTML = "";
-    const d = document.createElement("div");
-    d.className = "hint"; d.textContent = "Couldn't load your outline: " + e.message;
-    searchResults.appendChild(d);
-  }
+  doSearch();
 }
 function closeSearch() { searchModal.hidden = true; closeItem(true); }
-function openFromSearch(id) { openItem(id); }
 
 // ---- Item editor: a search result opens over the list, inside the search window ----
-function openItem(id) {
-  if (!index || !index.byId[id]) return;
+async function openItem(id) {
+  let r;
+  try { r = await api("/item?id=" + encodeURIComponent(id)); } catch (e) { showError(e.message); return; }
   viewItem = id; addingFor = null;
-  itemNodes = [index.byId[id]];
+  itemNodes = [r.item]; itemPath = r.path;
   document.getElementById("listPane").hidden = true;
   document.getElementById("itemPane").hidden = false;
   updateViewBar();
   renderPage();
   itemTree.scrollTop = 0;
 }
-// Back to the results list (quiet = the window is closing, so don't redraw the list).
+// Re-reads the open item from the server (after an edit, or with refresh = a fresh download of your outline).
+async function reloadItem(refresh) {
+  if (!viewItem) return;
+  try {
+    const r = await api("/item?id=" + encodeURIComponent(viewItem) + (refresh ? "&refresh=1" : ""));
+    itemNodes = [r.item]; itemPath = r.path;
+    updateViewBar(); renderPage();
+  } catch (e) {
+    if (/not found/.test(e.message)) closeItem(); else showError(e.message);
+  }
+}
+// Back to the results list (quiet = the window is closing).
 function closeItem(quiet) {
   if (!viewItem) return;
   viewItem = null; addingFor = null; itemNodes = [];
   document.getElementById("itemPane").hidden = true;
   document.getElementById("listPane").hidden = false;
-  if (!quiet) { doSearch(); searchInput.focus(); }
+  if (!quiet) searchInput.focus();
   loadPage();                                   // Today's page may have been affected (e.g. an item under it was edited)
 }
 function updateViewBar() {
   const bar = document.getElementById("viewBar");
   bar.innerHTML = "";
-  const n = index.byId[viewItem];
   const back = document.createElement("button");
   back.textContent = "← Results"; back.title = "Back to the search results (Esc)"; back.onclick = () => closeItem();
   const path = document.createElement("span");
-  path.textContent = pathOf(n).concat(n._name || "(empty)").join(" › ");
+  path.textContent = itemPath.concat(plain(itemNodes[0].name) || "(empty)").join(" › ");
   const link = document.createElement("a");
-  link.href = "https://workflowy.com/#/" + n.id.slice(-12);   // WorkFlowy links use the last 12 characters of the id
+  link.href = "https://workflowy.com/#/" + viewItem.slice(-12);   // WorkFlowy links use the last 12 characters of the id
   link.target = "_blank"; link.rel = "noopener"; link.textContent = "Open in WorkFlowy ↗";
   const fresh = document.createElement("button");
-  fresh.textContent = "↻"; fresh.title = "Download a fresh copy of your outline (WorkFlowy allows this once a minute)";
-  fresh.onclick = async () => { try { await loadIndex(true); } catch (e) { showError(e.message); } };
+  fresh.textContent = "↻"; fresh.title = "Download a fresh copy of your outline from WorkFlowy (allowed once a minute)";
+  fresh.onclick = () => reloadItem(true);
   bar.append(back, path, link, fresh);
 }
 
-searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(doSearch, 120); });
+searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => doSearch(), 150); });
 searchInput.addEventListener("keydown", (e) => {
   const count = searchResults.querySelectorAll(".sr").length;
   if (e.key === "ArrowDown" && count) { e.preventDefault(); setActive(Math.min(count - 1, searchActive + 1)); }
@@ -1310,11 +1265,7 @@ searchModal.addEventListener("click", (e) => { if (e.target === searchModal) clo
 document.getElementById("searchRefresh").onclick = async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true; searchInfo.textContent = "Refreshing…";
-  try {
-    const r = await loadIndex(true);
-    doSearch();
-    if (!r.changed && r.throttled) searchInfo.textContent += " · WorkFlowy allows one refresh a minute";
-  } catch (err) { searchInfo.textContent = "Couldn't refresh: " + err.message; }
+  await doSearch(false, true);
   btn.disabled = false;
 };
 document.addEventListener("keydown", (e) => {

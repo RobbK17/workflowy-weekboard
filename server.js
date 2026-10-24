@@ -1,9 +1,9 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.0.3
+// Version 1.0.4
 // Run:  WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 
-const VERSION = "1.0.3";
+const VERSION = "1.0.4";
 
 const http = require("http");
 const fs = require("fs");
@@ -21,53 +21,279 @@ if (!KEY) {
   process.exit(1);
 }
 
-// Only the node endpoints the board needs. The full export is handled separately below (cached, read-only).
+// Only the node endpoints the board needs. The browser never gets the full export: search runs here (see below).
 const ALLOWED = /^\/api\/v1\/nodes(\/[^/]+(\/(move|complete|uncomplete))?)?$/;
 
-// Search index: WorkFlowy limits the full export to one request per minute, so the server keeps the last copy.
-//  - a cached copy younger than EXPORT_TTL_MS is served as is;
-//  - ?refresh=1 asks for a fresh copy, but never sooner than EXPORT_MIN_GAP_MS after the last real download.
-// Responses carry X-Index-Time (when the copy was downloaded) and X-Index-Throttled ("1" if a refresh was declined).
-const EXPORT_TTL_MS = 5 * 60 * 1000;
-const EXPORT_MIN_GAP_MS = 60 * 1000;
-let exportCache = null;   // { body, type, at }
+/* ---------- Search index (lives only in this server's memory) ----------
+   The whole outline is downloaded once through WorkFlowy's export, kept here, and searched here. The browser only
+   ever receives the page of matches it asks for, and the one item it opens.
+   - WorkFlowy limits the export to one request a minute, so a refresh is never made sooner than that.
+   - The copy is re-downloaded when it is older than INDEX_MAX_AGE_MS and someone searches.
+   - The copy is thrown away after IDLE_PURGE_MINUTES without a search (0 = never), so nothing sits in memory
+     while you aren't using it. The next search downloads it again.
+   - Edits that pass through this server (from the board or the item editor) are applied to the copy as they happen. */
+const IDLE_PURGE_MINUTES = process.env.IDLE_PURGE_MINUTES === undefined ? 10 : Number(process.env.IDLE_PURGE_MINUTES);
+const INDEX_MAX_AGE_MS = 5 * 60 * 1000;
+const REFRESH_MIN_GAP_MS = 60 * 1000;
+const ITEM_DEPTH = 12;
 
-function sendExport(res, throttled) {
-  res.writeHead(200, {
-    "Content-Type": exportCache.type,
-    "X-Index-Time": String(exportCache.at),
-    "X-Index-Throttled": throttled ? "1" : "0",
-  });
-  res.end(exportCache.body);
+let idx = null;            // { byId: Map, kids: Map(parentId -> [nodes]), at }
+let lastDownloadAt = 0;
+let lastUse = Date.now();
+let loading = null;
+
+function stripHtml(s) {
+  if (!s) return "";
+  if (!/[<&]/.test(s)) return s;
+  return s.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 }
 
-async function serveExport(url, res) {
-  const wantsFresh = url.searchParams.get("refresh") === "1";
-  const age = exportCache ? Date.now() - exportCache.at : Infinity;
-  if (exportCache && (age < EXPORT_MIN_GAP_MS || (!wantsFresh && age < EXPORT_TTL_MS))) {
-    return sendExport(res, wantsFresh && age < EXPORT_MIN_GAP_MS);
+function addToKids(index, parentId, node) {
+  if (!parentId) return;
+  let list = index.kids.get(parentId);
+  if (!list) index.kids.set(parentId, (list = []));
+  list.push(node);
+}
+
+function makeNode(r) {
+  const name = r.name || "", note = r.note || "";
+  return {
+    id: r.id, parent_id: r.parent_id || null, priority: r.priority || 0,
+    name, note, lname: stripHtml(name).toLowerCase(), lnote: note ? stripHtml(note).toLowerCase() : "",
+    layoutMode: (r.data && r.data.layoutMode) || "bullets",
+    completedAt: r.completedAt || null, modifiedAt: r.modifiedAt || 0,
+  };
+}
+
+function buildIndex(list) {
+  const index = { byId: new Map(), kids: new Map(), at: Date.now() };
+  for (const r of list) {
+    if (!r || !r.id) continue;
+    const n = makeNode(r);
+    index.byId.set(n.id, n);
+    addToKids(index, n.parent_id, n);
   }
+  return index;
+}
+
+function fetchFailure(e) {
+  const cause = e.cause ? (e.cause.code || e.cause.message || String(e.cause)) : "";
+  return `${e.message}${cause ? " (" + cause + ")" : ""}`;
+}
+
+async function downloadIndex() {
+  let upstream;
   try {
-    const upstream = await fetch(BASE + "/nodes-export", { headers: { Authorization: `Bearer ${KEY}` } });
-    const body = await upstream.text();
-    if (upstream.ok) {
-      exportCache = { body, type: upstream.headers.get("content-type") || "application/json", at: Date.now() };
-      return sendExport(res, false);
-    }
-    if (exportCache) return sendExport(res, true);          // e.g. rate limited: fall back to the last copy
-    res.writeHead(upstream.status, { "Content-Type": upstream.headers.get("content-type") || "application/json" });
-    return res.end(body);
+    upstream = await fetch(BASE + "/nodes-export", { headers: { Authorization: `Bearer ${KEY}` } });
   } catch (e) {
-    const cause = e.cause ? (e.cause.code || e.cause.message || String(e.cause)) : "";
-    console.error(`Export request to ${BASE} failed:`, e.message, cause);
-    if (exportCache) return sendExport(res, true);
-    res.writeHead(502, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify({ error: `upstream failed: ${e.message}${cause ? " (" + cause + ")" : ""}` }));
+    console.error(`Export request to ${BASE} failed:`, fetchFailure(e));
+    const err = new Error("upstream failed: " + fetchFailure(e)); err.status = 502; throw err;
+  }
+  if (!upstream.ok) {
+    const err = new Error(`WorkFlowy export failed (${upstream.status})${upstream.status === 429 ? ": the export is limited to once a minute, try again shortly" : ""}`);
+    err.status = upstream.status; throw err;
+  }
+  const data = await upstream.json();
+  idx = buildIndex(Array.isArray(data.nodes) ? data.nodes : []);
+  lastDownloadAt = Date.now();
+}
+
+// Makes sure there is a copy to search. Returns { throttled } where throttled means a fresh copy was asked for
+// (or needed) but couldn't be fetched yet, so the existing copy was used.
+async function ensureIndex(wantFresh) {
+  lastUse = Date.now();
+  if (loading) { try { await loading; } catch (e) { if (!idx) throw e; } }
+  const age = idx ? Date.now() - idx.at : Infinity;
+  const tooSoon = Date.now() - lastDownloadAt < REFRESH_MIN_GAP_MS;
+  if (idx && !wantFresh && age < INDEX_MAX_AGE_MS) return { throttled: false };
+  if (idx && tooSoon) return { throttled: wantFresh };
+  try {
+    loading = downloadIndex();
+    await loading;
+    return { throttled: false };
+  } catch (e) {
+    if (idx) return { throttled: true };          // e.g. rate limited: keep using the last copy
+    throw e;
+  } finally { loading = null; }
+}
+
+if (IDLE_PURGE_MINUTES > 0) {
+  setInterval(() => {
+    if (idx && Date.now() - lastUse > IDLE_PURGE_MINUTES * 60 * 1000) {
+      idx = null;
+      console.log(`Search index cleared from memory after ${IDLE_PURGE_MINUTES} minutes idle.`);
+    }
+  }, Math.min(30 * 1000, Math.max(500, IDLE_PURGE_MINUTES * 30 * 1000))).unref();
+}
+
+// ---- query: words (all must match), "exact phrase", -word / -"phrase" to leave matches out ----
+function parseQuery(q) {
+  const include = [], exclude = [];
+  const re = /(-?)"([^"]*)"?|(-?)(\S+)/g;
+  let m;
+  while ((m = re.exec(q.toLowerCase()))) {
+    const neg = (m[1] || m[3]) === "-";
+    const text = (m[2] !== undefined ? m[2] : m[4]).trim();
+    if (text) (neg ? exclude : include).push(text);
+  }
+  return { include, exclude };
+}
+
+function pathNames(n) {
+  const out = [];
+  let p = n.parent_id ? idx.byId.get(n.parent_id) : null;
+  for (let guard = 0; p && guard < 60; guard++) {
+    out.unshift(stripHtml(p.name) || "(empty)");
+    p = p.parent_id ? idx.byId.get(p.parent_id) : null;
+  }
+  return out;
+}
+
+function noteSnippet(n, terms) {
+  const plainNote = stripHtml(n.note);
+  const lower = plainNote.toLowerCase();
+  if (lower.length !== plainNote.length) return plainNote.slice(0, 100);
+  for (const t of terms) {
+    const i = lower.indexOf(t);
+    if (i !== -1) {
+      const start = Math.max(0, i - 30);
+      return (start ? "…" : "") + plainNote.slice(start, start + 100) + (start + 100 < plainNote.length ? "…" : "");
+    }
+  }
+  return "";
+}
+
+function search(params) {
+  const { include: terms, exclude } = parseQuery(params.q);
+  if (!terms.length) return { terms, total: 0, hits: [] };
+  const found = [];
+  for (const n of idx.byId.values()) {
+    if (!params.done && n.completedAt) continue;
+    if (params.todos && n.layoutMode !== "todo") continue;
+    let ok = true;
+    for (const t of exclude) {
+      if (n.lname.includes(t) || (params.notes && n.lnote.includes(t))) { ok = false; break; }
+    }
+    if (!ok) continue;
+    let nameHit = true;
+    for (const t of terms) {
+      const a = n.lname.includes(t);
+      if (!a) nameHit = false;
+      if (!a && !(params.notes && n.lnote.includes(t))) { ok = false; break; }
+    }
+    if (ok) found.push({ n, nameHit });
+  }
+  found.sort((a, b) => (b.nameHit - a.nameHit) || (b.n.modifiedAt - a.n.modifiedAt));
+  const hits = found.slice(params.offset, params.offset + params.limit).map(({ n, nameHit }) => ({
+    id: n.id, name: stripHtml(n.name), path: pathNames(n),
+    todo: n.layoutMode === "todo", done: !!n.completedAt, nameHit,
+    snippet: nameHit ? "" : noteSnippet(n, terms),
+  }));
+  return { terms, total: found.length, hits };
+}
+
+function sortedKids(id) {
+  return (idx.kids.get(id) || []).slice().sort((a, b) => a.priority - b.priority);
+}
+
+function itemTree(n, depth) {
+  return {
+    id: n.id, name: n.name, data: { layoutMode: n.layoutMode }, completedAt: n.completedAt,
+    children: depth > 1 ? sortedKids(n.id).map((c) => itemTree(c, depth - 1)) : [],
+  };
+}
+
+function sendJson(res, status, obj) {
+  res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+  res.end(JSON.stringify(obj));
+}
+
+async function serveSearch(url, res) {
+  const p = url.searchParams;
+  try {
+    const { throttled } = await ensureIndex(p.get("refresh") === "1");
+    const limit = Math.min(200, Math.max(1, Number(p.get("limit")) || 50));
+    const offset = Math.max(0, Number(p.get("offset")) || 0);
+    const r = search({ q: p.get("q") || "", notes: p.get("notes") !== "0", done: p.get("done") !== "0", todos: p.get("todos") === "1", offset, limit });
+    sendJson(res, 200, { ...r, offset, count: idx.byId.size, indexTime: idx.at, throttled });
+  } catch (e) {
+    sendJson(res, e.status && e.status >= 400 ? e.status : 502, { error: e.message });
   }
 }
 
-// Update check: reads the VERSION line of server.js on GitHub (cached for 6 hours) and reports it to the page.
-// Set UPDATE_CHECK=0 to turn it off, or UPDATE_URL to point at another raw copy of server.js.
+async function serveItem(url, res) {
+  const p = url.searchParams;
+  try {
+    const { throttled } = await ensureIndex(p.get("refresh") === "1");
+    const n = idx.byId.get(p.get("id") || "");
+    if (!n) return sendJson(res, 404, { error: "item not found" });
+    sendJson(res, 200, { item: itemTree(n, ITEM_DEPTH), path: pathNames(n), indexTime: idx.at, throttled });
+  } catch (e) {
+    sendJson(res, e.status && e.status >= 400 ? e.status : 502, { error: e.message });
+  }
+}
+
+// ---- keep the copy in step with edits that pass through this server ----
+function removeFromKids(parentId, node) {
+  const list = parentId && idx.kids.get(parentId);
+  if (list) { const i = list.indexOf(node); if (i !== -1) list.splice(i, 1); }
+}
+function edgePriority(parentId, position) {
+  const list = (parentId && idx.kids.get(parentId)) || [];
+  if (!list.length) return 100;
+  const ps = list.map((c) => c.priority);
+  return position === "top" ? Math.min(...ps) - 100 : Math.max(...ps) + 100;
+}
+function dropSubtree(n) {
+  for (const c of (idx.kids.get(n.id) || []).slice()) dropSubtree(c);
+  idx.kids.delete(n.id);
+  idx.byId.delete(n.id);
+}
+
+function patchIndex(method, pathname, reqBody, resBody) {
+  if (!idx) return;
+  const m = pathname.match(/^\/api\/v1\/nodes(?:\/([^/]+)(?:\/(move|complete|uncomplete))?)?$/);
+  if (!m) return;
+  const id = m[1], action = m[2];
+  if (!id && method === "POST") {                                   // create
+    const newId = resBody && resBody.item_id;
+    if (!newId || !reqBody) return;
+    const todo = String(reqBody.name || "").match(/^- \[( |x|X)\]\s+([\s\S]*)$/);
+    const n = makeNode({
+      id: newId, parent_id: reqBody.parent_id, name: todo ? todo[2] : reqBody.name, note: reqBody.note,
+      priority: edgePriority(reqBody.parent_id, reqBody.position),
+      data: { layoutMode: reqBody.layoutMode || (todo ? "todo" : "bullets") },
+      completedAt: todo && todo[1] !== " " ? Math.floor(Date.now() / 1000) : null,
+      modifiedAt: Math.floor(Date.now() / 1000),
+    });
+    idx.byId.set(n.id, n);
+    addToKids(idx, n.parent_id, n);
+    return;
+  }
+  const n = id && idx.byId.get(id);
+  if (method === "DELETE" && id) { if (n) { removeFromKids(n.parent_id, n); dropSubtree(n); } return; }
+  if (method !== "POST" || !n) return;
+  const now = Math.floor(Date.now() / 1000);
+  if (action === "complete") { n.completedAt = now; n.modifiedAt = now; }
+  else if (action === "uncomplete") { n.completedAt = null; n.modifiedAt = now; }
+  else if (action === "move" && reqBody) {
+    removeFromKids(n.parent_id, n);
+    n.priority = edgePriority(reqBody.parent_id, reqBody.position);
+    n.parent_id = reqBody.parent_id || null;
+    addToKids(idx, n.parent_id, n);
+    n.modifiedAt = now;
+  } else if (!action && reqBody) {                                   // update
+    if (typeof reqBody.name === "string") { n.name = reqBody.name; n.lname = stripHtml(reqBody.name).toLowerCase(); }
+    if (typeof reqBody.note === "string") { n.note = reqBody.note; n.lnote = stripHtml(reqBody.note).toLowerCase(); }
+    if (typeof reqBody.layoutMode === "string") n.layoutMode = reqBody.layoutMode;
+    n.modifiedAt = now;
+  }
+}
+
+/* ---------- Update check (is there a newer version on GitHub?) ----------
+   Reads the VERSION line of server.js on GitHub (cached for 6 hours) and reports it to the page.
+   Set UPDATE_CHECK=0 to turn it off, or UPDATE_URL to point at another raw copy of server.js. */
 const UPDATE_CHECK = process.env.UPDATE_CHECK !== "0";
 const UPDATE_URL = process.env.UPDATE_URL || "https://raw.githubusercontent.com/robbk17/workflowy-weekboard/main/server.js";
 const REPO_URL = (process.env.UPDATE_URL ? "" : "https://github.com/robbk17/workflowy-weekboard");
@@ -75,8 +301,7 @@ const UPDATE_TTL_MS = 6 * 60 * 60 * 1000;
 let updateCache = null;   // { latest, at }
 
 async function serveUpdate(res) {
-  const send = (o) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
-  if (!UPDATE_CHECK) return send({ current: VERSION, latest: null, disabled: true });
+  if (!UPDATE_CHECK) return sendJson(res, 200, { current: VERSION, latest: null, disabled: true });
   if (!updateCache || Date.now() - updateCache.at > UPDATE_TTL_MS) {
     let latest = null;
     try {
@@ -85,7 +310,7 @@ async function serveUpdate(res) {
     } catch (e) { /* offline or blocked: just no answer */ }
     updateCache = { latest, at: Date.now() - (latest ? 0 : UPDATE_TTL_MS - 10 * 60 * 1000) };   // retry a failure after 10 min
   }
-  return send({ current: VERSION, latest: updateCache.latest, url: REPO_URL });
+  return sendJson(res, 200, { current: VERSION, latest: updateCache.latest, url: REPO_URL });
 }
 
 function readBody(req) {
@@ -100,10 +325,11 @@ function readBody(req) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
 
-  if (url.pathname === "/update-check" && req.method === "GET") return serveUpdate(res);
+  if (req.method === "GET" && url.pathname === "/update-check") return serveUpdate(res);
+  if (req.method === "GET" && url.pathname === "/search") return serveSearch(url, res);
+  if (req.method === "GET" && url.pathname === "/item") return serveItem(url, res);
 
   if (url.pathname.startsWith("/api/")) {
-    if (url.pathname === "/api/v1/nodes-export" && req.method === "GET") return serveExport(url, res);
     if (!ALLOWED.test(url.pathname)) {
       res.writeHead(403, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: "endpoint not allowed" }));
@@ -119,6 +345,10 @@ const server = http.createServer(async (req, res) => {
         body: body && body.length ? body : undefined,
       });
       const text = await upstream.text();
+      if (upstream.ok && ["POST", "DELETE"].includes(req.method)) {
+        try { patchIndex(req.method, url.pathname, body && body.length ? JSON.parse(body.toString()) : null, text ? JSON.parse(text) : null); }
+        catch (e) { /* the copy just stays as it was until the next refresh */ }
+      }
       res.writeHead(upstream.status, {
         "Content-Type": upstream.headers.get("content-type") || "application/json",
       });
