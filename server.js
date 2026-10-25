@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.0.6
+// Version 1.0.8
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.0.6";
+const VERSION = "1.0.8";
 
 const http = require("http");
 const fs = require("fs");
@@ -79,7 +79,12 @@ if (REMOTE) {
 const HOST = REMOTE ? (process.env.HOST || (MODE === "fly" ? "0.0.0.0" : "127.0.0.1")) : "127.0.0.1";
 
 // Only the node endpoints the board needs. The browser never gets the full export: search runs here (see below).
-const ALLOWED = /^\/api\/v1\/nodes(\/[^/]+(\/(move|complete|uncomplete))?)?$/;
+// Ids are letters, digits, "-" and "_" only (no slashes, dots or %-escapes), so a path can't be bent toward another endpoint.
+const ALLOWED = /^\/api\/v1\/nodes(\/[A-Za-z0-9_-]{1,64}(\/(move|complete|uncomplete))?)?$/;
+const ALLOWED_METHODS = ["GET", "POST", "DELETE"];
+const MAX_BODY = 1024 * 1024;                  // largest request body the board may send through (1 MB)
+const UPSTREAM_TIMEOUT_MS = 30 * 1000;         // give up on WorkFlowy after 30 seconds
+const EXPORT_TIMEOUT_MS = 120 * 1000;          // the full export can be big, so it gets longer
 
 /* ---------- Search index (lives only in this server's memory) ----------
    The whole outline is downloaded once through WorkFlowy's export, kept here, and searched here. The browser only
@@ -142,7 +147,7 @@ function fetchFailure(e) {
 async function downloadIndex() {
   let upstream;
   try {
-    upstream = await fetch(BASE + "/nodes-export", { headers: { Authorization: `Bearer ${KEY}` } });
+    upstream = await fetch(BASE + "/nodes-export", { headers: { Authorization: `Bearer ${KEY}` }, signal: AbortSignal.timeout(EXPORT_TIMEOUT_MS) });
   } catch (e) {
     console.error(`Export request to ${BASE} failed:`, fetchFailure(e));
     const err = new Error("upstream failed: " + fetchFailure(e)); err.status = 502; throw err;
@@ -279,6 +284,35 @@ async function serveSearch(url, res) {
   }
 }
 
+// Tasks ticked off between two moments (epoch seconds), newest first. Used by the board's "Done" window.
+const DONE_LIMIT = 1000;
+const doneSeconds = (n) => (n.completedAt > 1e11 ? n.completedAt / 1000 : n.completedAt);   // tolerate milliseconds
+function doneList(from, to) {
+  const found = [];
+  for (const n of idx.byId.values()) {
+    if (!n.completedAt) continue;
+    const t = doneSeconds(n);
+    if (t >= from && t < to) found.push({ n, t });
+  }
+  found.sort((a, b) => b.t - a.t);
+  return {
+    total: found.length,
+    hits: found.slice(0, DONE_LIMIT).map(({ n, t }) => ({ id: n.id, name: stripHtml(n.name), path: pathNames(n), completedAt: t, todo: n.layoutMode === "todo" })),
+  };
+}
+
+async function serveDone(url, res) {
+  const p = url.searchParams;
+  const from = Number(p.get("from")), to = Number(p.get("to"));
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return sendJson(res, 400, { error: "from and to (epoch seconds) are required" });
+  try {
+    const { throttled } = await ensureIndex(p.get("refresh") === "1");
+    sendJson(res, 200, { ...doneList(from, to), limit: DONE_LIMIT, count: idx.byId.size, indexTime: idx.at, throttled });
+  } catch (e) {
+    sendJson(res, e.status && e.status >= 400 ? e.status : 502, { error: e.message });
+  }
+}
+
 async function serveItem(url, res) {
   const p = url.searchParams;
   try {
@@ -377,14 +411,16 @@ const failures = new Map();                      // client address -> { count, u
 const MAX_FAILS = 5, LOCKOUT_MS = 15 * 60 * 1000;
 
 function applySecurityHeaders(res) {
+  // Scripts only run if they carry this one-time token (a fresh one for every page load), so injected script is refused.
+  res.nonce = crypto.randomBytes(16).toString("base64");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
-    "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+    `default-src 'self'; script-src 'nonce-${res.nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ` +
+    "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
   if (REMOTE) res.setHeader("Strict-Transport-Security", "max-age=31536000");
 }
 
@@ -517,7 +553,7 @@ async function guard(req, res, url) {
     return false;
   }
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/update-check"].includes(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/update-check"].includes(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -554,14 +590,23 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/update-check") return serveUpdate(res);
   if (req.method === "GET" && url.pathname === "/search") return serveSearch(url, res);
   if (req.method === "GET" && url.pathname === "/item") return serveItem(url, res);
+  if (req.method === "GET" && url.pathname === "/done") return serveDone(url, res);
 
   if (url.pathname.startsWith("/api/")) {
     if (!ALLOWED.test(url.pathname)) {
       res.writeHead(403, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: "endpoint not allowed" }));
     }
+    if (!ALLOWED_METHODS.includes(req.method)) {
+      res.writeHead(405, { "Content-Type": "application/json", Allow: ALLOWED_METHODS.join(", ") });
+      return res.end(JSON.stringify({ error: "method not allowed" }));
+    }
     try {
-      const body = ["GET", "DELETE", "HEAD"].includes(req.method) ? undefined : await readBody(req);
+      let body;
+      if (req.method === "POST") {
+        try { body = await readBody(req, MAX_BODY); }
+        catch (e) { res.writeHead(413, { "Content-Type": "application/json", Connection: "close" }); return res.end(JSON.stringify({ error: "request too large" })); }
+      }
       const upstream = await fetch(BASE + url.pathname.replace("/api/v1", "") + url.search, {
         method: req.method,
         headers: {
@@ -569,6 +614,7 @@ const server = http.createServer(async (req, res) => {
           ...(body && body.length ? { "Content-Type": "application/json" } : {}),
         },
         body: body && body.length ? body : undefined,
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       });
       const text = await upstream.text();
       if (upstream.ok && ["POST", "DELETE"].includes(req.method)) {
@@ -592,7 +638,8 @@ const server = http.createServer(async (req, res) => {
     // Pass the configured notes-bullet name to the page through its notes-name meta tag.
     const page = fs.readFileSync(path.join(__dirname, "index.html"), "utf8")
       .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)
-      .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b);
+      .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
+      .replace(/<script>/g, `<script nonce="${res.nonce}">`);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     return res.end(page);
   }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.7">
+<meta name="version" content="1.0.8">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <title>Workflowy Week Board</title>
@@ -49,6 +49,17 @@
   .seg button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .seg.mini button { padding: 2px 8px; font-size: 12px; }
   .rng { margin: 0 4px 8px; }
+  .col h2 .xname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-weight: 700; }
+  .col h2 .xr { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+  .xroll { padding: 0 8px; font-size: 12px; line-height: 18px; border-radius: 10px; color: var(--accent); }
+  .xroll:disabled { color: var(--muted); }
+  #extras .col:not(.folded):has(.card) .tasks { min-height: 96px; }
+  .xtog { display: inline-flex; align-items: center; gap: 2px; border: none; background: rgba(127,127,127,.18); border-radius: 10px; padding: 0 9px; font-size: 12px; font-weight: 400; color: var(--muted); cursor: pointer; }
+  .xtog:hover { color: var(--accent); }
+  .xtog .ar { font-size: 15px; line-height: 1; }
+  .col.folded { min-height: 0; padding-bottom: 4px; }
+  .col.folded .colhead { padding-bottom: 0; }
+  .col.folded h2 { margin-bottom: 4px; }
   #error { flex: none; display: none; margin: 0 16px 8px; padding: 8px 12px; border-radius: 6px;
            background: #fde8e8; color: #8a1c1c; }
 
@@ -58,7 +69,7 @@
   /* The sidebar is exactly as tall as the window area. Its panels flex to fit and scroll inside themselves
      (Daily page takes whatever room is left), so the column as a whole only scrolls on a tiny window. */
   #side { flex: 0 0 300px; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-  #extras { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  #extras { flex: none; display: flex; flex-direction: column; gap: 10px; }   /* keeps its full height so the lists are always visible; the sidebar scrolls if the window is small */
   #extras:empty { display: none; }
   .panel { flex: none; background: var(--col); border-radius: 8px; padding: 10px; }
   .panel h3 { font-size: 13px; margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
@@ -151,7 +162,7 @@
   /* Daily page: read from WorkFlowy, nested like the outline */
   /* Daily page fills the space left in the sidebar and scrolls inside itself. */
   #outliner { flex: 1 1 0; min-height: 300px; display: flex; flex-direction: column; }
-  #outliner > h3, #outliner > #outline, #outliner > .outbar, #outliner > .viewbar { flex: none; }
+  #outliner > h3, #outliner > #composer, #outliner > .cbar, #outliner > .outbar, #outliner > .viewbar { flex: none; }
   .pagetree { flex: 1 1 0; min-height: 60px; overflow-y: auto; scrollbar-width: thin; background: var(--card);
               border-radius: 6px; padding: 6px 8px; margin-bottom: 12px; font-size: 13px; }
   /* Expanded: the calendar and Past due / Upcoming panels hide, so the page (and the add pad) get the whole sidebar. */
@@ -172,7 +183,20 @@
   .pl-edit .pe-note:focus { border-color: var(--accent); outline: none; }
   .pl-edit .pe-title:focus { outline: none; }
   .pl-edit .pe-hint { font-size: 10px; color: var(--muted); }
-  #moveNotes { margin-left: auto; }
+  #pageHead #pageMore { margin-left: 0; }
+  .pop.fixed { position: fixed; right: auto; top: 0; left: 0; z-index: 85; width: 270px; }
+  .pop button { display: flex; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-size: 14px; }
+  .pop button:hover { background: rgba(127,127,127,.14); }
+  .pop button small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .cbar { display: flex; align-items: center; gap: 6px; width: 100%; margin: 0 0 6px; padding: 5px 8px; border: none; border-top: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--text); font-size: 13px; text-align: left; cursor: pointer; }
+  .cbar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cbar.away strong { color: var(--accent); }
+  .cbar .car { font-size: 15px; line-height: 1; color: var(--muted); }
+  .cbar .cdraft { font-size: 11px; color: #fff; background: var(--accent); border-radius: 10px; padding: 0 7px; }
+  .cbar .cdraft[hidden] { display: none; }
+  .cbar:hover .car { color: var(--accent); }
+  #outliner.composer-closed #composer, #outliner.composer-closed #outSave, #outliner.composer-closed .osep { display: none; }
+  #outliner.composer-closed .outright { margin-left: 0; }   /* no blank gap where Save was */
   .pl .addc, .pl .indc, .pl .delc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
   .pl .addc:hover, .pl .indc:hover { color: var(--accent); }
   .pl .delc:hover { color: #c0392b; }
@@ -225,7 +249,18 @@
 
   .ver a { color: #b45309; font-weight: 600; text-decoration: none; }
   .ver a:hover { text-decoration: underline; }
-  .ver { flex: none; font-size: 11px; color: var(--muted); text-align: center; padding: 2px 0 0; }
+  .ver { flex: none; margin-left: auto; font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; }
+  #foot { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 0 16px 10px; }
+  #foot .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+  #foot .tools button { padding: 4px 10px; font-size: 13px; }
+  .outbar { flex-wrap: wrap; }
+  .outbar { gap: 3px; }
+  .outbar button { padding: 4px 5px; font-size: 12px; white-space: nowrap; }
+  .osep { flex: none; align-self: stretch; width: 1px; margin: 2px 0; background: var(--border); }
+  .outright { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+  .reports { position: relative; }
+  #outStatus { flex: 1 0 100%; }
+  #outStatus:empty { display: none; }
   .outbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 
   @media (max-width: 820px) {
@@ -239,21 +274,105 @@
     .modal { padding: 0; }
     .modal-box { width: 100%; max-height: none; height: 100vh; height: 100dvh; border-radius: 0; }
   }
+
+  /* Header buttons */
+  #planBtn.on, #selBtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pop input[type=number] { flex: none; width: 58px; font: inherit; font-size: 13px; padding: 2px 4px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; }
+
+  /* Toast (undo) and the bulk-select bar */
+  .toast { position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 90; display: flex; align-items: center; gap: 10px;
+           max-width: min(560px, calc(100vw - 24px)); padding: 9px 12px; border-radius: 8px; background: #172b4d; color: #fff;
+           box-shadow: 0 8px 24px rgba(0,0,0,.35); font-size: 14px; }
+  .toast[hidden], #selbar[hidden] { display: none; }
+  .toast span { flex: 1; min-width: 0; word-break: break-word; }
+  .toast button { padding: 3px 10px; background: transparent; color: #fff; border-color: rgba(255,255,255,.5); }
+  .toast button:hover { border-color: #fff; }
+  .toast #toastX { border: none; padding: 3px 6px; opacity: .7; }
+  #selbar { position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 8px;
+            max-width: calc(100vw - 24px); padding: 9px 12px; border-radius: 10px; background: var(--card); color: var(--text);
+            border: 1px solid var(--accent); box-shadow: 0 8px 24px rgba(0,0,0,.3); font-size: 14px; }
+  #selbar strong { margin-right: 4px; }
+  #selDel:not(:disabled) { color: #de350b; }
+  body.selmode .card { cursor: pointer; }
+  body.selmode .card .txt { user-select: none; }
+  body.selmode .card .del, body.selmode .card .mv { visibility: hidden; }
+  .card.sel { outline: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
+  .addhint { font-size: 11px; color: var(--accent); margin: 3px 4px 0; }
+  .addhint[hidden] { display: none; }
+
+  /* Move-forward preview and the Done window */
+  .modal-box.narrow { width: min(520px, 100%); }
+  .modal-box h3 { margin: 0; font-size: 15px; flex: 1; align-self: center; }
+  .roll-dest { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .roll-dest input[type=date] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
+  .roll-dest button, .sm-foot button { padding: 3px 9px; font-size: 13px; }
+  .roll-dest .grow { flex: 1; }
+  .rl { display: flex; gap: 8px; align-items: flex-start; padding: 7px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 14px; }
+  .rl:hover { background: var(--col); }
+  .rl .rt { flex: 1; min-width: 0; word-break: break-word; }
+  .rl .rd { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .rl input { margin-top: 3px; }
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .sm-head select { font: inherit; padding: 5px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  .dgrp { position: sticky; top: 0; padding: 6px 12px; font-size: 12px; font-weight: 700; background: var(--col); color: var(--muted); border-bottom: 1px solid var(--border); }
+  .dr { display: flex; gap: 10px; align-items: flex-start; padding: 7px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .dr .dtime { flex: none; width: 64px; font-size: 12px; color: var(--muted); padding-top: 2px; }
+  .dr .dmid { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .dr .dname { word-break: break-word; }
+  .dr .dpath { font-size: 11px; color: var(--muted); word-break: break-word; }
+  .dr a { flex: none; color: var(--muted); text-decoration: none; padding: 0 4px; }
+  .dr a:hover { color: var(--accent); }
+
+  /* Plan day */
+  #plan { flex: 1; min-width: 0; display: flex; gap: 12px; overflow: hidden; }
+  #plan[hidden], #board[hidden] { display: none; }
+  .planpane { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; background: var(--col); border-radius: 8px; padding: 10px; overflow: hidden; }
+  .planpane.today { background: var(--today); }
+  .planpane h2 { font-size: 14px; margin: 0 0 8px; }
+  .planpane .tasks { padding: 4px 0; }
+  .phead { flex: none; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .phead h2 { flex: 1; margin: 0; min-width: 0; font-size: 15px; }
+  .phead .mini { padding: 0 8px; font-size: 12px; }
+  .phead .nav { font-size: 18px; line-height: 1.1; padding: 0 8px 2px; }
+  .meter { flex: none; margin-bottom: 8px; }
+  .meter .mlab { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .mbar { height: 8px; border-radius: 4px; background: rgba(127,127,127,.25); overflow: hidden; }
+  .mbar div { height: 100%; background: var(--accent); border-radius: 4px; transition: width .2s; }
+  .mbar.warn div { background: #e0a100; }
+  .mbar.over div { background: #de350b; }
+  .restbtn { flex: none; margin-bottom: 8px; align-self: flex-start; font-size: 13px; padding: 4px 10px; }
+  .planpane .addhint { flex: none; }
+  .planpane > div:last-child { flex: none; }
+  .bring-list { flex: 1; min-height: 0; overflow-y: auto; }
+  .bgh { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 2px 4px; }
+  .bgh:first-child { margin-top: 0; }
+  .bgh .mini { padding: 1px 8px; font-size: 12px; }
+  .brow { display: flex; align-items: flex-start; gap: 8px; background: var(--card); border-radius: 6px; padding: 7px 8px; margin-bottom: 5px; box-shadow: 0 1px 1px rgba(0,0,0,.12); font-size: 14px; }
+  .brow .bt { flex: 1; min-width: 0; word-break: break-word; }
+  .brow .bd { flex: none; font-size: 11px; color: var(--muted); padding-top: 2px; white-space: nowrap; }
+  .brow .bring { flex: none; padding: 1px 8px; font-size: 12px; }
+  @media (max-width: 820px) { #plan { flex-direction: column; overflow-y: auto; } .planpane { flex: none; max-height: 70vh; } }
 </style>
 </head>
 <body>
 <header>
   <h1>Workflowy Week Board <small id="range"></small></h1>
-  <div class="hsearch"><button id="searchBtn" title="Search your whole outline (Ctrl+K)">&#128269; Search nodes</button></div>
+  <div class="hsearch">
+    <button id="searchBtn" title="Search your whole outline (Ctrl+K)">&#128269; Search nodes</button>
+  </div>
   <div class="settings">
     <button id="settingsBtn" aria-haspopup="true" aria-expanded="false" title="Hide completed, Past due, Upcoming, Nested and Sub-items">&#9881; Settings</button>
     <div class="pop" id="settingsPop" role="menu" hidden>
       <label><input type="checkbox" id="optHide"><span>Hide completed<small>Leave ticked tasks out</small></span></label>
       <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
+      <label class="sel"><span>Past due range<small>How far back Past due looks (and Plan day's Bring in, up to 4 weeks)</small></span>
+        <select id="optRange"><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option><option value="all">All</option></select></label>
       <label><input type="checkbox" id="optSoon"><span>Upcoming<small>Tasks in the 14 days after the days shown</small></span></label>
       <label class="sel"><span>Nested<small>Tasks indented under a plain bullet. Group: one card per bullet. Flatten: each task its own card.</small></span>
         <select id="optNested"><option value="off">Off</option><option value="group">Group</option><option value="flatten">Flatten</option></select></label>
       <label><input type="checkbox" id="optSubs"><span>Sub-items<small>Count on tasks that have sub-items, and a checklist you can open</small></span></label>
+      <label class="sel"><span>Plan day limit<small>Open tasks that fill the meter in Plan day. 0 turns the meter off.</small></span>
+        <input type="number" id="optLimit" min="0" max="99" step="1"></label>
     </div>
   </div>
   <div class="seg" id="seg" title="Days to show">
@@ -267,20 +386,43 @@
 <div id="error"></div>
 <div id="main">
   <div id="board"></div>
+  <div id="plan" hidden></div>
   <aside id="side">
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
-      <h3 id="pageHead"><strong id="pageHeading">Daily page</strong><button class="mini nav" id="pagePrev" title="Previous day's page">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's page">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload">&#8635;</button></h3>
+      <h3 id="pageHead"><strong id="pageHeading">Daily page</strong><button class="mini nav" id="pagePrev" title="Previous day's page">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's page">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload">&#8635;</button><button class="mini" id="pageMore" aria-haspopup="true" aria-expanded="false" title="More: rename the notes bullet, move notes in">&#8943;</button></h3>
+      <div class="pop fixed" id="pageMenu" role="menu" hidden>
+        <button id="notesEdit" role="menuitem" type="button"><span>&#9998; Rename the notes bullet&hellip;<small>Used on every day's page (saved in this browser)</small></span></button>
+        <button id="moveNotes" role="menuitem" type="button"><span>&#8627; Move notes in<small>Move the shown day's plain bullets into the notes bullet</small></span></button>
+      </div>
       <div class="pagetree" id="pageTree">Loading…</div>
-      <h3><strong id="notesHeading">Add to WB-Notes</strong><button class="mini" id="notesEdit" title="Change the name of the notes bullet">&#9998;</button><button class="mini" id="moveNotes" title="Move today's plain bullets into the notes bullet">Move notes in</button></h3>
+      <button id="composerBar" class="cbar" type="button" aria-expanded="true" aria-controls="composer"><strong id="notesHeading">Add to WB-Notes</strong><span class="cdraft" id="cDraft" hidden>draft</span><span class="car" id="cCar">&#9662;</span></button>
+      <div id="composer">
       <textarea id="outline" spellcheck="true"
         placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
-      <div class="outbar"><button id="outSave">Save to WB-Notes</button><span id="outStatus"></span></div>
+      </div>
+      <div class="outbar"><button id="outSave" class="primary">Save to WB-Notes</button>
+        <span class="osep" aria-hidden="true"></span>
+        <span class="outright">
+          <button id="selBtn" aria-pressed="false" title="Select several tasks to move, complete or delete together">&#9745; Selector</button>
+          <span class="reports">
+            <button id="reportsBtn" aria-haspopup="true" aria-expanded="false" title="Reports">Reports &#9662;</button>
+            <div class="pop fixed" id="reportsPop" role="menu" hidden>
+              <label id="repDone" role="menuitem" tabindex="0"><span>&#10003; Completed tasks<small>What you finished, by the day you completed it</small></span></label>
+            </div>
+          </span>
+        </span>
+        <span id="outStatus"></span></div>
     </section>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.7</span></div>
   </aside>
 </div>
+<footer id="foot">
+  <div class="tools">
+    <button id="planBtn" aria-pressed="false" title="Focus on one day: see what's planned and what you could bring in">&#128197; Plan day</button>
+  </div>
+  <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.8</span></div>
+</footer>
 
 <div class="modal" id="searchModal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-label="Search your outline">
@@ -303,6 +445,45 @@
     </div>
   </div>
 </div>
+
+<div class="modal" id="rollModal" hidden>
+  <div class="modal-box narrow" role="dialog" aria-modal="true" aria-label="Move open tasks">
+    <div class="sm-head"><h3 id="rollTitle">Move tasks</h3><button id="rollClose" title="Close (Esc)">&#10005;</button></div>
+    <div class="roll-dest">
+      <span>Move to</span><input type="date" id="rollDate">
+      <button id="rollToday" type="button">Today</button><button id="rollTomorrow" type="button">Tomorrow</button>
+      <span class="grow"></span><label><input type="checkbox" id="rollAll" checked> All</label>
+    </div>
+    <div class="sm-results" id="rollList"></div>
+    <div class="sm-foot"><span id="rollInfo"></span><span><button id="rollCancel" type="button">Cancel</button> <button id="rollGo" class="primary" type="button">Move</button></span></div>
+  </div>
+</div>
+
+<div class="modal" id="doneModal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="Completed tasks">
+    <div class="sm-head">
+      <h3 id="doneTitle">Completed</h3>
+      <select id="doneRange" aria-label="Range">
+        <option value="today">Today</option><option value="yesterday">Yesterday</option>
+        <option value="week">This week</option><option value="lastweek">Last week</option>
+        <option value="d7">Last 7 days</option><option value="d30">Last 30 days</option>
+      </select>
+      <button id="doneClose" title="Close (Esc)">&#10005;</button>
+    </div>
+    <div class="sm-results" id="doneBody"></div>
+    <div class="sm-foot"><span id="doneInfo"></span><span><button id="doneRefresh" class="mini" title="Download a fresh copy of your outline (allowed once a minute)">Refresh index</button> <button id="doneCopy" class="mini">Copy as text</button></span></div>
+  </div>
+</div>
+
+<div id="selbar" hidden>
+  <strong id="selCount">0 selected</strong>
+  <button id="selAll" type="button">Select all open</button>
+  <button id="selMove" type="button" disabled>Move to…</button>
+  <button id="selDone" type="button" disabled>Complete</button>
+  <button id="selDel" type="button" disabled>Delete</button>
+  <button id="selCancel" type="button">Done selecting</button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button id="toastUndo" type="button">Undo</button><button id="toastX" type="button" title="Dismiss">&#10005;</button></div>
 
 <script>
 const API = "/api/v1";
@@ -583,29 +764,16 @@ function render() {
     }
     for (const e of ents) list.appendChild(entryEl(e, false));
 
-    const add = document.createElement("input");
-    add.className = "add"; add.placeholder = "+ Add task"; add.enterKeyHint = "done";
-    add.addEventListener("keydown", async (e) => {
-      if (e.key !== "Enter" || !add.value.trim()) return;
-      const name = add.value.trim(); add.value = "";
-      await act(async () => {
-        await call("POST", "/nodes", { parent_id: k, name, layoutMode: "todo", position: "bottom" });
-        await loadDay(k);
-      });
-    });
-    head.appendChild(add);
+    head.appendChild(makeAddBox(k));
     col.append(head, list);
 
     col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("over"); });
     col.addEventListener("dragleave", () => col.classList.remove("over"));
     col.addEventListener("drop", async (e) => {
       e.preventDefault(); col.classList.remove("over");
-      const { id, from } = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
+      const { id, from, name } = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
       if (!id || from === k) return;
-      await act(async () => {
-        await call("POST", `/nodes/${id}/move`, { parent_id: k, position: "bottom" });
-        await Promise.all([loadDay(from), loadDay(k)]);
-      });
+      await act(() => moveMany([{ id, from, name: name || "task" }], k));
     });
 
     board.appendChild(col);
@@ -617,38 +785,63 @@ function render() {
   const extras = document.getElementById("extras");
   extras.innerHTML = "";
   if (prefs.showLate) {
-    const sub = lateRange === "all" ? "All open tasks before this view"
-      : `Open tasks from the ${lateRange} ${lateRange === "1" ? "week" : "weeks"} before this view`;
-    extras.appendChild(extraColumn("Past due", sub, entriesFor(extra.late, true), "late",
+    const span = lateRange === "all" ? "All" : `${lateRange} ${lateRange === "1" ? "week" : "weeks"}`;
+    extras.appendChild(extraColumn(`Past due (${span})`, "", entriesFor(extra.late, true), "late",
       loadingExtras ? "Loading…" : "Nothing past due"));
   }
   if (prefs.showSoon) {
-    extras.appendChild(extraColumn("Upcoming", `Tasks in the next ${LOOKAHEAD} days after this view`,
+    extras.appendChild(extraColumn(`Upcoming (${LOOKAHEAD} days)`, "",
       entriesFor(extra.soon, false), "soon", loadingExtras ? "Loading…" : "Nothing upcoming"));
   }
   extras.querySelectorAll(".col").forEach((c) => { const t = c.querySelector(".tasks"); if (t && scrolls[c.className]) t.scrollTop = scrolls[c.className]; });
+  renderPlan();                                      // (does nothing unless Plan day is open)
   scheduleKids();                                    // sub-item counts load in the background
   scheduleNested();                                  // so do the tasks under bullets (Nested)
 }
 
 // Panel for tasks from days outside the visible range. Cards show their date;
 // they can be checked off, edited, deleted, or dragged onto a day column to reschedule.
+// Which side panels (late / soon) are folded up. Remembered in this browser.
+function loadExtrasClosed() { try { return new Set(JSON.parse(localStorage.getItem("extrasClosed") || "[]").filter((x) => x === "late" || x === "soon")); } catch (e) { return new Set(); } }
+const extrasClosed = loadExtrasClosed();
+function saveExtrasClosed() { try { localStorage.setItem("extrasClosed", JSON.stringify([...extrasClosed])); } catch (e) {} }
+
 function extraColumn(title, sub, items, cls, emptyText) {
   const col = document.createElement("div");
-  col.className = "col " + cls;
+  const closed = extrasClosed.has(cls);
+  col.className = "col " + cls + (closed ? " folded" : "");
   const open = items.reduce((t, e) => t + entryOpen(e), 0);
   const head = document.createElement("div");
   head.className = "colhead";
-  head.innerHTML = `<h2>${title}<span>${open} open</span></h2><div class="sub">${sub}</div>`;
+  const h2 = document.createElement("h2");
+  const name = document.createElement("span");
+  name.className = "xname"; name.textContent = title;
+  const right = document.createElement("span");
+  right.className = "xr";
   if (cls === "late") {
-    // How far back Past due looks: All, or 1-4 weeks.
-    const seg = document.createElement("div");
-    seg.className = "seg mini rng";
-    seg.title = "How far back to look";
-    seg.innerHTML = [["all", "All"], ["1", "1w"], ["2", "2w"], ["3", "3w"], ["4", "4w"]]
-      .map(([v, label]) => `<button data-range="${v}" class="${lateRange === v ? "on" : ""}">${label}</button>`).join("");
-    head.appendChild(seg);
+    const roll = document.createElement("button");
+    roll.className = "xroll"; roll.type = "button"; roll.textContent = "→ Today";
+    roll.title = "Move open past-due tasks to today (you choose which in a preview, and can undo it)";
+    roll.disabled = !items.some((e) => e.kind === "task" && !e.n.completedAt);
+    roll.addEventListener("click", () => openRoll({ title: "Move past-due tasks", items: items.filter((e) => e.kind === "task").map((e) => ({ n: e.n, k: e.k })), dest: key(todayDate()) }));
+    right.appendChild(roll);
   }
+  const tog = document.createElement("button");
+  tog.className = "xtog"; tog.type = "button";
+  tog.title = closed ? `Show ${title}` : `Hide ${title}`;
+  tog.setAttribute("aria-expanded", closed ? "false" : "true");
+  const ar = document.createElement("span");
+  ar.className = "ar"; ar.textContent = closed ? "▸" : "▾";
+  tog.append(ar, ` ${open} open`);
+  tog.addEventListener("click", () => {
+    if (closed) extrasClosed.delete(cls); else extrasClosed.add(cls);
+    saveExtrasClosed(); render();
+    if (closed) { const c = document.querySelector(`#extras .col.${cls}`); if (c && c.scrollIntoView) c.scrollIntoView({ block: "nearest" }); }   // make sure the opened list is on screen
+  });
+  right.appendChild(tog);
+  h2.append(name, right);
+  head.appendChild(h2);
+  if (closed) { col.appendChild(head); return col; }
   const list = document.createElement("div");
   list.className = "tasks";
   if (!items.length) list.insertAdjacentHTML("beforeend", `<div class="empty">${emptyText}</div>`);
@@ -670,7 +863,7 @@ function saveOpenCards() { try { localStorage.setItem("openCards", JSON.stringif
 function scheduleKids() {
   if (!prefs.showSubs) return;
   const { late, soon } = extraKeys();
-  const items = [...collect(weekDays().map(key), false), ...collect(late, true), ...collect(soon, false)];
+  const items = [...collect(weekDays().map(key), false), ...collect(late, true), ...collect(soon, false), ...collect(planExtraKeys(), false)];
   for (const { n } of items) {
     if (kids[n.id] || kidsQueued.has(n.id)) continue;
     kidsQueued.add(n.id);
@@ -771,7 +964,7 @@ function groupCard(e, showDate) {
   el.dataset.id = b.id;
   el.draggable = true;
   el.addEventListener("dragstart", (ev) => {
-    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k }));
+    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (visibleText(b.name) || "group").slice(0, 40) }));
     el.classList.add("dragging");
   });
   el.addEventListener("dragend", () => el.classList.remove("dragging"));
@@ -799,11 +992,8 @@ function groupCard(e, showDate) {
   mv.addEventListener("click", (ev) => {
     ev.stopPropagation();
     openMovePop(mv, k, (to) => {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || to === k) return;
-      act(async () => {
-        await call("POST", `/nodes/${b.id}/move`, { parent_id: to, position: "bottom" });
-        await Promise.all([loadDay(k), loadDay(to)]);
-      });
+      if (!ISO_DAY.test(to) || to === k) return;
+      act(() => moveMany([{ id: b.id, from: k, name: (visibleText(b.name) || "group").slice(0, 40) }], to));
     });
   });
   head.append(arrow, title, pill, mv);
@@ -837,7 +1027,7 @@ let nestTimer = null;
 function scheduleNested() {
   if (prefs.nested === "off") return;
   const { late, soon } = extraKeys();
-  for (const k of [...weekDays().map(key), ...late, ...soon]) {
+  for (const k of [...weekDays().map(key), ...late, ...soon, ...(planMode ? [planDay] : [])]) {
     for (const b of dayBullets[k] || []) {
       if (nest[b.id] || nestQueued.has(b.id)) continue;
       nestQueued.add(b.id);
@@ -867,9 +1057,15 @@ function card(n, k, showDate, opts) {
   const el = document.createElement("div");
   el.className = "card" + (n.completedAt ? " done" : "") + (nested ? " nested" : "");
   el.dataset.id = n.id;
-  el.draggable = !nested;                                // moving it out of its bullet would be a surprise
+  el.draggable = !nested && !selMode;                    // moving it out of its bullet would be a surprise
+  if (sel.has(n.id)) el.classList.add("sel");
+  el.addEventListener("click", (ev) => {                 // in select mode a click picks the card instead of using what's inside it
+    if (!selMode) return;
+    ev.preventDefault(); ev.stopPropagation();
+    toggleSel(n, k, nested ? opts.bullet : null, el);
+  }, true);
   el.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: k }));
+    e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: k, name: shortName(n) }));
     el.classList.add("dragging");
   });
   el.addEventListener("dragend", () => el.classList.remove("dragging"));
@@ -877,9 +1073,14 @@ function card(n, k, showDate, opts) {
   const cb = document.createElement("input");
   cb.type = "checkbox"; cb.checked = !!n.completedAt;
   cb.addEventListener("change", () => act(async () => {
-    await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`);
-    if (nested) n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
+    const done = cb.checked;
+    await call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`);
+    if (nested) n.completedAt = done ? Math.floor(Date.now() / 1000) : null;
     else await loadDay(k);
+    pushUndo(`${done ? "Completed" : "Reopened"} “${shortName(n)}”`, async () => {
+      await call("POST", `/nodes/${n.id}/${done ? "uncomplete" : "complete"}`);
+      await reloadParents([nested ? opts.bullet.id : k]);
+    });
   }));
 
   const txt = document.createElement("div");
@@ -924,20 +1125,18 @@ function card(n, k, showDate, opts) {
     const sc = prefs.showSubs && kids[n.id] ? kids[n.id].count : 0;
     if (!confirm(sc ? `Delete this task and its ${sc} sub-item${sc === 1 ? "" : "s"} (and anything under them) permanently?` : "Delete this task permanently?")) return;
     act(async () => {
-      await call("DELETE", `/nodes/${n.id}`);
       if (nested) { const info = nest[opts.bullet.id]; if (info) info.todos = info.todos.filter((x) => x !== n); }
-      else await loadDay(k);
+      await deleteMany([{ id: n.id, parent: nested ? opts.bullet.id : k, node: n }]);
     });
   });
 
   const mv = document.createElement("button");
   mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move to a date…";
   const moveTo = (to) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || to === k) return;
+    if (!ISO_DAY.test(to) || to === k) return;
     act(async () => {
-      await call("POST", `/nodes/${n.id}/move`, { parent_id: to, position: "bottom" });
       if (nested) { const info = nest[opts.bullet.id]; if (info) info.todos = info.todos.filter((x) => x !== n); }
-      await Promise.all([nested ? null : loadDay(k), loadDay(to)]);
+      await moveMany([{ id: n.id, from: nested ? opts.bullet.id : k, name: shortName(n) }], to);
     });
   };
   mv.addEventListener("click", (e) => { e.stopPropagation(); openMovePop(mv, k, moveTo); });
@@ -1041,7 +1240,7 @@ const outSave = document.getElementById("outSave");
 const outStatus = document.getElementById("outStatus");
 let saving = false;
 
-function saveDraft() { try { localStorage.setItem("outlineDraft", outline.value); } catch (e) {} }
+function saveDraft() { try { localStorage.setItem("outlineDraft", outline.value); } catch (e) {} updateComposerLabel(); }
 try { outline.value = localStorage.getItem("outlineDraft") || ""; } catch (e) {}
 outline.addEventListener("input", saveDraft);
 
@@ -1053,6 +1252,11 @@ function setStatus(msg) {
 // Start a fresh pad with a bullet so you can just type.
 outline.addEventListener("focus", () => {
   if (outline.value.trim() === "") { outline.value = "- "; outline.setSelectionRange(2, 2); }
+});
+
+// Clicking away from a box that only holds the starter "- " leaves it truly empty (so no stray draft is kept).
+outline.addEventListener("blur", () => {
+  if (outline.value && !parseOutline(outline.value).length) { outline.value = ""; saveDraft(); }
 });
 
 function shiftLines(dir) {
@@ -1132,20 +1336,20 @@ async function ensureNotesId(todayK) {
 // Pencil next to the heading: choose the notes bullet's name (saved in this browser; the server setting is the default).
 async function changeNotesName() {
   if (saving) return;
-  const input = prompt(`Name of the notes bullet on today's page:\n(server default: "${DEFAULT_NOTES_NAME}")`, notesName);
+  const input = prompt(`Name of the notes bullet (the same on every day's page):\n(server default: "${DEFAULT_NOTES_NAME}")`, notesName);
   if (input === null) return;
   const next = input.trim().replace(/\s+/g, " ");
   if (!next) { showError("The notes bullet needs a name."); return; }
   if (next === notesName) return;
   showError("");
-  const todayK = key(new Date());
+  const todayK = pageKey();    // the day shown in the Daily page above
   let usingExisting = false;
   try {
     const current = await findNotes(todayK, notesName);
     // If today already has a bullet with the new name, just use it instead of renaming (no duplicates).
     const taken = sameName(next, notesName) ? null : await findNotes(todayK, next);
     if (taken) usingExisting = true;
-    else if (current && confirm(`Also rename today's "${notesName}" bullet to "${next}"?\n\n` +
+    else if (current && confirm(`Also rename ${shownDayWord()} "${notesName}" bullet to "${next}"?\n\n` +
         `OK renames it. Cancel leaves it as it is, and the board will start a separate "${next}" bullet the next time you save.`)) {
       await call("POST", `/nodes/${current.id}`, { name: next });
     }
@@ -1161,16 +1365,26 @@ async function changeNotesName() {
 }
 
 function applyNotesLabels() {
-  document.getElementById("notesHeading").textContent = "Add to " + notesName;
   outSave.textContent = "Save to " + notesName;
-  moveBtn.title = `Move today's plain bullets into ${notesName}`;
+  moveBtn.querySelector("small").textContent = `Move ${shownDayWord()} plain bullets into ${notesName}`;
+  updateComposerLabel();
+}
+// "today's" or "Fri, Oct 23's": the day the Daily page is showing, which is where notes are saved.
+function shownDayWord() { return pageOffset === 0 ? "today's" : dayLabel(pageKey()) + "'s"; }
+// The bar above the notes box says where Save will write; it turns blue when that isn't today.
+function updateComposerLabel() {
+  const away = pageOffset !== 0;
+  document.getElementById("notesHeading").textContent = `Add to ${notesName} · ${away ? dayLabel(pageKey()) : "today"}`;
+  composerBar.classList.toggle("away", away);
+  outSave.title = `Save to the ${notesName} bullet on ${away ? dayLabel(pageKey()) : "today's page"}`;
+  document.getElementById("cDraft").hidden = !(outliner.classList.contains("composer-closed") && parseOutline(outline.value).length);   // an empty "- " isn't a draft
 }
 
-// Moves today's plain top-level bullets (with their sub-bullets) under the notes bullet, keeping their order.
+// Moves the shown day's plain top-level bullets (with their sub-bullets) under the notes bullet, keeping their order.
 // Todos, headings and the notes bullet itself stay where they are.
 async function moveNotes() {
   if (saving) return;
-  const todayK = key(new Date());
+  const todayK = pageKey();    // the day shown in the Daily page above
   let nodes;
   try {
     const data = await call("GET", `/nodes?parent_id=${todayK}`);
@@ -1181,7 +1395,7 @@ async function moveNotes() {
   if (!movable.length) { setStatus("No plain bullets to move"); return; }
   const preview = movable.slice(0, 5).map((n) => "• " + (plain(n.name).slice(0, 60) || "(empty)")).join("\n") +
     (movable.length > 5 ? `\n…and ${movable.length - 5} more` : "");
-  if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from today's page into ${notesName}?\n\n` +
+  if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from ${shownDayWord()} page into ${notesName}?\n\n` +
                `${preview}\n\nSub-bullets move with them. Todos and headings stay put.`)) return;
 
   saving = true; outSave.disabled = true; moveBtn.disabled = true; showError("");
@@ -1210,7 +1424,7 @@ async function saveOutline() {
   const items = parseOutline(outline.value);
   if (!items.length) { setStatus("Nothing to save"); return; }
   saving = true; outSave.disabled = true; showError("");
-  const todayK = key(new Date());
+  const todayK = pageKey();    // the day shown in the Daily page above
   let notesId;
   try { notesId = await ensureNotesId(todayK); }          // find (or create) the WB-Notes bullet first
   catch (e) {
@@ -1243,7 +1457,7 @@ async function saveOutline() {
   try { await loadDay(todayK); } catch (e) {}
   saving = false; outSave.disabled = false;
   render();
-  await loadPage();          // show what's on today's page now, including what was just saved
+  await loadPage();          // show what's on the page now, including what was just saved
 }
 outSave.onclick = saveOutline;
 
@@ -1557,6 +1771,7 @@ function updatePageHeader() {
   el.textContent = label;
   el.classList.toggle("away", pageOffset !== 0);                  // away from today: the date is a link back to today
   el.title = pageOffset === 0 ? label : "Back to today";
+  applyNotesLabels();                                             // the notes bar names the same day
 }
 function goPage(offset) {
   pageOffset = offset; addingFor = null; pageNodes = [];
@@ -1593,13 +1808,14 @@ document.getElementById("seg").onclick = (e) => {
   goToWeek();
 };
 document.getElementById("refresh").onclick = () => { for (const id in kids) delete kids[id]; for (const id in nest) delete nest[id]; loadWeek(true); loadPage(); };
-document.getElementById("extras").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-range]");
-  if (!b || b.dataset.range === lateRange) return;
-  lateRange = b.dataset.range;
+// How far back Past due looks (set in Settings): All, or 1-4 weeks.
+const rangeSel = document.getElementById("optRange");
+rangeSel.value = lateRange;
+rangeSel.onchange = () => {
+  lateRange = rangeSel.value;
   try { localStorage.setItem("lateRange", lateRange); } catch (err) {}
   loadWeek();
-});
+};
 
 const nestedSel = document.getElementById("optNested");
 nestedSel.value = prefs.nested;
@@ -1845,6 +2061,8 @@ if (document.querySelector('meta[name="remote"]').content === "1") {
   out.onclick = async (e) => {
     e.preventDefault();
     try { await fetch("/logout", { method: "POST" }); } catch (err) { /* leave anyway */ }
+    // Shared computer: don't leave your draft, notes name or settings behind in this browser.
+    try { outline.value = ""; localStorage.clear(); sessionStorage.clear(); } catch (err) { /* blocked: nothing to clear */ }
     location.href = "/login";
   };
   document.getElementById("ver").append(" · ", out);
@@ -1885,6 +2103,642 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "Escape" && !settingsPop.hidden) { setSettingsOpen(false); settingsBtn.focus(); }
   else if (e.key === "Escape" && !searchModal.hidden) { if (viewItem) closeItem(); else closeSearch(); }
 });
+
+/* ====================================================================================================
+   Undo, bulk select, rollover, date words, Done window and Plan day
+   ==================================================================================================== */
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const shortName = (n) => { const t = (plain(n.name) || "").trim() || "(empty)"; return t.length > 40 ? t.slice(0, 39) + "…" : t; };
+const dayLabel = (k) => keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+/* ---------- Toast + Undo ---------- */
+const toastEl = document.getElementById("toast");
+const toastMsg = document.getElementById("toastMsg");
+const toastUndo = document.getElementById("toastUndo");
+const undoStack = [];
+let toastTimer = null;
+function showToast(msg, canUndo) {
+  toastMsg.textContent = msg;
+  toastUndo.hidden = !canUndo;
+  toastEl.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastEl.hidden = true; }, canUndo ? 10000 : 4000);
+}
+function pushUndo(label, run) {
+  undoStack.push({ label, run });
+  if (undoStack.length > 20) undoStack.shift();
+  showToast(label, true);
+}
+async function doUndo() {
+  const u = undoStack.pop();
+  if (!u) { showToast("Nothing to undo", false); return; }
+  toastEl.hidden = true;
+  showError("");
+  try { await u.run(); showToast("Undone: " + u.label, false); }
+  catch (e) { showError("Couldn't undo: " + e.message); }
+  render(); loadPage();
+}
+toastUndo.onclick = doUndo;
+document.getElementById("toastX").onclick = () => { toastEl.hidden = true; };
+document.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+  const a = document.activeElement;
+  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;   // leave the browser's own undo alone while typing
+  e.preventDefault(); doUndo();
+});
+
+// Reload what a change touched: day pages are fetched again, bullets that hold nested tasks are re-read.
+async function reloadBullet(id) {
+  const data = await call("GET", `/nodes?parent_id=${id}`);
+  nest[id] = { todos: (data && data.nodes ? data.nodes : []).filter((n) => n.data && n.data.layoutMode === "todo").sort((a, b) => a.priority - b.priority) };
+}
+async function reloadParents(parents) {
+  const ids = [...new Set(parents.filter(Boolean))];
+  await Promise.all(ids.map((p) => (ISO_DAY.test(p) ? loadDay(p) : (nest[p] ? reloadBullet(p) : null))));
+}
+
+// Move tasks (or a group's bullet) to the bottom of a day. items: [{ id, from, name }]. Remembered for Undo.
+async function moveMany(items, dest) {
+  const todo = items.filter((it) => it.from !== dest);
+  if (!todo.length) return;
+  for (const it of todo) await call("POST", `/nodes/${it.id}/move`, { parent_id: dest, position: "bottom" });
+  await reloadParents([dest, ...todo.map((i) => i.from)]);
+  pushUndo(todo.length === 1 ? `Moved “${todo[0].name}” to ${dayLabel(dest)}` : `Moved ${todo.length} tasks to ${dayLabel(dest)}`, async () => {
+    for (const it of todo) await call("POST", `/nodes/${it.id}/move`, { parent_id: it.from, position: "bottom" });
+    await reloadParents([dest, ...todo.map((i) => i.from)]);
+  });
+}
+
+// A copy of a node and everything under it, so a delete can be undone (the restored copy gets new ids).
+async function snapshotTree(n) {
+  const budget = { left: 300, cut: false };
+  const walk = async (node, depth) => {
+    const snap = { name: node.name, note: node.note || "", layoutMode: (node.data && node.data.layoutMode) || "bullets", completedAt: node.completedAt || null, children: [] };
+    if (depth >= 12) { snap.cut = true; return snap; }
+    const data = await call("GET", `/nodes?parent_id=${node.id}`);
+    const kidsList = ((data && data.nodes) || []).slice().sort((a, b) => a.priority - b.priority);
+    for (const c of kidsList) {
+      if (budget.left <= 0) { budget.cut = true; break; }
+      budget.left--;
+      snap.children.push(await walk(c, depth + 1));
+    }
+    return snap;
+  };
+  const top = await walk(n, 0);
+  top.truncated = budget.cut;
+  return top;
+}
+async function restoreTree(parent, s) {
+  const body = { parent_id: parent, name: s.name, layoutMode: s.layoutMode, position: "bottom" };
+  if (s.note) body.note = s.note;
+  const res = await call("POST", "/nodes", body);
+  const id = res && res.item_id;
+  if (id && s.completedAt) await call("POST", `/nodes/${id}/complete`);
+  if (id) for (const c of s.children) await restoreTree(id, c);
+}
+// items: [{ id, parent, node }]
+async function deleteMany(items) {
+  const snaps = [];
+  for (const it of items) snaps.push({ parent: it.parent, snap: await snapshotTree(it.node) });
+  for (const it of items) await call("DELETE", `/nodes/${it.id}`);
+  await reloadParents(items.map((i) => i.parent));
+  const cut = snaps.some((s) => s.snap.truncated);
+  pushUndo((items.length === 1 ? `Deleted “${shortName(items[0].node)}”` : `Deleted ${items.length} tasks`) + (cut ? " (very large: part of it can't be restored)" : ""), async () => {
+    for (const s of snaps) await restoreTree(s.parent, s.snap);
+    await reloadParents(snaps.map((s) => s.parent));
+  });
+}
+
+/* ---------- Date words in the Add task box ("Call dentist fri", "Report 11/5", "Pay rent in 3 days") ---------- */
+const MONTH_NUM = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
+  january: 1, february: 2, march: 3, april: 4, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+const WEEKDAY_NUM = { sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2, wed: 3, weds: 3, wednesday: 3,
+  thu: 4, thur: 4, thurs: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6 };
+function nextMonday(base) { return addDays(base, ((8 - base.getDay()) % 7) || 7); }
+function realDate(y, m, d) { const x = new Date(y, m - 1, d); return x.getFullYear() === y && x.getMonth() === m - 1 && x.getDate() === d ? x : null; }
+function upcoming(m, d, base) {       // this year, or next year if that day has already passed
+  const a = realDate(base.getFullYear(), m, d);
+  if (a && a >= base) return a;
+  return realDate(base.getFullYear() + 1, m, d);
+}
+const MONTH_RE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const DATE_RULES = [
+  [/\s(today)$/i, () => 0],
+  [/\s(?:tomorrow|tmrw|tmr)$/i, () => 1],
+  [/\sin\s+(\d{1,3})\s+(day|days|week|weeks)$/i, (m, base) => addDays(base, Number(m[1]) * (/^w/i.test(m[2]) ? 7 : 1))],
+  [/\snext\s+week$/i, (m, base) => nextMonday(base)],
+  [/\s(next\s+)?(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)$/i, (m, base) => {
+    const wd = WEEKDAY_NUM[m[2].toLowerCase()];
+    if (m[1]) return addDays(nextMonday(base), (wd + 6) % 7);          // "next fri" = the Friday of next week
+    return addDays(base, ((wd - base.getDay() + 7) % 7) || 7);         // "fri" = the next Friday coming up
+  }],
+  [/\s(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?$/, (m, base) => {
+    const mo = Number(m[1]), d = Number(m[2]);
+    if (m[3]) return realDate(m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]), mo, d);
+    return upcoming(mo, d, base);
+  }],
+  [new RegExp("\\s" + MONTH_RE + "\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?$", "i"), (m, base) => {
+    const mo = MONTH_NUM[m[1].toLowerCase()], d = Number(m[2]);
+    return m[3] ? realDate(Number(m[3]), mo, d) : upcoming(mo, d, base);
+  }],
+  [new RegExp("\\s(\\d{1,2})(?:st|nd|rd|th)?\\s+" + MONTH_RE + "(?:,?\\s+(\\d{4}))?$", "i"), (m, base) => {
+    const mo = MONTH_NUM[m[2].toLowerCase()], d = Number(m[1]);
+    return m[3] ? realDate(Number(m[3]), mo, d) : upcoming(mo, d, base);
+  }],
+];
+// Returns { name, k } when the text ends in a date phrase (and has something left in front of it), else null.
+function parseDateWords(text, base) {
+  const t = " " + text.trim();           // leading space lets every pattern demand a word break
+  for (const [re, f] of DATE_RULES) {
+    const m = t.match(re);
+    if (!m) continue;
+    let d = f(m, base);
+    if (typeof d === "number") d = addDays(base, d);
+    if (!d) continue;
+    const name = t.slice(1, m.index).replace(/\s+(on|by|due)$/i, "").trim();
+    if (!name) return null;              // "tomorrow" on its own is just a task called tomorrow
+    return { name, k: key(d) };
+  }
+  return null;
+}
+
+// The Add task box (used by every day column and by Plan day).
+function makeAddBox(k) {
+  const wrap = document.createElement("div");
+  const add = document.createElement("input");
+  add.className = "add"; add.placeholder = "+ Add task"; add.enterKeyHint = "done";
+  add.title = "Date words work: tomorrow, fri, next mon, 11/5, Nov 5, in 3 days, next week. Shift+Enter adds it exactly as typed.";
+  const hint = document.createElement("div");
+  hint.className = "addhint"; hint.hidden = true;
+  add.addEventListener("input", () => {
+    const p = parseDateWords(add.value, todayDate());
+    hint.hidden = !p;
+    if (p) hint.textContent = `→ ${dayLabel(p.k)} · Shift+Enter adds it here as typed`;
+  });
+  add.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter" || !add.value.trim()) return;
+    let name = add.value.trim(), target = k;
+    if (!e.shiftKey) { const p = parseDateWords(name, todayDate()); if (p) { name = p.name; target = p.k; } }
+    add.value = ""; hint.hidden = true;
+    await act(async () => {
+      const res = await call("POST", "/nodes", { parent_id: target, name, layoutMode: "todo", position: "bottom" });
+      await loadDay(target);
+      const id = res && res.item_id;
+      const short = name.length > 40 ? name.slice(0, 39) + "…" : name;
+      if (id) pushUndo(`Added “${short}” to ${dayLabel(target)}`, async () => { await call("DELETE", `/nodes/${id}`); await loadDay(target); });
+    });
+  });
+  wrap.append(add, hint);
+  return wrap;
+}
+
+/* ---------- Select several tasks ---------- */
+const sel = new Map();                       // task id -> { n, k, bullet }
+let selMode = false;
+const selBar = document.getElementById("selbar");
+const selBtn = document.getElementById("selBtn");
+function selItem(s) { return { id: s.n.id, from: s.bullet ? s.bullet.id : s.k, name: shortName(s.n) }; }
+function updateSelBar() {
+  document.getElementById("selCount").textContent = `${sel.size} selected`;
+  for (const id of ["selMove", "selDone", "selDel"]) document.getElementById(id).disabled = !sel.size;
+}
+function setSelMode(on) {
+  selMode = on;
+  if (!on) sel.clear();
+  document.body.classList.toggle("selmode", on);
+  selBar.hidden = !on;
+  selBtn.classList.toggle("on", on);
+  selBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  updateSelBar();
+  render();
+}
+function toggleSel(n, k, bullet, el) {
+  if (sel.has(n.id)) sel.delete(n.id); else sel.set(n.id, { n, k, bullet });
+  el.classList.toggle("sel", sel.has(n.id));
+  updateSelBar();
+}
+selBtn.onclick = () => setSelMode(!selMode);
+document.getElementById("selCancel").onclick = () => setSelMode(false);
+document.getElementById("selAll").onclick = () => {
+  const list = planMode ? entries(planDay, true) : entriesFor([...weekDays().map(key), ...extraKeys().late, ...extraKeys().soon], true);
+  for (const e of list) if (e.kind === "task" || e.kind === "nested") sel.set(e.n.id, { n: e.n, k: e.k, bullet: e.kind === "nested" ? e.b : null });
+  updateSelBar(); render();
+};
+document.getElementById("selMove").onclick = (ev) => {
+  ev.stopPropagation();
+  const items = [...sel.values()].map(selItem);
+  openMovePop(ev.currentTarget, key(todayDate()), (to) => { setSelMode(false); act(() => moveMany(items, to)); });
+};
+document.getElementById("selDone").onclick = () => {
+  const list = [...sel.values()].filter((s) => !s.n.completedAt);
+  if (!list.length) { showToast("Those are already done", false); return; }
+  setSelMode(false);
+  act(async () => {
+    for (const s of list) await call("POST", `/nodes/${s.n.id}/complete`);
+    await reloadParents(list.map((s) => (s.bullet ? s.bullet.id : s.k)));
+    pushUndo(list.length === 1 ? `Completed “${shortName(list[0].n)}”` : `Completed ${list.length} tasks`, async () => {
+      for (const s of list) await call("POST", `/nodes/${s.n.id}/uncomplete`);
+      await reloadParents(list.map((s) => (s.bullet ? s.bullet.id : s.k)));
+    });
+  });
+};
+document.getElementById("selDel").onclick = () => {
+  const list = [...sel.values()];
+  if (!list.length) return;
+  if (!confirm(`Delete ${list.length} task${list.length === 1 ? "" : "s"} and everything under ${list.length === 1 ? "it" : "them"}? (You can undo this right afterwards.)`)) return;
+  setSelMode(false);
+  act(() => deleteMany(list.map((s) => ({ id: s.n.id, parent: s.bullet ? s.bullet.id : s.k, node: s.n }))));
+};
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && selMode && !movePop && !document.querySelector(".modal:not([hidden])")) setSelMode(false); });
+
+/* ---------- Move open tasks forward (with a preview) ---------- */
+const rollModal = document.getElementById("rollModal");
+const rollList = document.getElementById("rollList");
+const rollDate = document.getElementById("rollDate");
+let rollItems = [];
+function updateRollCount() {
+  const picked = rollList.querySelectorAll("input[type=checkbox][data-i]:checked").length;
+  document.getElementById("rollInfo").textContent = `${picked} of ${rollItems.length} will move`;
+  document.getElementById("rollGo").disabled = !picked || !rollDate.value;
+}
+function openRoll({ title, items, dest }) {
+  items = items.filter((it) => !it.n.completedAt);
+  if (!items.length) { showToast("No open tasks to move", false); return; }
+  rollItems = items;
+  document.getElementById("rollTitle").textContent = title;
+  rollDate.value = dest;
+  rollList.innerHTML = "";
+  items.forEach((it, i) => {
+    const row = document.createElement("label");
+    row.className = "rl";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = true; cb.dataset.i = i;
+    cb.addEventListener("change", updateRollCount);
+    const t = document.createElement("span");
+    t.className = "rt"; t.textContent = plain(it.n.name) || "(empty)";
+    const d = document.createElement("span");
+    d.className = "rd"; d.textContent = dayLabel(it.k);
+    row.append(cb, t, d);
+    rollList.appendChild(row);
+  });
+  document.getElementById("rollAll").checked = true;
+  rollModal.hidden = false;
+  updateRollCount();
+  document.getElementById("rollGo").focus();
+}
+function closeRoll() { rollModal.hidden = true; }
+document.getElementById("rollClose").onclick = closeRoll;
+document.getElementById("rollCancel").onclick = closeRoll;
+rollModal.addEventListener("click", (e) => { if (e.target === rollModal) closeRoll(); });
+rollDate.addEventListener("input", updateRollCount);
+document.getElementById("rollAll").addEventListener("change", (e) => {
+  rollList.querySelectorAll("input[data-i]").forEach((c) => { c.checked = e.target.checked; });
+  updateRollCount();
+});
+document.getElementById("rollToday").onclick = () => { rollDate.value = key(todayDate()); updateRollCount(); };
+document.getElementById("rollTomorrow").onclick = () => { rollDate.value = key(addDays(todayDate(), 1)); updateRollCount(); };
+document.getElementById("rollGo").onclick = () => {
+  const dest = rollDate.value;
+  if (!ISO_DAY.test(dest)) return;
+  const items = [...rollList.querySelectorAll("input[data-i]:checked")].map((c) => rollItems[Number(c.dataset.i)]).map((it) => ({ id: it.n.id, from: it.k, name: shortName(it.n) }));
+  closeRoll();
+  act(() => moveMany(items, dest));
+};
+
+/* ---------- Done window: what you finished, by the day you finished it ---------- */
+const doneModal = document.getElementById("doneModal");
+const doneBody = document.getElementById("doneBody");
+const doneRange = document.getElementById("doneRange");
+let doneHits = [], doneBounds = [0, 0], doneIndexTime = 0;
+try { const v = localStorage.getItem("doneRange"); if (v && [...doneRange.options].some((o) => o.value === v)) doneRange.value = v; } catch (e) {}
+function rangeFor(r) {
+  const t = todayDate(), mon = startOfWeek(t);
+  return { today: [t, addDays(t, 1)], yesterday: [addDays(t, -1), t], week: [mon, addDays(mon, 7)], lastweek: [addDays(mon, -7), mon],
+    d7: [addDays(t, -6), addDays(t, 1)], d30: [addDays(t, -29), addDays(t, 1)] }[r];
+}
+function doneTitleText() {
+  const [a, b] = rangeFor(doneRange.value), last = addDays(b, -1);
+  const f = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return key(a) === key(last) ? f(a) : `${f(a)} – ${f(last)}`;
+}
+function groupDone() {
+  const groups = [];
+  for (const h of doneHits) {
+    const k = key(new Date(h.completedAt * 1000));
+    let g = groups[groups.length - 1];
+    if (!g || g.k !== k) { g = { k, hits: [] }; groups.push(g); }
+    g.hits.push(h);
+  }
+  return groups;
+}
+function renderDone(note) {
+  doneBody.innerHTML = "";
+  const info = document.getElementById("doneInfo");
+  if (!doneHits.length) {
+    const d = document.createElement("div");
+    d.className = "hint"; d.textContent = note || "Nothing was completed in this range.";
+    doneBody.appendChild(d);
+  }
+  for (const g of groupDone()) {
+    const h = document.createElement("div");
+    h.className = "dgrp"; h.textContent = `${dayLabel(g.k)} · ${g.hits.length} done`;
+    doneBody.appendChild(h);
+    for (const hit of g.hits) {
+      const row = document.createElement("div");
+      row.className = "dr";
+      const time = document.createElement("span");
+      time.className = "dtime"; time.textContent = new Date(hit.completedAt * 1000).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      const mid = document.createElement("span");
+      mid.className = "dmid";
+      const name = document.createElement("span");
+      name.className = "dname"; name.textContent = hit.name || "(empty)";
+      mid.appendChild(name);
+      if (hit.path && hit.path.length) {
+        const p = document.createElement("span");
+        p.className = "dpath"; p.textContent = hit.path.join(" › ");
+        mid.appendChild(p);
+      }
+      const a = document.createElement("a");
+      a.href = "https://workflowy.com/#/" + hit.id.slice(-12); a.target = "_blank"; a.rel = "noopener";
+      a.textContent = "↗"; a.title = "Open in WorkFlowy";
+      row.append(time, mid, a);
+      doneBody.appendChild(row);
+    }
+  }
+  info.textContent = `${doneHits.length} completed · ${doneTitleText()}` + (doneIndexTime ? " · index " + ago(doneIndexTime).replace("updated ", "") : "") + (note ? " · " + note : "");
+  document.getElementById("doneCopy").disabled = !doneHits.length;
+}
+async function loadDone(refresh) {
+  const [a, b] = rangeFor(doneRange.value);
+  doneBody.innerHTML = '<div class="hint">Loading…</div>';
+  document.getElementById("doneTitle").textContent = "Completed " + doneTitleText();
+  try {
+    const data = await api(`/done?from=${Math.floor(a.getTime() / 1000)}&to=${Math.floor(b.getTime() / 1000)}&refresh=${refresh ? 1 : 0}`);
+    doneHits = data.hits || []; doneIndexTime = data.indexTime;
+    renderDone((data.throttled && refresh ? "refresh limited to once a minute; showing the last copy" : "") || (data.total > doneHits.length ? `showing the latest ${doneHits.length} of ${data.total}` : ""));
+  } catch (e) {
+    doneHits = [];
+    renderDone(e.message);
+  }
+}
+function openDone() { doneModal.hidden = false; loadDone(false); }
+function closeDone() { doneModal.hidden = true; }
+const reportsBtn = document.getElementById("reportsBtn");
+const reportsPop = document.getElementById("reportsPop");
+function setReportsOpen(on) {
+  reportsPop.hidden = !on;
+  reportsBtn.setAttribute("aria-expanded", on ? "true" : "false");
+  if (!on) return;
+  // Fixed position next to the button, kept inside the window: left-aligned when the button is near the left edge, opening upward near the bottom.
+  reportsOpenedAt = Date.now();
+  const r = reportsBtn.getBoundingClientRect(), w = reportsPop.offsetWidth, h = reportsPop.offsetHeight;
+  const box = document.getElementById("outliner").getBoundingClientRect();           // stay inside the sidebar panel the button lives in
+  const lo = Math.max(8, box.left), hi = Math.min(innerWidth - 8, box.right);
+  const left = Math.min(r.left, hi - w);
+  reportsPop.style.left = Math.max(lo, Math.min(left, innerWidth - w - 8)) + "px";
+  reportsPop.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+}
+let reportsOpenedAt = 0;
+window.addEventListener("scroll", () => { if (!reportsPop.hidden && Date.now() - reportsOpenedAt > 400) setReportsOpen(false); }, true);
+reportsBtn.onclick = (e) => { e.stopPropagation(); setReportsOpen(reportsPop.hidden); };
+document.addEventListener("click", (e) => { if (!reportsPop.hidden && !reportsPop.contains(e.target)) setReportsOpen(false); });
+const repDone = document.getElementById("repDone");
+repDone.onclick = () => { setReportsOpen(false); openDone(); };
+repDone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); repDone.click(); } });
+document.getElementById("doneClose").onclick = closeDone;
+doneModal.addEventListener("click", (e) => { if (e.target === doneModal) closeDone(); });
+doneRange.onchange = () => { try { localStorage.setItem("doneRange", doneRange.value); } catch (e) {} loadDone(false); };
+document.getElementById("doneRefresh").onclick = async (e) => { e.currentTarget.disabled = true; await loadDone(true); e.currentTarget.disabled = false; };
+document.getElementById("doneCopy").onclick = async (e) => {
+  const lines = [`Completed ${doneTitleText()} (${doneHits.length})`];
+  for (const g of groupDone()) {
+    lines.push("", `${dayLabel(g.k)} (${g.hits.length})`);
+    for (const h of g.hits) lines.push("- " + (h.name || "(empty)"));
+  }
+  const text = lines.join("\n");
+  const btn = e.currentTarget, old = btn.textContent;
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copied ✓"; }
+  catch (err) {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); btn.textContent = "Copied ✓"; } catch (e2) { btn.textContent = "Copy failed"; }
+    ta.remove();
+  }
+  setTimeout(() => { btn.textContent = old; }, 1800);
+};
+
+/* ---------- Plan day: one day in focus, with what you could bring in ---------- */
+let planMode = false;
+let planDay = key(todayDate());
+let planToken = 0, planLoading = false;
+let planLimit = 8;
+try { const v = localStorage.getItem("planLimit"); if (v !== null && Number.isFinite(Number(v)) && Number(v) >= 0) planLimit = Math.min(99, Math.floor(Number(v))); } catch (e) {}
+const planEl = document.getElementById("plan");
+const planBtn = document.getElementById("planBtn");
+const addDayKey = (k, n) => key(addDays(keyToDate(k), n));
+function planPastKeys() {
+  const weeks = lateRange === "all" ? 4 : Number(lateRange);
+  const out = [];
+  for (let i = weeks * 7; i >= 1; i--) out.push(addDayKey(planDay, -i));
+  return out;                              // oldest first
+}
+const planAheadKeys = () => [1, 2, 3].map((i) => addDayKey(planDay, i));
+function planExtraKeys() { return planMode ? [planDay, ...planPastKeys(), ...planAheadKeys()] : []; }
+async function loadPlan(force) {
+  const token = ++planToken;
+  const keys = planExtraKeys().filter((k) => force || k === planDay || !(k in cache));
+  planLoading = true; renderPlan();
+  const err = await loadMany(keys);
+  if (token !== planToken) return;
+  planLoading = false;
+  if (err) showError(err);
+  render();
+}
+function setPlanMode(on) {
+  planMode = on;
+  if (on) planDay = key(todayDate());
+  document.getElementById("board").hidden = on;
+  planEl.hidden = !on;
+  planBtn.classList.toggle("on", on);
+  planBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  if (on) loadPlan(false); else render();
+}
+planBtn.onclick = () => setPlanMode(!planMode);
+function goPlanDay(k) { planDay = k; loadPlan(false); }
+
+function planPane(title) {
+  const pane = document.createElement("section");
+  pane.className = "planpane";
+  const h = document.createElement("h2");
+  h.textContent = title;
+  pane.appendChild(h);
+  return pane;
+}
+function planRow(n, k, label) {
+  const row = document.createElement("div");
+  row.className = "brow";
+  const t = document.createElement("span");
+  t.className = "bt"; t.textContent = plain(n.name) || "(empty)";
+  const d = document.createElement("span");
+  d.className = "bd"; d.textContent = dayLabel(k);
+  const b = document.createElement("button");
+  b.className = "bring"; b.textContent = "+ " + label; b.title = `Move to ${dayLabel(planDay)}`;
+  b.addEventListener("click", () => act(() => moveMany([{ id: n.id, from: k, name: shortName(n) }], planDay)));
+  row.append(t, d, b);
+  return row;
+}
+function renderPlan() {
+  if (!planMode) return;
+  const keep = {};
+  planEl.querySelectorAll(".tasks, .bring-list").forEach((el) => { keep[el.dataset.s] = el.scrollTop; });
+  planEl.innerHTML = "";
+  const todayK = key(todayDate());
+  const isToday = planDay === todayK;
+
+  /* left: the day */
+  const left = document.createElement("section");
+  left.className = "planpane" + (isToday ? " today" : "");
+  const head = document.createElement("div");
+  head.className = "phead";
+  const prev = document.createElement("button");
+  prev.className = "mini nav"; prev.innerHTML = "&#8249;"; prev.title = "Previous day"; prev.onclick = () => goPlanDay(addDayKey(planDay, -1));
+  const next = document.createElement("button");
+  next.className = "mini nav"; next.innerHTML = "&#8250;"; next.title = "Next day"; next.onclick = () => goPlanDay(addDayKey(planDay, 1));
+  const title = document.createElement("h2");
+  title.textContent = keyToDate(planDay).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) + (isToday ? " · Today" : "");
+  head.append(prev, title, next);
+  if (!isToday) {
+    const t = document.createElement("button");
+    t.className = "mini"; t.textContent = "Today"; t.onclick = () => goPlanDay(todayK);
+    head.appendChild(t);
+  }
+  left.appendChild(head);
+
+  const openN = openCount(planDay);
+  const doneN = (cache[planDay] || []).filter((n) => n.completedAt).length;
+  const meter = document.createElement("div");
+  meter.className = "meter";
+  const lab = document.createElement("div");
+  lab.className = "mlab";
+  lab.textContent = `${openN} open · ${doneN} done` + (planLimit ? ` · limit ${planLimit}` : "");
+  meter.appendChild(lab);
+  if (planLimit) {
+    const bar = document.createElement("div");
+    bar.className = "mbar" + (openN > planLimit ? " over" : openN === planLimit ? " warn" : "");
+    const fill = document.createElement("div");
+    fill.style.width = Math.min(100, Math.round((openN / planLimit) * 100)) + "%";
+    bar.appendChild(fill);
+    meter.appendChild(bar);
+    if (openN > planLimit) lab.textContent += ` · ${openN - planLimit} over`;
+  }
+  left.appendChild(meter);
+
+  const tomorrowK = addDayKey(planDay, 1);
+  const rest = document.createElement("button");
+  rest.className = "restbtn"; rest.textContent = `Send the rest to ${dayLabel(tomorrowK)}…`;
+  rest.disabled = !(cache[planDay] || []).some((n) => !n.completedAt);
+  rest.onclick = () => openRoll({ title: `Send the rest of ${dayLabel(planDay)} forward`, items: (cache[planDay] || []).filter((n) => !n.completedAt).map((n) => ({ n, k: planDay })), dest: tomorrowK });
+  left.appendChild(rest);
+
+  const list = document.createElement("div");
+  list.className = "tasks"; list.dataset.s = "day";
+  const ents = entries(planDay, false);
+  if (planLoading && !(planDay in cache)) list.insertAdjacentHTML("beforeend", '<div class="empty">Loading…</div>');
+  else if (!ents.length) list.insertAdjacentHTML("beforeend", `<div class="empty">${(cache[planDay] || []).length ? "All done" : "Nothing planned yet"}</div>`);
+  for (const e of ents) list.appendChild(entryEl(e, false));
+  left.appendChild(list);
+  left.appendChild(makeAddBox(planDay));
+
+  /* right: what could come in */
+  const right = document.createElement("section");
+  right.className = "planpane";
+  const rh = document.createElement("h2");
+  rh.textContent = "Bring in";
+  right.appendChild(rh);
+  const scroll = document.createElement("div");
+  scroll.className = "bring-list"; scroll.dataset.s = "bring";
+
+  const late = [];
+  for (const k of planPastKeys()) for (const n of cache[k] || []) if (!n.completedAt) late.push({ n, k });
+  const lh = document.createElement("div");
+  lh.className = "bgh";
+  const lt = document.createElement("span");
+  lt.textContent = `Past due (${late.length})` + (planLoading ? " · loading…" : "");
+  lh.appendChild(lt);
+  if (late.length) {
+    const all = document.createElement("button");
+    all.className = "mini"; all.textContent = "Add all…";
+    all.onclick = () => openRoll({ title: `Bring past-due tasks to ${dayLabel(planDay)}`, items: late, dest: planDay });
+    lh.appendChild(all);
+  }
+  scroll.appendChild(lh);
+  if (!late.length && !planLoading) scroll.insertAdjacentHTML("beforeend", '<div class="empty">Nothing past due.</div>');
+  for (const it of late) scroll.appendChild(planRow(it.n, it.k, "Add"));
+
+  for (const k of planAheadKeys()) {
+    const open = (cache[k] || []).filter((n) => !n.completedAt);
+    const gh = document.createElement("div");
+    gh.className = "bgh";
+    gh.textContent = `${dayLabel(k)} (${open.length})`;
+    scroll.appendChild(gh);
+    if (!open.length) scroll.insertAdjacentHTML("beforeend", '<div class="empty">Nothing planned.</div>');
+    for (const n of open) scroll.appendChild(planRow(n, k, "Add"));
+  }
+  right.appendChild(scroll);
+
+  planEl.append(left, right);
+  planEl.querySelectorAll(".tasks, .bring-list").forEach((el) => { if (keep[el.dataset.s]) el.scrollTop = keep[el.dataset.s]; });
+}
+
+const limitInput = document.getElementById("optLimit");
+limitInput.value = String(planLimit);
+limitInput.onchange = () => {
+  const v = Math.max(0, Math.min(99, Math.floor(Number(limitInput.value) || 0)));
+  planLimit = v; limitInput.value = String(v);
+  try { localStorage.setItem("planLimit", String(v)); } catch (e) {}
+  renderPlan();
+};
+
+// Esc closes the Done and move-forward windows.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!reportsPop.hidden) { setReportsOpen(false); reportsBtn.focus(); return; }
+  if (!rollModal.hidden) closeRoll();
+  else if (!doneModal.hidden) closeDone();
+});
+
+/* ---------- The Daily page and the notes box are one panel ---------- */
+const outliner = document.getElementById("outliner");
+const composerBar = document.getElementById("composerBar");
+function setComposer(open, focus) {
+  outliner.classList.toggle("composer-closed", !open);
+  composerBar.setAttribute("aria-expanded", open ? "true" : "false");
+  document.getElementById("cCar").textContent = open ? "▾" : "▸";
+  composerBar.title = open ? "Hide the notes box" : "Show the notes box";
+  setPref("composerOpen", open);
+  updateComposerLabel();
+  if (open && focus) outline.focus();
+}
+composerBar.onclick = () => setComposer(outliner.classList.contains("composer-closed"), true);
+setComposer(getBool("composerOpen", true), false);
+
+// The "⋯" menu in the header (rename the notes bullet, move notes in).
+const pageMore = document.getElementById("pageMore");
+const pageMenu = document.getElementById("pageMenu");
+function setPageMenu(on) {
+  pageMenu.hidden = !on;
+  pageMore.setAttribute("aria-expanded", on ? "true" : "false");
+  if (!on) return;
+  const r = pageMore.getBoundingClientRect(), w = pageMenu.offsetWidth, h = pageMenu.offsetHeight;
+  pageMenu.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+  pageMenu.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+}
+pageMore.onclick = (e) => { e.stopPropagation(); setPageMenu(pageMenu.hidden); };
+pageMenu.addEventListener("click", (e) => { e.stopPropagation(); if (e.target.closest("button")) setPageMenu(false); });
+document.addEventListener("click", () => { if (!pageMenu.hidden) setPageMenu(false); });
+window.addEventListener("scroll", () => { if (!pageMenu.hidden) setPageMenu(false); }, true);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pageMenu.hidden) { setPageMenu(false); pageMore.focus(); e.stopPropagation(); } }, true);
 
 document.getElementById("notesEdit").onclick = changeNotesName;
 applyNotesLabels();
