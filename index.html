@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.9">
+<meta name="version" content="1.1.0">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <title>Workflowy Week Board</title>
@@ -26,6 +26,8 @@
   .opts select { font: inherit; font-size: 13px; padding: 1px 2px; }
   header h1 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; white-space: nowrap; }
   .settings { position: relative; }
+  body.nosidebar #side { display: none; }
+  #sideBtn.off { background: var(--accent); border-color: var(--accent); color: #fff; }
   .settings-box { width: min(780px, 100%); height: min(560px, 84vh); }
   .set-body { flex: 1; min-height: 0; display: flex; }
   .set-nav { flex: none; width: 160px; box-sizing: border-box; padding: 10px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--border); background: rgba(127,127,127,.06); }
@@ -57,6 +59,12 @@
            border-radius: 6px; padding: 6px 10px; cursor: pointer; }
   button:hover { border-color: var(--accent); }
   button:disabled { opacity: .5; cursor: default; }
+  .weeknav { flex: none; display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 6px; }
+  .weeknav button { padding: 5px 9px; font-size: 13px; }
+  .setrow { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; padding: 7px 8px; font-size: 14px; }
+  .setrow > span { flex: 1; min-width: 0; }
+  .setrow small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .setrow .seg button { padding: 3px 14px; font-size: 13px; }
   .seg { display: inline-flex; }
   .seg button { border-radius: 0; margin-left: -1px; }
   .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
@@ -103,6 +111,7 @@
   /* Day columns: header (title + add box) stays put, tasks scroll underneath. */
   .col { flex: 1 0 220px; display: flex; flex-direction: column; max-height: 100%;
          background: var(--col); border-radius: 8px; padding: 8px; min-height: 140px; }
+  #board .col { flex: 1 1 0; min-width: 140px; }   /* days share the width evenly; they only scroll sideways when they would get narrower than this */
   #side .col { flex: 0 1 auto; width: 100%; max-height: 30vh; min-height: 70px; }
   .colhead { flex: none; padding-bottom: 4px; }
   .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 4px; }
@@ -124,12 +133,13 @@
   .card.nested { cursor: default; }
   .grp { background: var(--card); border-radius: 6px; padding: 8px; margin-bottom: 6px; box-shadow: 0 1px 1px rgba(0,0,0,.12); cursor: grab; }
   .grp.dragging { opacity: .4; }
-  .grp .gh { display: flex; align-items: center; gap: 6px; font-weight: 600; }
-  .grp .gh .ga { flex: none; border: none; background: none; color: var(--text); opacity: .8; font-size: 14px; line-height: 1; padding: 0 2px; cursor: pointer; width: 16px; }
+  .grp .gh { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 3px 6px; font-weight: 600; }   /* arrow | name | calendar on the first row, the count pill under the name */
+  .grp .gh .ga { grid-area: 1 / 1; align-self: start; border: none; background: none; color: var(--text); opacity: .8; font-size: 14px; line-height: 1; padding: 0 2px; cursor: pointer; width: 16px; }
   .grp .gh .ga:hover { color: var(--accent); opacity: 1; }
-  .grp .gh .gt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .grp .gh .mv { flex: none; }
-  .grp .gh .gc { flex: none; font-weight: 400; font-size: 11px; color: var(--muted); background: rgba(127,127,127,.18); border-radius: 10px; padding: 0 7px; white-space: nowrap; }
+  /* Up to two lines, then cut. (Not text-overflow: ellipsis: Safari adds its own tooltip to text cut that way, on top of ours.) */
+  .grp .gh .gt { grid-area: 1 / 2; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; }
+  .grp .gh .mv { grid-area: 1 / 3; align-self: start; }
+  .grp .gh .gc { grid-area: 2 / 2; justify-self: start; font-weight: 400; font-size: 11px; color: var(--muted); background: rgba(127,127,127,.18); border-radius: 10px; padding: 0 7px; white-space: nowrap; }
   .grp .gl { margin-top: 6px; padding-left: 4px; border-left: 2px solid rgba(127,127,127,.25); }
   .grp .gh .badge { display: inline; margin-left: 6px; font-weight: 400; }
   .subtog { display: inline-block; margin-top: 3px; padding: 0 6px; border: none; border-radius: 10px; background: rgba(127,127,127,.18);
@@ -217,6 +227,15 @@
   .srcs { padding: 7px 8px 4px; margin-top: 4px; font-size: 14px; }
   .srcs .sh small { display: block; font-size: 12px; color: var(--muted); margin: 1px 0 6px; font-weight: 400; }
   .srcs .sh { font-weight: 700; font-size: 15px; }
+  #dayPop { position: fixed; z-index: 70; width: 300px; max-width: calc(100vw - 16px); max-height: min(70vh, 560px); display: flex; flex-direction: column; background: var(--col); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+  #dayPop[hidden] { display: none; }
+  #dayPop .dp-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+  #dayPop .dp-x { border: none; background: none; color: var(--muted); cursor: pointer; padding: 2px 4px; }
+  #dayPop .dp-x:hover { color: var(--text); }
+  #dayPop > div:nth-child(2) { flex: none; }
+  #dayPop .dp-list { flex: 1; min-height: 40px; overflow-y: auto; padding: 4px 0; }
+  #dayPop .dp-foot { flex: none; margin-top: 8px; }
+  #dayPop .dp-foot button { width: 100%; padding: 6px; font-size: 13px; }
   .srcs .sub { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 10px 0 6px; }
   #srcList { display: flex; flex-direction: column; gap: 6px; }
   #srcList:empty::before { content: "None yet. Add one below."; font-size: 13px; color: var(--muted); padding: 8px 10px; border: 1px dashed var(--border); border-radius: 8px; }
@@ -277,7 +296,7 @@
   .ver a { color: #b45309; font-weight: 600; text-decoration: none; }
   .ver a:hover { text-decoration: underline; }
   .footright { flex: none; margin-left: auto; display: flex; align-items: baseline; gap: 12px; }
-  #foot.withcnt .footright { width: 300px; justify-content: space-between; }   /* same width as the sidebar above it */
+  body:not(.nosidebar) #foot.withcnt .footright { width: 300px; justify-content: space-between; }   /* same width as the sidebar above it */
   #foot .counters { display: flex; gap: 12px; font-size: 11px; white-space: nowrap; }
   #foot .counters[hidden] { display: none; }
   .cnt { background: none; border: none; padding: 0; font: inherit; color: var(--muted); cursor: pointer; }
@@ -402,19 +421,19 @@
   <div class="settings">
     <button id="settingsBtn" aria-haspopup="dialog" aria-expanded="false" title="Board and Plan day settings">&#9881; Settings</button>
   </div>
-  <div class="seg" id="seg" title="Days to show">
-    <button data-span="3">3</button><button data-span="5">5</button><button data-span="7">7</button>
-  </div>
-  <button id="prev">&larr;</button>
-  <button id="today">This week</button>
-  <button id="next">&rarr;</button>
-  <button id="refresh" title="Reload">&#8635;</button>
+  <button id="refresh" type="button" title="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)">&#8635;</button>
+  <button id="sideBtn" aria-pressed="false" title="Hide the sidebar (Ctrl+\)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
 </header>
 <div id="error"></div>
 <div id="main">
   <div id="board"></div>
   <div id="plan" hidden></div>
   <aside id="side">
+    <div class="weeknav" id="weeknav">
+      <button id="prev">&larr;</button>
+      <button id="today">This week</button>
+      <button id="next">&rarr;</button>
+    </div>
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
@@ -445,7 +464,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.9</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.1.0</span></div>
   </div>
 </footer>
 
@@ -458,6 +477,11 @@
         <button type="button" role="tab" data-sec="plan">Plan day</button>
       </nav>
       <div class="set-pane setpane" data-sec="board">
+        <div class="setrow"><span>Days shown<small>Columns on the board. 3 is today plus the next two days.</small></span>
+        <div class="seg" id="seg" title="Days to show">
+          <button data-span="3">3</button><button data-span="5">5</button><button data-span="7">7</button>
+        </div>
+        </div>
       <label><input type="checkbox" id="optHide"><span>Hide completed<small>Leave ticked tasks out</small></span></label>
       <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
       <label class="sel"><span>Past due range<small>How far back Past due looks (and Plan day's Bring in, up to 4 weeks)</small></span>
@@ -668,6 +692,66 @@ function weekDays() {
   return [...Array(span)].map((_, i) => addDays(weekStart, i));
 }
 
+/* ---------- Day popup: the tasks of a day that isn't on the board (opened from the calendar) ---------- */
+let dayPopKey = null, dayPopAnchor = null;
+const dayPopEl = document.createElement("div");
+dayPopEl.id = "dayPop"; dayPopEl.hidden = true;
+document.body.appendChild(dayPopEl);
+function closeDayPop() { dayPopKey = null; dayPopAnchor = null; dayPopEl.hidden = true; dayPopEl.textContent = ""; }
+function openDayPop(anchor, k) {
+  if (dayPopKey === k) { closeDayPop(); return; }          // clicking the same day again closes it
+  dayPopKey = k; dayPopAnchor = anchor;
+  renderDayPop(true);
+}
+function renderDayPop(place) {
+  if (!dayPopKey) return;
+  if (!(dayPopKey in cache)) { closeDayPop(); return; }
+  const k = dayPopKey;
+  const keep = dayPopEl.querySelector(".dp-list");
+  const scroll = keep ? keep.scrollTop : 0;
+  dayPopEl.textContent = "";
+  const head = document.createElement("div");
+  head.className = "dp-head";
+  const h = document.createElement("strong");
+  h.textContent = keyToDate(k).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  const x = document.createElement("button");
+  x.type = "button"; x.className = "dp-x"; x.innerHTML = X_ICON; x.title = "Close (Esc)"; x.onclick = closeDayPop;
+  head.append(h, x);
+  const list = document.createElement("div");
+  list.className = "dp-list";
+  const ents = entries(k, false);
+  if (!ents.length) list.innerHTML = '<div class="empty">Nothing here</div>';
+  for (const e of ents) list.appendChild(entryEl(e, false));
+  const foot = document.createElement("div");
+  foot.className = "dp-foot";
+  const go = document.createElement("button");
+  go.type = "button"; go.textContent = "Show this week on the board";
+  go.onclick = () => { const d = keyToDate(k); closeDayPop(); weekStart = span === 3 ? d : startOfWeek(d); calMonth = firstOfMonth(d); loadWeek(); };
+  foot.append(go);
+  dayPopEl.append(head, makeAddBox(k), list, foot);
+  list.scrollTop = scroll;
+  dayPopEl.hidden = false;
+  if (place && dayPopAnchor) {                             // open beside the calendar, to its left
+    const r = dayPopAnchor.getBoundingClientRect(), w = dayPopEl.offsetWidth, ph = dayPopEl.offsetHeight;
+    const sideL = (document.getElementById("side") || dayPopAnchor).getBoundingClientRect().left;   // beside the whole sidebar, so the calendar stays clickable
+    const left = sideL - w - 12 >= 8 ? sideL - w - 12 : Math.min(r.left, innerWidth - w - 8);
+    dayPopEl.style.left = Math.max(8, left) + "px";
+    dayPopEl.style.top = Math.max(8, Math.min(r.top, innerHeight - ph - 8)) + "px";
+  }
+}
+document.addEventListener("click", (e) => {
+  if (!dayPopKey) return;
+  if (dayPopEl.contains(e.target) || e.target.closest(".movepop, .modal, #cal")) return;
+  closeDayPop();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && dayPopKey && !movePop && !document.querySelector(".modal:not([hidden])")) closeDayPop(); });
+
+// The whole Monday-to-Sunday week the visible days belong to (so the calendar can show dots for days that aren't on screen).
+function fullWeekKeys() {
+  const mon = startOfWeek(weekDays()[0]);
+  return [...Array(7)].map((_, i) => key(addDays(mon, i)));
+}
+
 // Day keys for the Past due and Upcoming panels. Both are relative to the days on screen:
 // Past due = days before the first visible day, Upcoming = days after the last visible day.
 // withHidden = true also covers a panel that is switched off (its count is shown at the bottom instead).
@@ -732,7 +816,8 @@ async function loadWeek(force = false) {
   if (lateRange === "all") err2 = await discoverMonths(force);
   if (token !== loadToken) return;
   const { late, soon } = extraKeys(true);
-  const err3 = await loadMany([...late.filter((k) => force || !(k in cache)), ...soon]);
+  const visibleKeys = new Set(weekDays().map(key));
+  const err3 = await loadMany([...new Set([...late.filter((k) => force || !(k in cache)), ...soon, ...fullWeekKeys().filter((k) => !visibleKeys.has(k) && (force || !(k in cache)))])]);
   if (token !== loadToken) return;
   loadingExtras = false;
   if (err2 || err3) showError(err2 || err3);
@@ -860,6 +945,7 @@ function render() {
   }
   extras.querySelectorAll(".col").forEach((c) => { const t = c.querySelector(".tasks"); if (t && scrolls[c.className]) t.scrollTop = scrolls[c.className]; });
   renderCounters();
+  renderDayPop(false);
   renderPlan();                                      // (does nothing unless Plan day is open)
   scheduleKids();                                    // sub-item counts load in the background
   scheduleNested();                                  // so do the tasks under bullets (Nested)
@@ -1072,7 +1158,7 @@ function groupCard(e, showDate) {
   arrow.className = "ga"; arrow.textContent = closed ? "▸" : "▾"; arrow.title = closed ? "Show tasks" : "Hide tasks";
   arrow.addEventListener("click", () => { if (closed) groupsClosed.delete(b.id); else groupsClosed.add(b.id); saveGroupsClosed(); render(); });
   const title = document.createElement("span");
-  title.className = "gt"; title.textContent = visibleText(b.name) || "(empty)"; title.title = title.textContent;
+  title.className = "gt"; title.textContent = visibleText(b.name) || "(empty)";
   if (showDate) {
     const badge = document.createElement("span");
     badge.className = "badge";
@@ -1136,7 +1222,7 @@ let nestTimer = null;
 function scheduleNested() {
   if (prefs.nested === "off") return;
   const { late, soon } = extraKeys();
-  for (const k of [...weekDays().map(key), ...late, ...soon, ...(planMode ? [planDay] : [])]) {
+  for (const k of [...new Set([...weekDays().map(key), ...fullWeekKeys(), ...late, ...soon, ...(planMode ? [planDay] : [])])]) {
     for (const b of dayBullets[k] || []) {
       if (nest[b.id] || nestQueued.has(b.id)) continue;
       nestQueued.add(b.id);
@@ -1155,7 +1241,7 @@ function redrawSoon() {
   if (nestTimer) return;
   nestTimer = setTimeout(function again() {
     const a = document.activeElement;
-    if (a && a.matches && a.matches("#board input, #extras input")) { nestTimer = setTimeout(again, 600); return; }
+    if (a && a.matches && a.matches("#board input, #extras input, #dayPop input, #dayPop textarea")) { nestTimer = setTimeout(again, 600); return; }
     nestTimer = null;
     render();
   }, 300);
@@ -1321,7 +1407,7 @@ function renderCal() {
     if (d.getMonth() !== calMonth.getMonth()) cls.push("other");
     if (inWindow.has(k)) cls.push("inwin");
     if (k === todayK) cls.push("istoday");
-    const hasOpen = (cache[k] || []).some((n) => !n.completedAt);   // dot only for days already loaded
+    const hasOpen = k in cache && openCount(k) > 0;   // dot only for days already loaded; counts tasks under bullets too when Nested is on
     html += `<button class="${cls.join(" ")}" data-key="${k}">${d.getDate()}${hasOpen ? "<i></i>" : ""}</button>`;
   }
   el.innerHTML = html + "</div>";
@@ -1334,6 +1420,8 @@ document.getElementById("cal").addEventListener("click", (e) => {
     calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(btn.dataset.cal), 1);
     renderCal();
   } else if (btn.dataset.key) {
+    // A day that isn't on screen but has open tasks (it has a dot): peek at its tasks in a popup instead of moving the board.
+    if (btn.querySelector("i") && !weekDays().some((x) => key(x) === btn.dataset.key)) { openDayPop(btn, btn.dataset.key); return; }
     const d = keyToDate(btn.dataset.key);
     weekStart = span === 3 ? d : startOfWeek(d);   // jump the board to the week (or 3 days) containing it
     calMonth = firstOfMonth(d);
@@ -1930,6 +2018,20 @@ document.getElementById("seg").onclick = (e) => {
   weekStart = baseStart();
   goToWeek();
 };
+// Hide / show the sidebar (header button or Ctrl+\). Remembered in this browser.
+const sideBtn = document.getElementById("sideBtn");
+function setSidebarHidden(hide, save) {
+  document.body.classList.toggle("nosidebar", hide);
+  sideBtn.classList.toggle("off", hide);
+  sideBtn.setAttribute("aria-pressed", hide ? "true" : "false");
+  sideBtn.title = (hide ? "Show the sidebar" : "Hide the sidebar") + " (Ctrl+\\)";
+  if (save) setPref("sideHidden", hide);
+}
+sideBtn.onclick = () => setSidebarHidden(!document.body.classList.contains("nosidebar"), true);
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === "\\") { e.preventDefault(); sideBtn.click(); }
+});
+setSidebarHidden(getBool("sideHidden", false), false);
 document.getElementById("refresh").onclick = () => { for (const id in kids) delete kids[id]; for (const id in nest) delete nest[id]; loadWeek(true); loadPage(); };
 // How far back Past due looks (set in Settings): All, or 1-4 weeks.
 const rangeSel = document.getElementById("optRange");

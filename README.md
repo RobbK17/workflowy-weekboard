@@ -4,7 +4,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.0.9**
+**Version 1.1.0**
 
 ## What's in the box
 
@@ -205,22 +205,24 @@ All settings are environment variables, set the same way as the key above.
 ## Using the board
 
 **Columns and days**
-- Choose **3**, **5**, or **7** days with the buttons in the header. The default is 5 (Monday to Friday). 7 is Monday to Sunday. 3 is today plus the next two days.
-- Use the arrows to move between weeks (or 3-day blocks), and "This week" to jump back to the current one.
-- The ↻ button reloads everything from WorkFlowy.
+- Choose **3**, **5**, or **7** days with **Days shown** in Settings → Week board. The default is 5 (Monday to Friday). 7 is Monday to Sunday. 3 is today plus the next two days.
+- The day columns share the board's width evenly, so 5 days fit without sideways scrolling on a normal window (about 1100px wide or more with the sidebar open). Columns never get narrower than about 140px; below that the board scrolls sideways. Hiding the sidebar gives them more room.
+- The arrows and "This week" are in one evenly spaced row at the top of the sidebar (so hiding the sidebar hides them too). Use the arrows to move between weeks (or 3-day blocks), and "This week" to jump back to the current one.
+- The ↻ button in the header (after **Settings**, before the sidebar button) reloads everything from WorkFlowy.
+- **Hide / show the sidebar:** the button at the right end of the header (or **Ctrl+\**, also **Cmd+\** on a Mac, even while typing in a box) hides the whole right-hand sidebar so the board or Plan day gets the full width. It's remembered in this browser. The ↻ and the Past due / Upcoming counts stay visible; the week arrows are inside the sidebar, so they hide with it.
 
 **Tasks**
 - Type in a column's **+ Add task** box and press Enter. New tasks go to the bottom of that day.
 - Tick the checkbox to complete or un-complete a task.
 - **Double-click a task's text to edit it right on the card.** The text turns into a box in place (the same editor as the Daily page): **Enter** saves, **Esc** cancels, clicking away saves, and a second box holds the task's note. Bold, links and other formatting are kept. The card can't be dragged while you're editing, and it works on nested tasks too. (Not available while Selector is on, since clicks pick cards then.)
-  - **Group cards too:** double-click the group's name to rename the bullet in place, or double-click any task inside the group to edit it. Same box and keys as above, formatting kept.
+  - **Group cards too:** double-click the group's name to rename the bullet in place, or double-click any task inside the group to edit it. Same box and keys as above, formatting kept. A group's name may use two lines and is cut after that; the "2 of 3 open" pill sits under the name, and the calendar icon stays at the top right of the card. Hovering it says "Double-click to rename".
 - Click ✕ to delete (permanent, with a confirmation). If the task has sub-items, the confirmation says how many, because they are deleted too.
 - Drag a task onto another day's column to move it (mouse only; this doesn't work by touch). Its sub-items move with it.
 - **Sub-items:** a task that has lines underneath it shows a small **▸ 3 sub-items** button. Click it to open a checklist right on the card, nested as deep as the items go. Tick a sub-item to complete it. The checklist is for reading and ticking; add, edit, or delete sub-items in WorkFlowy, or in the search item editor.
 - **Move to a date:** hover a task and click the calendar icon for a small menu: Today, Tomorrow, next Monday, or any date (type it or use the date picker). Cancel, Esc, or a click elsewhere closes it. The task moves to the bottom of that day's page, even a day outside the days shown. (Dragging a card onto a day column still works for days on the board.) In Group mode, the calendar icon on a group moves the whole bullet with all its tasks.
 - The day header and add box stay in place while the task list scrolls.
 
-**⚙ Settings** (the button in the header, next to the 3/5/7 buttons; it opens a window with the sections on the left and their options on the right: **Week board** (Hide completed, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day sources). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
+**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day sources). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
 - **Hide completed:** hides checked-off tasks.
 - **Past due:** adds a panel of open tasks from *before* the days on screen. Choose how far back with **Past due range** just below it in Settings: 1, 2, 3 or 4 weeks, or All (default 2 weeks). The panel's title shows the range, for example **Past due (2 weeks)**, and a small **→ Today** button next to the count opens a preview to move the open ones to today.
 - **Upcoming:** adds a panel of tasks in the 14 days *after* the days on screen. Both panels have a **▾ 3 open** button next to the title: click it to fold the panel up to just its header (it becomes **▸ 3 open**), and click again to open it. Whether each is folded is remembered in your browser.
@@ -237,7 +239,7 @@ All settings are environment variables, set the same way as the key above.
 Both panels are relative to the view. If you're looking at last week, Past due shows what was open before that week, and Upcoming shows the 14 days after it, including this week.
 
 **Sidebar (far right)**
-- **Calendar:** click a day to jump the board to that week. Today is outlined, the days on screen are shaded, and a dot marks days with open tasks (only for days the board has already loaded).
+- **Calendar:** click a day to jump the board to that week. If the day isn't on the board (outside the 3/5/7 days shown) and has a dot, clicking it opens a **popup** beside the sidebar with that day's tasks instead. The cards work as usual (tick, edit, move, delete, groups), there's an add box for the day, and **Show this week on the board** jumps there. Click the day again, press Esc or click elsewhere to close it. Days with no dot, and days already on the board, behave as before. Today is outlined, the days on screen are shaded, and a dot marks days with open tasks. The whole Monday-to-Sunday week you're looking at is loaded, so a 5-day view still shows dots for Saturday and Sunday (and other days only once the board has loaded them; with Nested set to Group or Flatten, tasks inside bullets count too).
 - **Past due / Upcoming** panels appear under the calendar when switched on. When one is **switched off**, its open-task count shows at the bottom right, under the sidebar, with the version label to their right (for example `Past due 3  Upcoming 2`). Click a count to switch that panel on. Both ranges are still read in the background so the counts are right, which costs the same requests as having the panels on (more with Past due set to All). Counts cover tasks directly on those days, plus tasks under bullets only where they've already been loaded.
 - **Daily page:** shows the notes on today's WorkFlowy daily page, nested like the outline (up to 12 levels; the pane scrolls when it's long). Tasks are left out: any todo sitting directly on the page appears on the board, not here. (A todo nested deeper, such as inside WB-Notes, still shows with a checkbox, since the board doesn't display those.) Click a line's text to edit it in place (see below). It reloads when you open the board, after you add a line, and with its own ↻ button.
   - The **⤢** button in the pane's header expands it to fill the whole sidebar (the calendar and Past due / Upcoming panels are hidden, and the add box stays underneath). Click **⤡** to go back to the calendar view. The pane starts **expanded** the first time; after that your choice is remembered in the browser.
