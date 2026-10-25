@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.0.8">
+<meta name="version" content="1.0.9">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <title>Workflowy Week Board</title>
@@ -26,16 +26,31 @@
   .opts select { font: inherit; font-size: 13px; padding: 1px 2px; }
   header h1 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; white-space: nowrap; }
   .settings { position: relative; }
+  .settings-box { width: min(780px, 100%); height: min(560px, 84vh); }
+  .set-body { flex: 1; min-height: 0; display: flex; }
+  .set-nav { flex: none; width: 160px; box-sizing: border-box; padding: 10px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--border); background: rgba(127,127,127,.06); }
+  .set-nav button { text-align: left; padding: 8px 10px; border: none; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+  .set-nav button:hover { background: rgba(127,127,127,.14); }
+  .set-nav button.on { background: var(--accent); color: #fff; }
+  .set-pane { flex: 1; min-width: 0; overflow-y: auto; padding: 10px 14px 14px; display: flex; flex-direction: column; }
+  .set-pane[hidden] { display: none; }
+  .set-pane > label { max-width: 520px; }
+  .set-pane .srcs { max-width: 520px; }
+  @media (max-width: 820px) {
+    .settings-box { height: 100dvh; }
+    .set-body { flex-direction: column; }
+    .set-nav { width: auto; flex-direction: row; border-right: none; border-bottom: 1px solid var(--border); }
+  }
   .pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; width: 300px; max-width: calc(100vw - 24px); box-sizing: border-box;
          background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px;
          box-shadow: 0 8px 24px rgba(0,0,0,.25); display: flex; flex-direction: column; }
   .pop[hidden] { display: none; }
-  .pop label { display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-  .pop label:hover { background: rgba(127,127,127,.14); }
-  .pop label span { flex: 1; min-width: 0; }
-  .pop label small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
-  .pop input[type=checkbox] { margin-top: 3px; }
-  .pop select { flex: none; font: inherit; font-size: 13px; padding: 2px 4px; }
+  .pop label, .setpane label { display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .pop label:hover, .setpane label:hover { background: rgba(127,127,127,.14); }
+  .pop label span, .setpane label span { flex: 1; min-width: 0; }
+  .pop label small, .setpane label small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .pop input[type=checkbox], .setpane input[type=checkbox] { margin-top: 3px; }
+  .pop select, .setpane select { flex: none; font: inherit; font-size: 13px; padding: 2px 4px; }
   .opts { display: flex; gap: 12px; align-items: center; font-size: 13px; flex-wrap: wrap; }
   .opts label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
   button { font: inherit; background: var(--card); color: var(--text); border: 1px solid var(--border);
@@ -162,7 +177,7 @@
   /* Daily page: read from WorkFlowy, nested like the outline */
   /* Daily page fills the space left in the sidebar and scrolls inside itself. */
   #outliner { flex: 1 1 0; min-height: 300px; display: flex; flex-direction: column; }
-  #outliner > h3, #outliner > #composer, #outliner > .cbar, #outliner > .outbar, #outliner > .viewbar { flex: none; }
+  #outliner > h3, #outliner > .notesadd, #outliner > .outbar, #outliner > .viewbar { flex: none; }
   .pagetree { flex: 1 1 0; min-height: 60px; overflow-y: auto; scrollbar-width: thin; background: var(--card);
               border-radius: 6px; padding: 6px 8px; margin-bottom: 12px; font-size: 13px; }
   /* Expanded: the calendar and Past due / Upcoming panels hide, so the page (and the add pad) get the whole sidebar. */
@@ -188,29 +203,41 @@
   .pop button { display: flex; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-size: 14px; }
   .pop button:hover { background: rgba(127,127,127,.14); }
   .pop button small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
-  .cbar { display: flex; align-items: center; gap: 6px; width: 100%; margin: 0 0 6px; padding: 5px 8px; border: none; border-top: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--text); font-size: 13px; text-align: left; cursor: pointer; }
-  .cbar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cbar.away strong { color: var(--accent); }
-  .cbar .car { font-size: 15px; line-height: 1; color: var(--muted); }
-  .cbar .cdraft { font-size: 11px; color: #fff; background: var(--accent); border-radius: 10px; padding: 0 7px; }
-  .cbar .cdraft[hidden] { display: none; }
-  .cbar:hover .car { color: var(--accent); }
-  #outliner.composer-closed #composer, #outliner.composer-closed #outSave, #outliner.composer-closed .osep { display: none; }
-  #outliner.composer-closed .outright { margin-left: 0; }   /* no blank gap where Save was */
-  .pl .addc, .pl .indc, .pl .delc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
-  .pl .addc:hover, .pl .indc:hover { color: var(--accent); }
+  .pl .addc, .pl .indc, .pl .outc, .pl .delc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
+  .pl .addc:hover, .pl .indc:hover, .pl .outc:hover { color: var(--accent); }
   .pl .delc:hover { color: #c0392b; }
-  .pl:hover .addc, .pl:hover .indc, .pl:hover .delc, .pl:focus-within .addc, .pl:focus-within .indc, .pl:focus-within .delc { opacity: 1; }
-  @media (hover: none) { .pl .addc, .pl .indc, .pl .delc { opacity: 1; } }
+  .pl:hover .addc, .pl:hover .indc, .pl:hover .outc, .pl:hover .delc, .pl:focus-within .addc, .pl:focus-within .indc, .pl:focus-within .outc, .pl:focus-within .delc { opacity: 1; }
+  @media (hover: none) { .pl .addc, .pl .indc, .pl .outc, .pl .delc { opacity: 1; } }
   .pl-add { padding: 2px 0 4px; }
   .pl-add input { width: 100%; font: inherit; padding: 3px 6px; border: 1px dashed var(--border);
                   border-radius: 4px; background: var(--card); color: var(--text); }
   .pl.done .t { text-decoration: line-through; color: var(--muted); }
   .pl.h .t { font-weight: 700; }
-  #outline { display: block; width: 100%; min-height: 110px; resize: vertical; padding: 8px; border-radius: 6px;
-             border: 1px solid var(--border); background: var(--card); color: var(--text);
-             font: 13px/1.55 ui-monospace, Menlo, Consolas, monospace; }
   /* Item view bar (shown when a search result is open in the page pane) */
+  .srcs { padding: 7px 8px 4px; margin-top: 4px; font-size: 14px; }
+  .srcs .sh small { display: block; font-size: 12px; color: var(--muted); margin: 1px 0 6px; font-weight: 400; }
+  .srcs .sh { font-weight: 700; font-size: 15px; }
+  .srcs .sub { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 10px 0 6px; }
+  #srcList { display: flex; flex-direction: column; gap: 6px; }
+  #srcList:empty::before { content: "None yet. Add one below."; font-size: 13px; color: var(--muted); padding: 8px 10px; border: 1px dashed var(--border); border-radius: 8px; }
+  .srow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; font-size: 14px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .srow .sn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .srow small { flex: none; white-space: nowrap; color: var(--muted); font-size: 11px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .srow button { flex: none; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--muted); cursor: pointer; padding: 2px 8px; font-size: 12px; }
+  .srow button:hover { color: #c0392b; border-color: #c0392b; }
+  .srcadd { display: flex; flex-direction: column; gap: 3px; margin-top: 16px; padding: 4px 12px 12px; border: 1px solid var(--border); border-radius: 10px; background: rgba(127,127,127,.07); }
+  .srcadd .sub { margin-bottom: 2px; }
+  .srcadd label { display: block; padding: 0; margin-top: 4px; font-size: 12px; font-weight: 600; cursor: default; }
+  .srcadd label:hover { background: none; }
+  .srcadd label em { font-weight: 400; font-style: normal; color: var(--muted); }
+  .srcadd input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; }
+  .srcadd input:focus { outline: none; border-color: var(--accent); }
+  .srcadd button { align-self: flex-start; margin-top: 8px; padding: 7px 16px; font-size: 13px; font-weight: 600; border: none; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
+  .srcadd button:hover { filter: brightness(1.1); }
+  .srcadd button:disabled { opacity: .6; cursor: default; }
+  #srcMsg { font-size: 12px; color: var(--muted); min-height: 0; margin-top: 4px; }
+  #srcMsg:empty { display: none; }
+  #srcMsg.err { color: #c0392b; }
   .viewbar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px;
              color: var(--muted); margin: -2px 0 8px; }
   .viewbar[hidden] { display: none; }
@@ -249,6 +276,12 @@
 
   .ver a { color: #b45309; font-weight: 600; text-decoration: none; }
   .ver a:hover { text-decoration: underline; }
+  .footright { flex: none; margin-left: auto; display: flex; align-items: baseline; gap: 12px; }
+  #foot.withcnt .footright { width: 300px; justify-content: space-between; }   /* same width as the sidebar above it */
+  #foot .counters { display: flex; gap: 12px; font-size: 11px; white-space: nowrap; }
+  #foot .counters[hidden] { display: none; }
+  .cnt { background: none; border: none; padding: 0; font: inherit; color: var(--muted); cursor: pointer; }
+  .cnt:hover { color: var(--accent); text-decoration: underline; }
   .ver { flex: none; margin-left: auto; font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; }
   #foot { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 0 16px 10px; }
   #foot .tools { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -256,8 +289,11 @@
   .outbar { flex-wrap: wrap; }
   .outbar { gap: 3px; }
   .outbar button { padding: 4px 5px; font-size: 12px; white-space: nowrap; }
-  .osep { flex: none; align-self: stretch; width: 1px; margin: 2px 0; background: var(--border); }
-  .outright { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+  .outright { display: flex; gap: 4px; align-items: center; }
+  .notesadd { margin: 0 0 8px; }
+  .notesadd input { display: block; width: 100%; padding: 7px 8px; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; }
+  .notesadd input.away { border-color: var(--accent); }
+  .notesadd input:focus { outline: none; border-style: solid; border-color: var(--accent); }
   .reports { position: relative; }
   #outStatus { flex: 1 0 100%; }
   #outStatus:empty { display: none; }
@@ -267,6 +303,7 @@
     #main { flex-direction: column; overflow-y: auto; }
     #board { flex: none; height: 75vh; height: 75dvh; }
     #side { flex: none; width: 100%; overflow: visible; }
+    #foot.withcnt .footright { width: auto; }
     #extras { flex: none; }
     #side .col { flex: none; max-height: 40vh; }
     #outliner { flex: none; min-height: 0; }
@@ -295,8 +332,10 @@
   #selDel:not(:disabled) { color: #de350b; }
   body.selmode .card { cursor: pointer; }
   body.selmode .card .txt { user-select: none; }
-  body.selmode .card .del, body.selmode .card .mv { visibility: hidden; }
-  .card.sel { outline: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
+  body.selmode .card .del, body.selmode .card .mv, body.selmode .grp .mv { visibility: hidden; }
+  body.selmode .grp { cursor: pointer; }
+  body.selmode .grp .gt, body.selmode .grp .st2 { user-select: none; }
+  .card.sel, .grp.sel { outline: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
   .addhint { font-size: 11px; color: var(--accent); margin: 3px 4px 0; }
   .addhint[hidden] { display: none; }
 
@@ -361,19 +400,7 @@
     <button id="searchBtn" title="Search your whole outline (Ctrl+K)">&#128269; Search nodes</button>
   </div>
   <div class="settings">
-    <button id="settingsBtn" aria-haspopup="true" aria-expanded="false" title="Hide completed, Past due, Upcoming, Nested and Sub-items">&#9881; Settings</button>
-    <div class="pop" id="settingsPop" role="menu" hidden>
-      <label><input type="checkbox" id="optHide"><span>Hide completed<small>Leave ticked tasks out</small></span></label>
-      <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
-      <label class="sel"><span>Past due range<small>How far back Past due looks (and Plan day's Bring in, up to 4 weeks)</small></span>
-        <select id="optRange"><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option><option value="all">All</option></select></label>
-      <label><input type="checkbox" id="optSoon"><span>Upcoming<small>Tasks in the 14 days after the days shown</small></span></label>
-      <label class="sel"><span>Nested<small>Tasks indented under a plain bullet. Group: one card per bullet. Flatten: each task its own card.</small></span>
-        <select id="optNested"><option value="off">Off</option><option value="group">Group</option><option value="flatten">Flatten</option></select></label>
-      <label><input type="checkbox" id="optSubs"><span>Sub-items<small>Count on tasks that have sub-items, and a checklist you can open</small></span></label>
-      <label class="sel"><span>Plan day limit<small>Open tasks that fill the meter in Plan day. 0 turns the meter off.</small></span>
-        <input type="number" id="optLimit" min="0" max="99" step="1"></label>
-    </div>
+    <button id="settingsBtn" aria-haspopup="dialog" aria-expanded="false" title="Board and Plan day settings">&#9881; Settings</button>
   </div>
   <div class="seg" id="seg" title="Days to show">
     <button data-span="3">3</button><button data-span="5">5</button><button data-span="7">7</button>
@@ -397,13 +424,8 @@
         <button id="moveNotes" role="menuitem" type="button"><span>&#8627; Move notes in<small>Move the shown day's plain bullets into the notes bullet</small></span></button>
       </div>
       <div class="pagetree" id="pageTree">Loading…</div>
-      <button id="composerBar" class="cbar" type="button" aria-expanded="true" aria-controls="composer"><strong id="notesHeading">Add to WB-Notes</strong><span class="cdraft" id="cDraft" hidden>draft</span><span class="car" id="cCar">&#9662;</span></button>
-      <div id="composer">
-      <textarea id="outline" spellcheck="true"
-        placeholder="Add notes… (Tab indents, Ctrl+Enter saves)"></textarea>
-      </div>
-      <div class="outbar"><button id="outSave" class="primary">Save to WB-Notes</button>
-        <span class="osep" aria-hidden="true"></span>
+      <div class="notesadd"><input id="notesAdd" type="text" autocomplete="off" spellcheck="true"></div>
+      <div class="outbar">
         <span class="outright">
           <button id="selBtn" aria-pressed="false" title="Select several tasks to move, complete or delete together">&#9745; Selector</button>
           <span class="reports">
@@ -421,8 +443,51 @@
   <div class="tools">
     <button id="planBtn" aria-pressed="false" title="Focus on one day: see what's planned and what you could bring in">&#128197; Plan day</button>
   </div>
-  <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.8</span></div>
+  <div class="footright">
+    <div class="counters" id="counters" hidden></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.0.9</span></div>
+  </div>
 </footer>
+
+<div class="modal" id="settingsPop" hidden>
+  <div class="modal-box settings-box" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="sm-head"><h3>Settings</h3><button id="settingsClose" type="button" title="Close (Esc)">&#10005;</button></div>
+    <div class="set-body">
+      <nav class="set-nav" role="tablist" aria-label="Settings sections">
+        <button type="button" role="tab" data-sec="board" class="on">Week board</button>
+        <button type="button" role="tab" data-sec="plan">Plan day</button>
+      </nav>
+      <div class="set-pane setpane" data-sec="board">
+      <label><input type="checkbox" id="optHide"><span>Hide completed<small>Leave ticked tasks out</small></span></label>
+      <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
+      <label class="sel"><span>Past due range<small>How far back Past due looks (and Plan day's Bring in, up to 4 weeks)</small></span>
+        <select id="optRange"><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option><option value="all">All</option></select></label>
+      <label><input type="checkbox" id="optSoon"><span>Upcoming<small>Tasks in the 14 days after the days shown</small></span></label>
+      <label class="sel"><span>Nested<small>Tasks indented under a plain bullet. Group: one card per bullet. Flatten: each task its own card.</small></span>
+        <select id="optNested"><option value="off">Off</option><option value="group">Group</option><option value="flatten">Flatten</option></select></label>
+      <label><input type="checkbox" id="optSubs"><span>Sub-items<small>Count on tasks that have sub-items, and a checklist you can open</small></span></label>
+      </div>
+      <div class="set-pane setpane" data-sec="plan" hidden>
+      <label class="sel"><span>Plan day limit<small>Open tasks that fill the meter in Plan day. 0 turns the meter off.</small></span>
+        <input type="number" id="optLimit" min="0" max="99" step="1"></label>
+      <div class="srcs">
+        <div class="sh">Plan day sources<small>Other WorkFlowy nodes (an Inbox, say) whose open todos you can bring into a planned day. Paste the node's link.</small></div>
+        <div class="sub">Your sources</div>
+        <div id="srcList"></div>
+        <div class="srcadd">
+          <div class="sub">Add a source</div>
+          <label for="srcName">Name <em>(optional, shown above its tasks)</em></label>
+          <input id="srcName" type="text" placeholder="e.g. Inbox" maxlength="40" autocomplete="off">
+          <label for="srcLink">WorkFlowy link or node id <em>(copy the address from your browser)</em></label>
+          <input id="srcLink" type="text" placeholder="https://workflowy.com/#/303fb255ba17" autocomplete="off" spellcheck="false">
+          <button id="srcAdd" type="button">Add source</button>
+        </div>
+        <div id="srcMsg" role="status"></div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="searchModal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-label="Search your outline">
@@ -605,11 +670,12 @@ function weekDays() {
 
 // Day keys for the Past due and Upcoming panels. Both are relative to the days on screen:
 // Past due = days before the first visible day, Upcoming = days after the last visible day.
-function extraKeys() {
+// withHidden = true also covers a panel that is switched off (its count is shown at the bottom instead).
+function extraKeys(withHidden) {
   const days = weekDays();
   const first = days[0], last = days[days.length - 1];
   const late = [], soon = [];
-  if (prefs.showLate) {
+  if (prefs.showLate || withHidden) {
     if (lateRange === "all") {
       // Only scan months that actually exist in your calendar (found by discoverMonths).
       for (let m = MAX_MONTHS_BACK - 1; m >= 0; m--) {          // oldest month first
@@ -625,7 +691,7 @@ function extraKeys() {
       for (let i = Number(lateRange) * 7; i >= 1; i--) late.push(key(addDays(first, -i)));   // oldest first
     }
   }
-  if (prefs.showSoon) {
+  if (prefs.showSoon || withHidden) {
     for (let i = 1; i <= LOOKAHEAD; i++) soon.push(key(addDays(last, i)));
   }
   return { late, soon };
@@ -659,14 +725,13 @@ async function loadWeek(force = false) {
   const err1 = await loadMany(weekDays().map(key));
   if (token !== loadToken) return;
   if (err1) showError(err1);
-  loadingExtras = prefs.showLate || prefs.showSoon;
+  loadingExtras = true;                       // Past due / Upcoming are always read: a panel that is off still gets its count
   render();
-  if (!loadingExtras) return;
 
   let err2 = "";
-  if (prefs.showLate && lateRange === "all") err2 = await discoverMonths(force);
+  if (lateRange === "all") err2 = await discoverMonths(force);
   if (token !== loadToken) return;
-  const { late, soon } = extraKeys();
+  const { late, soon } = extraKeys(true);
   const err3 = await loadMany([...late.filter((k) => force || !(k in cache)), ...soon]);
   if (token !== loadToken) return;
   loadingExtras = false;
@@ -794,9 +859,32 @@ function render() {
       entriesFor(extra.soon, false), "soon", loadingExtras ? "Loading…" : "Nothing upcoming"));
   }
   extras.querySelectorAll(".col").forEach((c) => { const t = c.querySelector(".tasks"); if (t && scrolls[c.className]) t.scrollTop = scrolls[c.className]; });
+  renderCounters();
   renderPlan();                                      // (does nothing unless Plan day is open)
   scheduleKids();                                    // sub-item counts load in the background
   scheduleNested();                                  // so do the tasks under bullets (Nested)
+}
+
+// Bottom right, under the sidebar: open counts for a Past due / Upcoming panel that is switched off. Click one to turn its panel on.
+function renderCounters() {
+  const box = document.getElementById("counters");
+  const parts = [];
+  const { late, soon } = extraKeys(true);
+  const sum = (keys) => keys.reduce((t, k) => t + openCount(k), 0);
+  const add = (pref, label, keys, optId) => {
+    if (prefs[pref]) return;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cnt";
+    b.textContent = `${label} ${loadingExtras ? "…" : sum(keys)}`;
+    b.title = `Open tasks in ${label === "Past due" ? "Past due" : "Upcoming"}. Click to show the panel.`;
+    b.onclick = () => { const el = document.getElementById(optId); el.checked = true; el.onchange(); };
+    parts.push(b);
+  };
+  add("showLate", "Past due", late, "optLate");
+  add("showSoon", "Upcoming", soon, "optSoon");
+  box.replaceChildren(...parts);
+  box.hidden = !parts.length;
+  document.getElementById("foot").classList.toggle("withcnt", !!parts.length);
 }
 
 // Panel for tasks from days outside the visible range. Cards show their date;
@@ -962,7 +1050,14 @@ function groupCard(e, showDate) {
   const el = document.createElement("div");
   el.className = "grp";
   el.dataset.id = b.id;
-  el.draggable = true;
+  el.draggable = !selMode;
+  if (sel.has(b.id)) el.classList.add("sel");
+  el.addEventListener("click", (ev) => {                 // in select mode a click picks the whole group (the bullet and its tasks)
+    if (!selMode) return;
+    if (ev.target.closest(".ga")) return;                // the fold arrow still works
+    ev.preventDefault(); ev.stopPropagation();
+    toggleSel(b, k, null, el, true);
+  }, true);
   el.addEventListener("dragstart", (ev) => {
     ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (visibleText(b.name) || "group").slice(0, 40) }));
     el.classList.add("dragging");
@@ -984,6 +1079,13 @@ function groupCard(e, showDate) {
     badge.textContent = keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     title.appendChild(badge);
   }
+  title.title = "Double-click to rename";
+  title.addEventListener("dblclick", () => {         // rename
+    if (selMode) return;   // rename the bullet in place (formatting kept; its note is editable too)
+    if (el.querySelector(".pl-edit")) return;
+    el.draggable = false;
+    startEdit(b, title, () => act(() => loadDay(k)), () => { el.draggable = true; });
+  });
   const pill = document.createElement("span");
   pill.className = "gc"; pill.textContent = `${open} of ${e.todos.length} open`;
   pill.title = "Tasks indented under this bullet";
@@ -1014,6 +1116,13 @@ function groupCard(e, showDate) {
       }));
       const txt = document.createElement("span");
       txt.className = "st2"; txt.textContent = visibleText(t.name) || "(empty)";
+      txt.title = "Double-click to edit";
+      txt.addEventListener("dblclick", () => {         // edit a task inside the group in place
+        if (selMode) return;
+        if (row.querySelector(".pl-edit")) return;
+        el.draggable = false;
+        startEdit(t, txt, () => act(() => reloadBullet(b.id)), () => { el.draggable = true; });
+      });
       row.append(cb, txt);
       list.appendChild(row);
     }
@@ -1109,14 +1218,13 @@ function card(n, k, showDate, opts) {
   fillSubs(subs, n.id);
   txt.appendChild(subs);
   txt.title = "Double-click to edit";
-  txt.addEventListener("dblclick", () => {
-    const current = plain(n.name);
-    const next = prompt("Edit task", current);
-    if (next === null || next.trim() === "" || next === current) return;
-    act(async () => {
-      await call("POST", `/nodes/${n.id}`, { name: next.trim() });
-      if (nested) n.name = next.trim(); else await loadDay(k);
-    });
+  txt.addEventListener("dblclick", () => {           // edit right on the card (keeps formatting; the note is editable too)
+    if (selMode || el.querySelector(".pl-edit")) return;
+    if (String(window.getSelection && window.getSelection()) !== "") window.getSelection().removeAllRanges();
+    el.draggable = false;                            // so selecting text inside the box doesn't drag the card
+    startEdit(n, txt, () => act(async () => {
+      if (nested) await reloadBullet(opts.bullet.id); else await loadDay(k);
+    }), () => { el.draggable = !nested && !selMode; });
   });
 
   const del = document.createElement("button");
@@ -1235,72 +1343,15 @@ document.getElementById("cal").addEventListener("click", (e) => {
 
 /* ---------- Outliner (saves to today's daily page) ---------- */
 
-const outline = document.getElementById("outline");
-const outSave = document.getElementById("outSave");
+const notesAdd = document.getElementById("notesAdd");
 const outStatus = document.getElementById("outStatus");
 let saving = false;
-
-function saveDraft() { try { localStorage.setItem("outlineDraft", outline.value); } catch (e) {} updateComposerLabel(); }
-try { outline.value = localStorage.getItem("outlineDraft") || ""; } catch (e) {}
-outline.addEventListener("input", saveDraft);
+try { localStorage.removeItem("outlineDraft"); } catch (e) {}   // the old notes box kept an unsent draft here
 
 function setStatus(msg) {
   outStatus.textContent = msg;
   if (msg) setTimeout(() => { if (outStatus.textContent === msg) outStatus.textContent = ""; }, 5000);
 }
-
-// Start a fresh pad with a bullet so you can just type.
-outline.addEventListener("focus", () => {
-  if (outline.value.trim() === "") { outline.value = "- "; outline.setSelectionRange(2, 2); }
-});
-
-// Clicking away from a box that only holds the starter "- " leaves it truly empty (so no stray draft is kept).
-outline.addEventListener("blur", () => {
-  if (outline.value && !parseOutline(outline.value).length) { outline.value = ""; saveDraft(); }
-});
-
-function shiftLines(dir) {
-  const v = outline.value, s = outline.selectionStart, e = outline.selectionEnd;
-  const start = v.lastIndexOf("\n", s - 1) + 1;
-  let end = v.indexOf("\n", e); if (end === -1) end = v.length;
-  let firstDelta = 0, total = 0;
-  const out = v.slice(start, end).split("\n").map((l, i) => {
-    const nl = dir > 0 ? "  " + l : l.replace(/^(\t| {1,2})/, "");
-    const d = nl.length - l.length;
-    if (i === 0) firstDelta = d;
-    total += d;
-    return nl;
-  });
-  outline.value = v.slice(0, start) + out.join("\n") + v.slice(end);
-  outline.selectionStart = Math.max(start, s + firstDelta);
-  outline.selectionEnd = Math.max(outline.selectionStart, e + total);
-  saveDraft();
-}
-
-// Enter continues the bullet at the same indent; Enter on an empty bullet outdents, then removes it.
-function handleEnter(ev) {
-  const v = outline.value, s = outline.selectionStart;
-  if (s !== outline.selectionEnd) return;
-  const ls = v.lastIndexOf("\n", s - 1) + 1;
-  const m = v.slice(ls, s).match(/^(\s*)([-*•] )(.*)$/);
-  if (!m) return;
-  ev.preventDefault();
-  const [, indent, marker, rest] = m;
-  const nl = v.indexOf("\n", s);
-  const after = v.slice(s, nl === -1 ? v.length : nl);
-  if (rest.trim() === "" && after.trim() === "") {
-    outline.setRangeText(indent.length >= 2 ? indent.slice(2) + marker : "", ls, s, "end");
-  } else {
-    outline.setRangeText("\n" + indent + marker, s, s, "end");
-  }
-  saveDraft();
-}
-
-outline.addEventListener("keydown", (e) => {
-  if (e.key === "Tab") { e.preventDefault(); shiftLines(e.shiftKey ? -1 : 1); }
-  else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveOutline(); }
-  else if (e.key === "Enter" && !e.shiftKey) handleEnter(e);
-});
 
 // Each line is a bullet; two spaces of indent = one level of nesting. "[ ] text" makes a todo.
 function parseOutline(text) {
@@ -1365,19 +1416,17 @@ async function changeNotesName() {
 }
 
 function applyNotesLabels() {
-  outSave.textContent = "Save to " + notesName;
   moveBtn.querySelector("small").textContent = `Move ${shownDayWord()} plain bullets into ${notesName}`;
   updateComposerLabel();
 }
 // "today's" or "Fri, Oct 23's": the day the Daily page is showing, which is where notes are saved.
 function shownDayWord() { return pageOffset === 0 ? "today's" : dayLabel(pageKey()) + "'s"; }
-// The bar above the notes box says where Save will write; it turns blue when that isn't today.
+// The add box says where a new line will go; its border turns blue when that isn't today.
 function updateComposerLabel() {
   const away = pageOffset !== 0;
-  document.getElementById("notesHeading").textContent = `Add to ${notesName} · ${away ? dayLabel(pageKey()) : "today"}`;
-  composerBar.classList.toggle("away", away);
-  outSave.title = `Save to the ${notesName} bullet on ${away ? dayLabel(pageKey()) : "today's page"}`;
-  document.getElementById("cDraft").hidden = !(outliner.classList.contains("composer-closed") && parseOutline(outline.value).length);   // an empty "- " isn't a draft
+  notesAdd.placeholder = `Add to ${notesName} · ${away ? dayLabel(pageKey()) : "today"} `;
+  notesAdd.classList.toggle("away", away);
+  notesAdd.title = `Enter adds a line under the ${notesName} bullet on ${away ? dayLabel(pageKey()) : "today's page"}. Paste a list to add it nested.`;
 }
 
 // Moves the shown day's plain top-level bullets (with their sub-bullets) under the notes bullet, keeping their order.
@@ -1398,7 +1447,7 @@ async function moveNotes() {
   if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from ${shownDayWord()} page into ${notesName}?\n\n` +
                `${preview}\n\nSub-bullets move with them. Todos and headings stay put.`)) return;
 
-  saving = true; outSave.disabled = true; moveBtn.disabled = true; showError("");
+  saving = true; notesAdd.disabled = true; moveBtn.disabled = true; showError("");
   let moved = 0;
   try {
     const notesId = await ensureNotesId(todayK);
@@ -1411,7 +1460,7 @@ async function moveNotes() {
     showError(e.message);
     setStatus(moved ? `Moved ${moved}, then stopped` : "Nothing moved");
   }
-  saving = false; outSave.disabled = false; moveBtn.disabled = false;
+  saving = false; notesAdd.disabled = false; moveBtn.disabled = false;
   try { await loadDay(todayK); } catch (e) {}
   render();
   await loadPage();
@@ -1419,47 +1468,71 @@ async function moveNotes() {
 const moveBtn = document.getElementById("moveNotes");
 moveBtn.onclick = moveNotes;
 
-async function saveOutline() {
-  if (saving) return;
-  const items = parseOutline(outline.value);
-  if (!items.length) { setStatus("Nothing to save"); return; }
-  saving = true; outSave.disabled = true; showError("");
-  const todayK = pageKey();    // the day shown in the Daily page above
-  let notesId;
-  try { notesId = await ensureNotesId(todayK); }          // find (or create) the WB-Notes bullet first
-  catch (e) {
-    showError(e.message); setStatus("Not saved");
-    saving = false; outSave.disabled = false;
-    return;
-  }
-  const stack = [];               // stack[level] = id of the latest node saved at that level
-  let done = 0, failure = null;
-  for (const it of items) {
-    const level = Math.min(it.level, stack.length);       // can't skip a level
-    const parent = level === 0 ? notesId : stack[level - 1];
-    try {
+// Adds parsed lines under a parent, nested by their indent (relative to the least-indented line). Returns what was created.
+async function addLines(parentId, items) {
+  const base = Math.min(...items.map((i) => i.level));
+  const stack = [], top = [];
+  let done = 0, error = null;
+  try {
+    for (const it of items) {
+      const level = Math.min(it.level - base, stack.length);   // can't skip a level
+      const parent = level === 0 ? parentId : stack[level - 1];
       const res = await call("POST", "/nodes", { parent_id: parent, name: it.name, position: "bottom" });
+      if (!res || !res.item_id) throw new Error("WorkFlowy didn't confirm the new line");
       stack.length = level;
-      stack[level] = res && res.item_id;
+      stack[level] = res.item_id;
+      if (level === 0) top.push(res.item_id);
       done++;
-    } catch (e) { failure = e; break; }
-  }
-  if (failure) {
-    // Keep only what wasn't saved so a retry doesn't create duplicates.
-    outline.value = items.slice(done).map((i) => i.raw).join("\n");
-    showError(failure.message);
-    setStatus(done ? `Saved ${done}, ${items.length - done} left` : "Not saved");
-  } else {
-    outline.value = "";
-    setStatus(`Saved ${done} ${done === 1 ? "line" : "lines"} to ${notesName}`);
-  }
-  saveDraft();
-  try { await loadDay(todayK); } catch (e) {}
-  saving = false; outSave.disabled = false;
-  render();
-  await loadPage();          // show what's on the page now, including what was just saved
+    }
+  } catch (e) { error = e; }
+  return { top, done, error };
 }
-outSave.onclick = saveOutline;
+
+// Reloads whatever the Daily page / item editor is showing (used after edits that can touch several places).
+async function reloadAfter() {
+  if (viewItem) { await reloadItem(); return; }
+  await Promise.all([loadPage(), loadDay(pageKey())]);
+  render();
+}
+
+// The add box under the page: adds to the notes bullet of the day shown (created if missing).
+async function quickAdd(text) {
+  if (saving) return false;
+  const items = parseOutline(text);
+  if (!items.length) return false;
+  saving = true; notesAdd.disabled = true; showError("");
+  const dayK = pageKey();
+  let ok = false;
+  try {
+    const notesId = await ensureNotesId(dayK);
+    const r = await addLines(notesId, items);
+    if (r.error) { showError(r.error.message); setStatus(r.done ? `Added ${r.done} of ${items.length}, then stopped` : "Not added"); }
+    else { ok = true; setStatus(`Added ${r.done} ${r.done === 1 ? "line" : "lines"} to ${notesName}`); }
+    if (r.top.length) {
+      pushUndo(`Added ${r.done} ${r.done === 1 ? "line" : "lines"} to ${notesName}`, async () => {
+        for (const id of r.top) await call("DELETE", `/nodes/${id}`);
+        await loadDay(dayK);
+      });
+    }
+    try { await loadDay(dayK); } catch (e) {}
+  } catch (e) { showError(e.message); setStatus("Not added"); }
+  saving = false; notesAdd.disabled = false;
+  render();
+  await loadPage();
+  notesAdd.focus();
+  return ok;
+}
+notesAdd.addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter" || e.isComposing || !notesAdd.value.trim()) return;
+  e.preventDefault();
+  if (await quickAdd(notesAdd.value)) notesAdd.value = "";
+});
+notesAdd.addEventListener("paste", async (e) => {
+  const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
+  if (!/\n/.test(text.trim())) return;               // one line pastes like normal text
+  e.preventDefault();
+  if (await quickAdd(notesAdd.value + text)) notesAdd.value = "";
+});
 
 /* ---------- Editing a line in place (keeps bold, links and other formatting) ---------- */
 
@@ -1512,7 +1585,7 @@ function applyEdit(raw, next) {
 }
 
 // Replaces the line's text with editing boxes (title, and its note). Enter saves, Esc cancels, clicking away saves.
-function startEdit(n, textEl, onSaved) {
+function startEdit(n, textEl, onSaved, onClose) {
   const origName = n.name || "", origNote = n.note || "";
   const titleText = visibleText(origName), noteText = visibleText(origNote);
   const box = document.createElement("div");
@@ -1532,13 +1605,13 @@ function startEdit(n, textEl, onSaved) {
   const finish = async (save) => {
     if (finished) return;
     finished = true;
-    if (!save) { box.replaceWith(textEl); return; }
+    if (!save) { box.replaceWith(textEl); if (onClose) onClose(); return; }
     const nextTitle = title.value.replace(/\s*\n\s*/g, " ").trim();
     const nextNote = note.value.replace(/\s+$/, "");
     const body = {};
     if (nextTitle && nextTitle !== titleText) body.name = applyEdit(origName, nextTitle);
     if (nextNote !== noteText) body.note = nextNote === "" ? "" : applyEdit(origNote, nextNote);
-    if (!Object.keys(body).length) { box.replaceWith(textEl); return; }
+    if (!Object.keys(body).length) { box.replaceWith(textEl); if (onClose) onClose(); return; }
     title.disabled = note.disabled = true;
     try { await call("POST", `/nodes/${n.id}`, body); await onSaved(); }
     catch (e) { showError(e.message); finished = false; title.disabled = note.disabled = false; title.focus(); }
@@ -1621,7 +1694,7 @@ function renderPage() {
     return;
   }
   // inNotes: this line is the notes bullet or sits inside it. The notes bullet itself can't be removed from here.
-  const walk = (nodes, level, inNotes) => {
+  const walk = (nodes, level, inNotes, parent, grandId) => {
     nodes.forEach((n, i) => {
       const isNotesBullet = !inNotes && !viewItem && level === 0 && sameName(plain(n.name), notesName);
       const here = inNotes || isNotesBullet;
@@ -1630,15 +1703,38 @@ function renderPage() {
       // "−" is offered everywhere on Daily page except the notes bullet itself, and inside it only on lines with nothing underneath
       // In the item editor from search: only lines with nothing underneath, and never the opened item itself.
       const removable = viewItem ? (level > 0 && !hasKids) : (!isNotesBullet && (!here || !hasKids));
-      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, removable, hasKids ? (closed ? "closed" : "open") : ""));
-      if (hasKids && !closed) walk(n.children, level + 1, here);
+      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, removable, hasKids ? (closed ? "closed" : "open") : "", parent && grandId ? { parent, grandId } : null));
+      if (hasKids && !closed) walk(n.children, level + 1, here, n, parent ? parent.id : (viewItem ? null : pageKey()));
       if (addingFor === n.id) tree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
     });
   };
-  walk(roots, 0, false);
+  walk(roots, 0, false, null, null);
   tree.scrollTop = keepScroll;
   const box = tree.querySelector(".pl-add input");
   if (box) box.focus();
+}
+
+// Outdent. WorkFlowy can only move to the top or bottom of a parent, so the line goes to the bottom of the grandparent
+// and the lines that followed its parent are moved to the bottom after it, which leaves it right below its parent.
+// Lines that were below it under the old parent stay there.
+async function outdentLine(n, parent, grandId) {
+  const kids = async (id) => ((await call("GET", `/nodes?parent_id=${id}`)).nodes || []).slice().sort((a, b) => a.priority - b.priority);
+  const grandKids = await kids(grandId);
+  const pi = grandKids.findIndex((x) => x.id === parent.id);
+  const after = (pi < 0 ? [] : grandKids.slice(pi + 1)).filter((x) => x.id !== n.id);
+  const oldKids = await kids(parent.id);
+  const ni = oldKids.findIndex((x) => x.id === n.id);
+  const stayed = ni < 0 ? [] : oldKids.slice(ni + 1);      // for Undo: they come back behind it
+  if (after.length > 25 && !confirm(`To place this line right below its parent, ${after.length} lines that follow the parent have to be re-ordered. Continue?`)) return;
+  await call("POST", `/nodes/${n.id}/move`, { parent_id: grandId, position: "bottom" });
+  for (const x of after) await call("POST", `/nodes/${x.id}/move`, { parent_id: grandId, position: "bottom" });
+  const name = shortName(n);
+  pushUndo(`Outdented “${name}”`, async () => {
+    await call("POST", `/nodes/${n.id}/move`, { parent_id: parent.id, position: "bottom" });
+    for (const x of stayed) await call("POST", `/nodes/${x.id}/move`, { parent_id: parent.id, position: "bottom" });
+    await reloadAfter();
+  });
+  await reloadAfter();
 }
 
 // Small input that adds a new line as the last child of `parent`. Stays open for quick repeat adds.
@@ -1658,13 +1754,28 @@ function addRow(parent, level) {
       if (viewItem) await reloadItem(); else await loadPage();
     } catch (err) { showError(err.message); input.disabled = false; }
   });
+  input.addEventListener("paste", async (e) => {         // a pasted list is added nested, right away
+    const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
+    if (!/\n/.test(text.trim())) return;
+    const items = parseOutline(input.value + text);
+    if (!items.length) return;
+    e.preventDefault();
+    input.disabled = true;
+    const r = await addLines(parent.id, items);
+    if (r.error) showError(r.error.message);
+    if (r.top.length) pushUndo(`Added ${r.done} ${r.done === 1 ? "line" : "lines"}`, async () => {
+      for (const id of r.top) await call("DELETE", `/nodes/${id}`);
+      await reloadAfter();
+    });
+    try { await reloadAfter(); } catch (err) { showError(err.message); }
+  });
   wrap.appendChild(input);
   return wrap;
 }
 
 // One line of today's page. Todos get a checkbox; double-click any line to edit its text.
 // `prev` is the line directly above at the same level (none for the first line of a group).
-function pageLine(n, level, prev, removable, fold) {
+function pageLine(n, level, prev, removable, fold, out) {
   const mode = (n.data && n.data.layoutMode) || "bullets";
   const row = document.createElement("div");
   row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "");
@@ -1722,6 +1833,18 @@ function pageLine(n, level, prev, removable, fold) {
     });
   });
   row.appendChild(t);
+
+  // "<" outdents the line: it moves up one level to sit right after its parent.
+  if (out) {
+    const od = document.createElement("button");
+    od.className = "outc"; od.textContent = "<"; od.title = "Outdent: move out one level, below its parent";
+    od.addEventListener("click", async () => {
+      od.disabled = true;
+      try { await outdentLine(n, out.parent, out.grandId); }
+      catch (e) { showError(e.message); od.disabled = false; await reloadAfter().catch(() => {}); }
+    });
+    row.appendChild(od);
+  }
 
   // ">" indents the line: it becomes the last child of the line above (and takes its sub-bullets with it).
   if (prev) {
@@ -1834,15 +1957,23 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
   };
 }
 
-// Settings menu: one button opens the board options. Click outside it, or press Esc, to close.
+// Settings window: sections on the left (Week board, Plan day), their options on the right. Esc, the ✕ or a click outside closes it.
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPop = document.getElementById("settingsPop");
+function showSettingsSection(sec) {
+  document.querySelectorAll(".set-nav button").forEach((b) => { const on = b.dataset.sec === sec; b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+  document.querySelectorAll(".set-pane").forEach((p) => { p.hidden = p.dataset.sec !== sec; });
+  try { localStorage.setItem("settingsSection", sec); } catch (e) {}
+}
+document.querySelectorAll(".set-nav button").forEach((b) => { b.onclick = () => showSettingsSection(b.dataset.sec); });
 function setSettingsOpen(on) {
   settingsPop.hidden = !on;
   settingsBtn.setAttribute("aria-expanded", on ? "true" : "false");
+  if (on) { let sec = "board"; try { sec = localStorage.getItem("settingsSection") || "board"; } catch (e) {} showSettingsSection(sec === "plan" ? "plan" : "board"); }
 }
 settingsBtn.onclick = (e) => { e.stopPropagation(); setSettingsOpen(settingsPop.hidden); };
-document.addEventListener("click", (e) => { if (!settingsPop.hidden && !settingsPop.contains(e.target)) setSettingsOpen(false); });
+document.getElementById("settingsClose").onclick = () => { setSettingsOpen(false); settingsBtn.focus(); };
+settingsPop.addEventListener("click", (e) => { if (e.target === settingsPop) setSettingsOpen(false); });
 
 /* ---------- Search (done by the server; this page only gets the matches it asks for) ---------- */
 
@@ -2062,7 +2193,7 @@ if (document.querySelector('meta[name="remote"]').content === "1") {
     e.preventDefault();
     try { await fetch("/logout", { method: "POST" }); } catch (err) { /* leave anyway */ }
     // Shared computer: don't leave your draft, notes name or settings behind in this browser.
-    try { outline.value = ""; localStorage.clear(); sessionStorage.clear(); } catch (err) { /* blocked: nothing to clear */ }
+    try { localStorage.clear(); sessionStorage.clear(); } catch (err) { /* blocked: nothing to clear */ }
     location.href = "/login";
   };
   document.getElementById("ver").append(" · ", out);
@@ -2110,7 +2241,7 @@ document.addEventListener("keydown", (e) => {
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const shortName = (n) => { const t = (plain(n.name) || "").trim() || "(empty)"; return t.length > 40 ? t.slice(0, 39) + "…" : t; };
-const dayLabel = (k) => keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const dayLabel = (k) => (ISO_DAY.test(k) ? keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : sourceName(k));   // a plan source (Inbox...) shows its own name
 
 /* ---------- Toast + Undo ---------- */
 const toastEl = document.getElementById("toast");
@@ -2155,7 +2286,7 @@ async function reloadBullet(id) {
 }
 async function reloadParents(parents) {
   const ids = [...new Set(parents.filter(Boolean))];
-  await Promise.all(ids.map((p) => (ISO_DAY.test(p) ? loadDay(p) : (nest[p] ? reloadBullet(p) : null))));
+  await Promise.all(ids.map((p) => (ISO_DAY.test(p) ? loadDay(p) : srcById(p) ? loadSource(srcById(p), true) : (nest[p] ? reloadBullet(p) : null))));
 }
 
 // Move tasks (or a group's bullet) to the bottom of a day. items: [{ id, from, name }]. Remembered for Undo.
@@ -2313,8 +2444,8 @@ function setSelMode(on) {
   updateSelBar();
   render();
 }
-function toggleSel(n, k, bullet, el) {
-  if (sel.has(n.id)) sel.delete(n.id); else sel.set(n.id, { n, k, bullet });
+function toggleSel(n, k, bullet, el, group) {
+  if (sel.has(n.id)) sel.delete(n.id); else sel.set(n.id, { n, k, bullet, group: !!group });
   el.classList.toggle("sel", sel.has(n.id));
   updateSelBar();
 }
@@ -2322,7 +2453,10 @@ selBtn.onclick = () => setSelMode(!selMode);
 document.getElementById("selCancel").onclick = () => setSelMode(false);
 document.getElementById("selAll").onclick = () => {
   const list = planMode ? entries(planDay, true) : entriesFor([...weekDays().map(key), ...extraKeys().late, ...extraKeys().soon], true);
-  for (const e of list) if (e.kind === "task" || e.kind === "nested") sel.set(e.n.id, { n: e.n, k: e.k, bullet: e.kind === "nested" ? e.b : null });
+  for (const e of list) {
+    if (e.kind === "task" || e.kind === "nested") sel.set(e.n.id, { n: e.n, k: e.k, bullet: e.kind === "nested" ? e.b : null });
+    else if (e.kind === "group") sel.set(e.b.id, { n: e.b, k: e.k, bullet: null, group: true });
+  }
   updateSelBar(); render();
 };
 document.getElementById("selMove").onclick = (ev) => {
@@ -2331,8 +2465,8 @@ document.getElementById("selMove").onclick = (ev) => {
   openMovePop(ev.currentTarget, key(todayDate()), (to) => { setSelMode(false); act(() => moveMany(items, to)); });
 };
 document.getElementById("selDone").onclick = () => {
-  const list = [...sel.values()].filter((s) => !s.n.completedAt);
-  if (!list.length) { showToast("Those are already done", false); return; }
+  const list = [...sel.values()].filter((s) => !s.n.completedAt && !s.group);   // a group is a bullet, not a task
+  if (!list.length) { showToast([...sel.values()].some((s) => s.group) ? "Groups can't be completed (open one and tick its tasks)" : "Those are already done", false); return; }
   setSelMode(false);
   act(async () => {
     for (const s of list) await call("POST", `/nodes/${s.n.id}/complete`);
@@ -2346,7 +2480,7 @@ document.getElementById("selDone").onclick = () => {
 document.getElementById("selDel").onclick = () => {
   const list = [...sel.values()];
   if (!list.length) return;
-  if (!confirm(`Delete ${list.length} task${list.length === 1 ? "" : "s"} and everything under ${list.length === 1 ? "it" : "them"}? (You can undo this right afterwards.)`)) return;
+  if (!confirm(`Delete ${list.length} ${list.some((s) => s.group) ? "item" : "task"}${list.length === 1 ? "" : "s"} and everything under ${list.length === 1 ? "it" : "them"}? (You can undo this right afterwards.)`)) return;
   setSelMode(false);
   act(() => deleteMany(list.map((s) => ({ id: s.n.id, parent: s.bullet ? s.bullet.id : s.k, node: s.n }))));
 };
@@ -2545,19 +2679,53 @@ function planPastKeys() {
 }
 const planAheadKeys = () => [1, 2, 3].map((i) => addDayKey(planDay, i));
 function planExtraKeys() { return planMode ? [planDay, ...planPastKeys(), ...planAheadKeys()] : []; }
+/* Plan day sources: other nodes (an Inbox...) whose open todos can be brought into the planned day. Saved in this browser. */
+function loadSources() {
+  try {
+    const a = JSON.parse(localStorage.getItem("planSources") || "[]");
+    return a.filter((x) => x && typeof x.name === "string" && typeof x.id === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(x.id)).slice(0, 6);
+  } catch (e) { return []; }
+}
+let planSources = loadSources();             // [{ name, id }]  (id is always the full id)
+const saveSources = () => { try { localStorage.setItem("planSources", JSON.stringify(planSources)); } catch (e) {} };
+const srcState = {};                         // id -> { todos, loaded, error }
+const srcById = (id) => planSources.find((x) => x.id === id);
+function sourceName(k) { const x = srcById(k); return x ? x.name : k; }
+async function loadSource(src, force) {
+  const st = srcState[src.id] || (srcState[src.id] = {});
+  if (st.loaded && !force) return;
+  try {
+    const data = await call("GET", `/nodes?parent_id=${src.id}`);
+    if (data === null) throw new Error("WorkFlowy doesn't know this node any more. Remove it in Settings and add it again.");
+    st.todos = (data.nodes || []).filter((n) => n.data && n.data.layoutMode === "todo").sort((a, b) => a.priority - b.priority);
+    st.error = "";
+  } catch (e) { st.todos = []; st.error = e.message; }
+  st.loaded = true;
+}
+// A WorkFlowy link ends in the node's short id (12 characters); a full id may also be pasted.
+function parseNodeLink(text) {
+  const t = String(text || "").trim();
+  const full = t.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if (full) return full[0].toLowerCase();
+  const all = [...t.matchAll(/(?:^|[^0-9a-f])([0-9a-f]{12})(?![0-9a-f])/gi)];
+  return all.length ? all[all.length - 1][1].toLowerCase() : "";
+}
 async function loadPlan(force) {
   const token = ++planToken;
   const keys = planExtraKeys().filter((k) => force || k === planDay || !(k in cache));
   planLoading = true; renderPlan();
-  const err = await loadMany(keys);
+  const [err] = await Promise.all([loadMany(keys), ...planSources.map((x) => loadSource(x, force))]);
   if (token !== planToken) return;
   planLoading = false;
   if (err) showError(err);
   render();
 }
-function setPlanMode(on) {
+// Plan day is remembered for this browser tab, so an accidental reload (pull-to-refresh on a phone, say) comes back to it.
+function rememberPlan() { try { if (planMode) { sessionStorage.setItem("planOn", "1"); sessionStorage.setItem("planDay", planDay); } else { sessionStorage.removeItem("planOn"); sessionStorage.removeItem("planDay"); } } catch (e) {} }
+function setPlanMode(on, day) {
   planMode = on;
-  if (on) planDay = key(todayDate());
+  if (on) planDay = day && ISO_DAY.test(day) ? day : key(todayDate());
+  rememberPlan();
   document.getElementById("board").hidden = on;
   planEl.hidden = !on;
   planBtn.classList.toggle("on", on);
@@ -2565,7 +2733,8 @@ function setPlanMode(on) {
   if (on) loadPlan(false); else render();
 }
 planBtn.onclick = () => setPlanMode(!planMode);
-function goPlanDay(k) { planDay = k; loadPlan(false); }
+function goPlanDay(k) { planDay = k; rememberPlan(); loadPlan(false); }
+try { if (sessionStorage.getItem("planOn") === "1") setPlanMode(true, sessionStorage.getItem("planDay")); } catch (e) {}
 
 function planPane(title) {
   const pane = document.createElement("section");
@@ -2581,7 +2750,7 @@ function planRow(n, k, label) {
   const t = document.createElement("span");
   t.className = "bt"; t.textContent = plain(n.name) || "(empty)";
   const d = document.createElement("span");
-  d.className = "bd"; d.textContent = dayLabel(k);
+  d.className = "bd"; d.textContent = ISO_DAY.test(k) ? dayLabel(k) : "";
   const b = document.createElement("button");
   b.className = "bring"; b.textContent = "+ " + label; b.title = `Move to ${dayLabel(planDay)}`;
   b.addEventListener("click", () => act(() => moveMany([{ id: n.id, from: k, name: shortName(n) }], planDay)));
@@ -2592,6 +2761,7 @@ function renderPlan() {
   if (!planMode) return;
   const keep = {};
   planEl.querySelectorAll(".tasks, .bring-list").forEach((el) => { keep[el.dataset.s] = el.scrollTop; });
+  const keepOuter = planEl.scrollTop;                    // on a narrow screen the whole plan scrolls
   planEl.innerHTML = "";
   const todayK = key(todayDate());
   const isToday = planDay === todayK;
@@ -2676,6 +2846,26 @@ function renderPlan() {
   if (!late.length && !planLoading) scroll.insertAdjacentHTML("beforeend", '<div class="empty">Nothing past due.</div>');
   for (const it of late) scroll.appendChild(planRow(it.n, it.k, "Add"));
 
+  for (const src of planSources) {                    // each extra node (Inbox...) gets its own list
+    const st = srcState[src.id] || {};
+    const open = (st.todos || []).filter((n) => !n.completedAt);
+    const sh = document.createElement("div");
+    sh.className = "bgh";
+    const stt = document.createElement("span");
+    stt.textContent = `${src.name} (${open.length})` + (planLoading && !st.loaded ? " · loading…" : "");
+    sh.appendChild(stt);
+    if (open.length) {
+      const all = document.createElement("button");
+      all.className = "mini"; all.textContent = "Add all…";
+      all.onclick = () => openRoll({ title: `Bring ${src.name} tasks to ${dayLabel(planDay)}`, items: open.map((n) => ({ n, k: src.id })), dest: planDay });
+      sh.appendChild(all);
+    }
+    scroll.appendChild(sh);
+    if (st.error) { const er = document.createElement("div"); er.className = "empty"; er.textContent = "Couldn't read it: " + st.error; scroll.appendChild(er); }
+    else if (!open.length && st.loaded) scroll.insertAdjacentHTML("beforeend", '<div class="empty">No open tasks.</div>');
+    for (const n of open) scroll.appendChild(planRow(n, src.id, "Add"));
+  }
+
   for (const k of planAheadKeys()) {
     const open = (cache[k] || []).filter((n) => !n.completedAt);
     const gh = document.createElement("div");
@@ -2689,7 +2879,59 @@ function renderPlan() {
 
   planEl.append(left, right);
   planEl.querySelectorAll(".tasks, .bring-list").forEach((el) => { if (keep[el.dataset.s]) el.scrollTop = keep[el.dataset.s]; });
+  if (keepOuter) planEl.scrollTop = keepOuter;
 }
+
+// Settings: the list of extra nodes.
+const srcListEl = document.getElementById("srcList"), srcNameEl = document.getElementById("srcName");
+const srcLinkEl = document.getElementById("srcLink"), srcAddEl = document.getElementById("srcAdd"), srcMsgEl = document.getElementById("srcMsg");
+function srcMsg(text, err) { srcMsgEl.textContent = text; srcMsgEl.classList.toggle("err", !!err); }
+function renderSrcList() {
+  srcListEl.innerHTML = "";
+  for (const src of planSources) {
+    const row = document.createElement("div");
+    row.className = "srow";
+    const n = document.createElement("span");
+    n.className = "sn"; n.textContent = src.name;
+    const id = document.createElement("small");
+    id.textContent = src.id.slice(-12); id.title = "Node id " + src.id;
+    const x = document.createElement("button");
+    x.type = "button"; x.textContent = "Remove"; x.title = "Remove " + src.name;
+    x.onclick = () => {
+      planSources = planSources.filter((y) => y.id !== src.id); delete srcState[src.id]; saveSources();
+      renderSrcList(); renderPlan();
+    };
+    row.append(n, id, x);
+    srcListEl.appendChild(row);
+  }
+}
+srcAddEl.onclick = async () => {
+  srcMsg("");
+  const id0 = parseNodeLink(srcLinkEl.value);
+  if (!id0) { srcMsg("Paste the node's link (like https://workflowy.com/#/303fb255ba17) or its id.", true); return; }
+  if (planSources.length >= 6) { srcMsg("Up to 6 sources.", true); return; }
+  srcAddEl.disabled = true; srcMsg(id0.length === 12 ? "Looking the node up (the first time this reads your outline, which can take a moment)…" : "Checking…");
+  try {
+    let id = id0, found = "";
+    if (id0.length === 12) { const r = await api("/resolve?short=" + id0); id = r.id; found = r.name; }
+    if (planSources.some((y) => y.id === id)) throw new Error("That node is already in the list.");
+    const data = await call("GET", `/nodes?parent_id=${id}`);
+    if (data === null) throw new Error("WorkFlowy doesn't know that id.");
+    if (!found && !srcNameEl.value.trim()) {              // no name typed and none from the lookup: ask WorkFlowy for the node's own name
+      try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = plain((nd && nd.name) || ""); } catch (e) { /* falls back to "Inbox" */ }
+    }
+    const open = (data.nodes || []).filter((n) => n.data && n.data.layoutMode === "todo" && !n.completedAt).length;
+    const name = srcNameEl.value.trim().replace(/\s+/g, " ") || found.slice(0, 40) || "Inbox";
+    planSources.push({ name, id }); saveSources();
+    srcNameEl.value = ""; srcLinkEl.value = "";
+    srcMsg(`Added “${name}”: ${open} open task${open === 1 ? "" : "s"} directly under it.`);
+    renderSrcList();
+    if (planMode) loadPlan(false);
+  } catch (e) { srcMsg(e.message, true); }
+  srcAddEl.disabled = false;
+};
+srcLinkEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); srcAddEl.click(); } });
+renderSrcList();
 
 const limitInput = document.getElementById("optLimit");
 limitInput.value = String(planLimit);
@@ -2708,20 +2950,9 @@ document.addEventListener("keydown", (e) => {
   else if (!doneModal.hidden) closeDone();
 });
 
-/* ---------- The Daily page and the notes box are one panel ---------- */
+/* ---------- The Daily page and its add box are one panel ---------- */
 const outliner = document.getElementById("outliner");
-const composerBar = document.getElementById("composerBar");
-function setComposer(open, focus) {
-  outliner.classList.toggle("composer-closed", !open);
-  composerBar.setAttribute("aria-expanded", open ? "true" : "false");
-  document.getElementById("cCar").textContent = open ? "▾" : "▸";
-  composerBar.title = open ? "Hide the notes box" : "Show the notes box";
-  setPref("composerOpen", open);
-  updateComposerLabel();
-  if (open && focus) outline.focus();
-}
-composerBar.onclick = () => setComposer(outliner.classList.contains("composer-closed"), true);
-setComposer(getBool("composerOpen", true), false);
+updateComposerLabel();
 
 // The "⋯" menu in the header (rename the notes bullet, move notes in).
 const pageMore = document.getElementById("pageMore");

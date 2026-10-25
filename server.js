@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.0.8
+// Version 1.0.9
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.0.8";
+const VERSION = "1.0.9";
 
 const http = require("http");
 const fs = require("fs");
@@ -313,6 +313,23 @@ async function serveDone(url, res) {
   }
 }
 
+// WorkFlowy links end in the last 12 characters of a node's full id. The API wants the full id, so look it up here.
+async function serveResolve(url, res) {
+  const p = url.searchParams;
+  const short = (p.get("short") || "").toLowerCase();
+  if (!/^[0-9a-f]{12}$/.test(short)) return sendJson(res, 400, { error: "that isn't a 12-character WorkFlowy link id" });
+  try {
+    const { throttled } = await ensureIndex(p.get("refresh") === "1");
+    const hits = [];
+    for (const n of idx.byId.values()) if (n.id.toLowerCase().endsWith("-" + short) || n.id.toLowerCase() === short) hits.push(n);
+    if (!hits.length) return sendJson(res, 404, { error: "no node ends in that id (is it in your outline? try Refresh index in Search)", throttled });
+    if (hits.length > 1) return sendJson(res, 409, { error: "more than one node matches that id" });
+    sendJson(res, 200, { id: hits[0].id, name: stripHtml(hits[0].name || ""), throttled });
+  } catch (e) {
+    sendJson(res, e.status && e.status >= 400 ? e.status : 502, { error: e.message });
+  }
+}
+
 async function serveItem(url, res) {
   const p = url.searchParams;
   try {
@@ -553,7 +570,7 @@ async function guard(req, res, url) {
     return false;
   }
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/update-check"].includes(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/resolve", "/update-check"].includes(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -590,6 +607,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/update-check") return serveUpdate(res);
   if (req.method === "GET" && url.pathname === "/search") return serveSearch(url, res);
   if (req.method === "GET" && url.pathname === "/item") return serveItem(url, res);
+  if (req.method === "GET" && url.pathname === "/resolve") return serveResolve(url, res);
   if (req.method === "GET" && url.pathname === "/done") return serveDone(url, res);
 
   if (url.pathname.startsWith("/api/")) {
