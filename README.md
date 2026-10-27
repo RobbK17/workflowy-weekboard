@@ -4,7 +4,16 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.1.0**
+**Version 1.2.0**
+
+### What's new since 1.1.1
+
+- **Reminders (1.2.0).** Put a time in a task (`@2:30pm`) or use WorkFlowy's date tag with a time, and the board shows a 🔔 badge, pops up when it's due, and can push to your phone through ntfy or Pushover. A 🔔 button on each card sets the time. New **Reminders** section in Settings. See "Reminders" below, including how to set up ntfy and Pushover. New settings: `REMINDER_TZ`, `NTFY_TOPIC`, `NTFY_URL`, `NTFY_TOKEN`, `PUSHOVER_TOKEN`, `PUSHOVER_USER`, `REMINDER_NESTED`, `REMINDER_STATE`.
+- **Peek at Past due / Upcoming.** With a panel switched off, clicking its count at the bottom right shows the panel without changing the setting (press **📌** to keep it on, **✕** or the count to close it).
+- **Adding in Group mode.** Each group card has a **+ Add task** box, and each day column has **+ Add group**.
+- **Hide completed on the Daily page.** Ticked items and sub-items are left out of the Daily page too.
+- **Optional add-ons.** `server.js` can load optional add-ons from an `addons` folder. Without one nothing changes. See `addons/ADDONS.md` if you want to build or install one.
+
 
 ## What's in the box
 
@@ -200,6 +209,12 @@ All settings are environment variables, set the same way as the key above.
 | `UPDATE_CHECK` | No | on | Set to `0` to stop the board checking GitHub for a newer version. |
 | `UPDATE_URL` | No | this project's `server.js` on GitHub (`main` branch) | Raw address of a `server.js` to compare versions against (useful for a fork). |
 | `IDLE_PURGE_MINUTES` | No | `10` | Minutes without a search before the server clears its copy of your outline from memory. `0` turns the purge off. |
+| `REMINDER_TZ` | No | the server's time zone | Time zone for reminder times, for example `America/New_York`. **Set it on `vps` and `fly`**, whose servers run in UTC. |
+| `NTFY_TOPIC` | No | none | Turns on push reminders through [ntfy](https://ntfy.sh). Use a long random topic name; anyone who knows it can read it. |
+| `NTFY_URL` / `NTFY_TOKEN` | No | `https://ntfy.sh` / none | Your own ntfy server, and its access token if it needs one. |
+| `PUSHOVER_TOKEN` + `PUSHOVER_USER` | No | none | Push reminders through Pushover instead of (or as well as) ntfy. |
+| `REMINDER_NESTED` | No | on | Set to `0` so push reminders ignore tasks nested under a bullet (saves a WorkFlowy request per bullet). |
+| `REMINDER_STATE` | No | a file in the system temp folder | Where the server remembers which push reminders it already sent. |
 | `NODE_USE_SYSTEM_CA` | No | off | Set to `1` on Windows to use the Windows certificate store (fixes certificate errors on networks that inspect HTTPS). Needs Node 22.15+ or 23.8+. |
 
 ## Using the board
@@ -219,16 +234,18 @@ All settings are environment variables, set the same way as the key above.
 - Click ✕ to delete (permanent, with a confirmation). If the task has sub-items, the confirmation says how many, because they are deleted too.
 - Drag a task onto another day's column to move it (mouse only; this doesn't work by touch). Its sub-items move with it.
 - **Sub-items:** a task that has lines underneath it shows a small **▸ 3 sub-items** button. Click it to open a checklist right on the card, nested as deep as the items go. Tick a sub-item to complete it. The checklist is for reading and ticking; add, edit, or delete sub-items in WorkFlowy, or in the search item editor.
+- **Card buttons:** hover a task to show three small buttons in its top-right corner: 🔔 sets a reminder (see "Reminders"), the calendar icon moves it, and ✕ deletes it.
 - **Move to a date:** hover a task and click the calendar icon for a small menu: Today, Tomorrow, next Monday, or any date (type it or use the date picker). Cancel, Esc, or a click elsewhere closes it. The task moves to the bottom of that day's page, even a day outside the days shown. (Dragging a card onto a day column still works for days on the board.) In Group mode, the calendar icon on a group moves the whole bullet with all its tasks.
 - The day header and add box stay in place while the task list scrolls.
 
-**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day sources). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
-- **Hide completed:** hides checked-off tasks.
+**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day sources) and **Reminders** (popups, browser notifications, push status; see "Reminders" below). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
+- **Hide completed:** hides checked-off tasks, on the board and in the sidebar's Daily page (a ticked task there is hidden along with anything indented under it; the item editor opened from search still shows everything). Deleting a line with **−** still warns about the lines underneath, hidden or not.
 - **Past due:** adds a panel of open tasks from *before* the days on screen. Choose how far back with **Past due range** just below it in Settings: 1, 2, 3 or 4 weeks, or All (default 2 weeks). The panel's title shows the range, for example **Past due (2 weeks)**, and a small **→ Today** button next to the count opens a preview to move the open ones to today.
 - **Upcoming:** adds a panel of tasks in the 14 days *after* the days on screen. Both panels have a **▾ 3 open** button next to the title: click it to fold the panel up to just its header (it becomes **▸ 3 open**), and click again to open it. Whether each is folded is remembered in your browser.
 - **Nested:** `Off`, `Group` or `Flatten`. It decides what the board does with a plain bullet that has tasks indented under it (for example a "Project Alpha" bullet with three todos beneath it). **Off** is the default and ignores such bullets, as earlier versions did. The choice is remembered in your browser.
   - **Group:** the bullet becomes one card with a ▾ arrow, its name, and a pill such as "2 of 3 open". Its tasks are a checklist inside the card, and you can tick them in place. The arrow hides or shows the checklist. Drag the card to move the bullet, and everything under it, to another day. The calendar icon on the card header does the same. Group cards are for ticking only; edit or delete the bullet and its tasks in WorkFlowy or from Daily page / search.
   - **Flatten:** each indented task becomes its own card in the day's column, with the bullet's name in small grey type above it (for example "Project Alpha ›"). These cards can be ticked, edited and deleted like any other. They can't be dragged to another day, because that would pull them out of their bullet, but the calendar icon moves one to a date of your choice (and takes it out of its bullet).
+  - **Adding in Group mode:** each group card ends with a **+ Add task** box. Type a task and press Enter to add it to the bottom of the group; the box stays ready for the next one (Esc leaves it), and the toast has Undo. Under each day's add box there's a small **+ Add group**: type a name and press Enter to make a plain bullet at the bottom of that day. It appears as a card straight away, with its add box ready for the first task. An empty group stays visible in this browser tab; after a reload it shows again once it has a task. Neither control appears in Off or Flatten mode.
   - Both modes keep the outline's order, count nested open tasks in each day's "N open", and work in the Past due and Upcoming panels too. **Hide completed** hides ticked nested tasks (and hides a group with nothing left open).
   - Only **one level down** is read: tasks directly under a plain bullet or heading that sits directly under a day. The notes bullet (WB-Notes) is skipped on purpose, so todos added to the notes bullet stay off the board.
   - **Cost:** the board makes one small request per plain bullet to find its tasks. They load in the background, are remembered until you press ↻, and the board redraws a moment later (never while you're typing in a box). With Past due on, and especially with "All", a long history means more requests. Leave Nested on Off if you don't use indented tasks.
@@ -240,7 +257,7 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 
 **Sidebar (far right)**
 - **Calendar:** click a day to jump the board to that week. If the day isn't on the board (outside the 3/5/7 days shown) and has a dot, clicking it opens a **popup** beside the sidebar with that day's tasks instead. The cards work as usual (tick, edit, move, delete, groups), there's an add box for the day, and **Show this week on the board** jumps there. Click the day again, press Esc or click elsewhere to close it. Days with no dot, and days already on the board, behave as before. Today is outlined, the days on screen are shaded, and a dot marks days with open tasks. The whole Monday-to-Sunday week you're looking at is loaded, so a 5-day view still shows dots for Saturday and Sunday (and other days only once the board has loaded them; with Nested set to Group or Flatten, tasks inside bullets count too).
-- **Past due / Upcoming** panels appear under the calendar when switched on. When one is **switched off**, its open-task count shows at the bottom right, under the sidebar, with the version label to their right (for example `Past due 3  Upcoming 2`). Click a count to switch that panel on. Both ranges are still read in the background so the counts are right, which costs the same requests as having the panels on (more with Past due set to All). Counts cover tasks directly on those days, plus tasks under bullets only where they've already been loaded.
+- **Past due / Upcoming** panels appear under the calendar when switched on. When one is **switched off**, its open-task count shows at the bottom right, under the sidebar, with the version label to their right (for example `Past due 3  Upcoming 2`). Click a count to **peek** at that panel without changing the setting: it appears in its usual place (the 📌 and ✕ buttons and the highlighted count show it is temporary; if the Daily page is expanded it is folded away for the moment and restored when you close the peek). Click the count again or the panel's **✕** to close it; a reload also hides it. Press the panel's **📌** to pin it, which turns the setting on for good. Both ranges are still read in the background so the counts are right, which costs the same requests as having the panels on (more with Past due set to All). Counts cover tasks directly on those days, plus tasks under bullets only where they've already been loaded.
 - **Daily page:** shows the notes on today's WorkFlowy daily page, nested like the outline (up to 12 levels; the pane scrolls when it's long). Tasks are left out: any todo sitting directly on the page appears on the board, not here. (A todo nested deeper, such as inside WB-Notes, still shows with a checkbox, since the board doesn't display those.) Click a line's text to edit it in place (see below). It reloads when you open the board, after you add a line, and with its own ↻ button.
   - The **⤢** button in the pane's header expands it to fill the whole sidebar (the calendar and Past due / Upcoming panels are hidden, and the add box stays underneath). Click **⤡** to go back to the calendar view. The pane starts **expanded** the first time; after that your choice is remembered in the browser.
   - The sidebar always fits the window. The calendar and the Past due / Upcoming panels keep their size, the Daily page takes the room that's left, and it scrolls inside itself (so the sidebar doesn't scroll as a whole, except on a very small window).
@@ -291,6 +308,71 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 **Update notice**
 - The version label at the bottom right of the sidebar shows **⬆ vX.Y.Z available** (a link to the GitHub page) when GitHub has a newer version than the one you're running. To update, download the new `server.js` and `index.html`, replace yours, and restart.
 - The server makes the check (at most once every 6 hours, only reading the version number) and stays quiet if it's offline. Turn it off with `UPDATE_CHECK=0`.
+
+### Reminders
+
+A task becomes a reminder in either of two ways:
+
+- **WorkFlowy's own date tag with a time.** In WorkFlowy type `!!` or `/date` and add a time, for example *Wed, Oct 28, 2026 at 2:30pm*. The reminder fires at that date and time, wherever the task sits. A date with no time is not a reminder.
+- **A time in the task text.** Write `Call dentist @2:30pm`, `Stand-up @9:15` or `Pay rent @17:00`. The reminder is for the day page the task sits on. You can also hover a card, press its 🔔 and pick a time, or **In 30 min** / **In 1 hour**; the board writes the `@time` for you.
+
+The time stays in the task in WorkFlowy, so the board stores nothing extra. A card with a reminder shows a **🔔 2:30 PM** badge (with the date if it differs from the page). For `@time` reminders the badge replaces the `@` text, and clicking it changes or removes the time. A date tag's time is changed in WorkFlowy.
+
+**Popup and browser notification (in the board)**
+
+- When the time arrives, a popup appears at the top right with **✓ Complete**, a **Snooze…** menu (5, 10, 15, 20, 30, 45 or 60 minutes) and **Dismiss**. It works while the board is open in a tab, whichever week you're looking at, and only for open tasks.
+- In **Settings → Reminders** you can turn the popups off, and press **Turn on** to also get a system notification (the browser asks permission once). Browsers only allow system notifications on `https://` addresses and on `localhost`.
+
+**Push to your phone (board closed)**
+
+The server sends a push at the task's time even when no browser is open. Set up one of these services, restart the server, then open **Settings → Reminders**: it shows whether push is on, and **Send a test** sends a test message.
+
+*Option A: ntfy (free, easiest)*
+
+1. Install the ntfy app on your phone (App Store or Google Play/F-Droid). Allow notifications for it when asked (needed on iOS).
+2. In the app tap **+** and subscribe to a topic. Pick a long random name nobody could guess, such as `weekboard-k7q2x9m4zr81`. Leave the server as the default (ntfy.sh). On the public ntfy.sh service anyone who knows the topic name can read your reminders, so treat it like a password.
+3. Give the same name to the server as `NTFY_TOPIC`:
+   - **Localhost:** `DEPLOY_MODE=local NTFY_TOPIC=weekboard-k7q2x9m4zr81 WORKFLOWY_API_KEY=... node server.js` (on Windows set the variables first, as in Option 1).
+   - **Your own server:** add `NTFY_TOPIC=...` and `REMINDER_TZ=America/New_York` to `/etc/weekboard.env`, then `sudo systemctl restart weekboard`.
+   - **Fly.io:** `fly secrets set NTFY_TOPIC=weekboard-k7q2x9m4zr81`, and add `REMINDER_TZ = "America/New_York"` under `[env]` in `fly.toml`, then `fly deploy`.
+4. Open **Settings → Reminders**, check it says "On through ntfy", and press **Send a test**. The phone should buzz within a few seconds.
+
+*Option B: Pushover (paid, polished)*
+
+1. Create an account at pushover.net and install the Pushover app on your phone. There is a 30-day free trial, then a one-time fee of about $5 per platform.
+2. Copy your **User Key** from the top of the Pushover dashboard. This is `PUSHOVER_USER`.
+3. Open pushover.net/apps/build and create an application named "Week Board". Its API token is `PUSHOVER_TOKEN`.
+4. Set both variables the same way as in Option A step 3 (environment, env file, or `fly secrets set PUSHOVER_TOKEN=... PUSHOVER_USER=...`) and restart.
+5. In **Settings → Reminders** check it says "On through Pushover" and press **Send a test**.
+
+You can set up both services; each reminder is then sent through both.
+
+*Two optional extras*
+
+- **Keep reminders off ntfy.sh:** run your own ntfy server and set `NTFY_URL` to its address (and `NTFY_TOKEN` if it needs a login). Reminder text then never goes through ntfy.sh.
+- **Skip nested tasks for push:** set `REMINDER_NESTED=0` so push reminders ignore tasks nested under a bullet. This saves one WorkFlowy request per bullet every 3 minutes. Popups in the board are not affected.
+
+**What the server watches and when it sends**
+
+- Today's tasks, including tasks nested under a bullet, and the tasks directly on the next 7 days' pages, re-read every 3 minutes. A reminder you add less than 3 minutes ahead can be a little late. A date-tagged task fires on its tagged day anywhere in that range; an `@time` task waits for its own day's page.
+- Push is sent up to 15 minutes late if the server was down, and is not sent twice. The list of what was already sent is kept in `REMINDER_STATE` (default: a file in the system temp folder).
+- The server only polls WorkFlowy for reminders when push is set up, or when the board has been open in the last 10 minutes.
+
+**Where it works**
+
+| | Popup | Browser notification | Push |
+|---|---|---|---|
+| Localhost | Yes, while the board is open | Yes | Only while the server is running and your computer is awake |
+| Your own server | Yes | Yes (needs `https://`) | Yes, always |
+| Fly.io | Yes | Yes | Yes, always |
+
+Set `REMINDER_TZ` on your own server and on Fly, because they run in UTC. On Fly the sent-list is lost when the machine restarts or redeploys, so a reminder from the last 15 minutes could be sent again (rare).
+
+**If the test fails**
+
+- *"No push service is set up":* the server didn't see the variable. Check you restarted it, and on Fly that you used `fly secrets` and redeployed.
+- *An error from ntfy or Pushover:* the topic, token or user key is mistyped.
+- *The test works but real reminders come at the wrong time:* `REMINDER_TZ` isn't set on a VPS or Fly server.
 
 ## How it maps to WorkFlowy
 

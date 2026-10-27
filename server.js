@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.1.0
+// Version 1.2.0
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 
 const http = require("http");
 const fs = require("fs");
@@ -226,6 +226,19 @@ function noteSnippet(n, terms) {
   return "";
 }
 
+const wordRes = new Map();
+function hasTerm(text, t, whole) {
+  if (!whole) return text.includes(t);
+  let re = wordRes.get(t);
+  if (!re) {      // the term must not sit inside a longer word ("nature" is not in "signature")
+    re = new RegExp(`(?<![\\p{L}\\p{N}_])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`, "u");
+    if (wordRes.size > 500) wordRes.clear();
+    wordRes.set(t, re);
+  }
+  return re.test(text);
+}
+
+// params.whole: match whole words only (used by the assistant; the Search window keeps matching parts of words)
 function search(params) {
   const { include: terms, exclude } = parseQuery(params.q);
   if (!terms.length) return { terms, total: 0, hits: [] };
@@ -235,14 +248,14 @@ function search(params) {
     if (params.todos && n.layoutMode !== "todo") continue;
     let ok = true;
     for (const t of exclude) {
-      if (n.lname.includes(t) || (params.notes && n.lnote.includes(t))) { ok = false; break; }
+      if (hasTerm(n.lname, t, params.whole) || (params.notes && hasTerm(n.lnote, t, params.whole))) { ok = false; break; }
     }
     if (!ok) continue;
     let nameHit = true;
     for (const t of terms) {
-      const a = n.lname.includes(t);
+      const a = hasTerm(n.lname, t, params.whole);
       if (!a) nameHit = false;
-      if (!a && !(params.notes && n.lnote.includes(t))) { ok = false; break; }
+      if (!a && !(params.notes && hasTerm(n.lnote, t, params.whole))) { ok = false; break; }
     }
     if (ok) found.push({ n, nameHit });
   }
@@ -570,7 +583,7 @@ async function guard(req, res, url) {
     return false;
   }
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/resolve", "/update-check"].includes(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -599,6 +612,230 @@ function readBody(req, limit) {
   });
 }
 
+/* ---------- Add-ons ----------
+   Each folder in addons/ with a manifest.json is an optional add-on (see addons/README.md). Add-ons are trusted code:
+   they run inside this server with your WorkFlowy key. Install only ones you trust. Without an addons/ folder the board is
+   exactly the plain board. */
+const CORE_PATHS = new Set(["/", "/index.html", "/search", "/item", "/done", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test"]);
+const addons = [];                    // { id, name, version, description, status, error, docs }
+const addonRoutes = new Map();        // "METHOD /path" -> handler
+const addonPaths = new Set();         // paths the login guard should treat as data
+const addonParts = { css: [], button: [], panel: [], tab: [], pane: [] };
+const addonScripts = [];
+const versionAtLeast = (have, need) => {
+  const a = String(have).split(".").map(Number), b = String(need).split(".").map(Number);
+  for (let i = 0; i < 3; i++) { const x = a[i] || 0, y = b[i] || 0; if (x !== y) return x > y; }
+  return true;
+};
+function loadAddons() {
+  const root = path.join(__dirname, "addons");
+  let dirs = [];
+  try { dirs = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort(); } catch (e) { return; }
+  for (const dir of dirs) {
+    const base = path.join(root, dir);
+    if (!fs.existsSync(path.join(base, "manifest.json"))) continue;
+    const entry = { id: dir, name: dir, version: "?", description: "", status: "error", error: "" };
+    addons.push(entry);
+    const staged = { parts: {}, script: null, routes: [] };
+    try {
+      let m;
+      try { m = JSON.parse(fs.readFileSync(path.join(base, "manifest.json"), "utf8")); } catch (e) { throw new Error("manifest.json is not valid JSON"); }
+      entry.name = String(m.name || dir).slice(0, 60); entry.version = String(m.version || "?").slice(0, 20);
+      entry.description = String(m.description || "").slice(0, 300);
+      if (m.docs && /^[\w.-]+$/.test(m.docs)) entry.docs = m.docs;
+      if (m.id !== dir || !/^[a-z0-9-]{1,32}$/.test(dir)) throw new Error("the manifest id must match the folder name (lowercase letters, digits, dashes)");
+      if (!/^\d+\.\d+\.\d+$/.test(entry.version)) throw new Error("the manifest needs a version like 1.0.0");
+      const need = m.requires && m.requires.board;
+      if (need && !versionAtLeast(VERSION, need)) throw new Error(`needs board ${need} or newer (this is ${VERSION}); update server.js and index.html`);
+      if (m.localOnly && REMOTE) { entry.status = "skipped"; entry.error = "only works in local mode"; continue; }
+      const file = (key) => {
+        const f = m[key];
+        if (!f) return null;
+        if (!/^[\w.-]+$/.test(f)) throw new Error(`bad file name for "${key}"`);
+        const full = path.join(base, f);
+        if (!fs.existsSync(full)) throw new Error(`${f} is missing`);
+        return full;
+      };
+      if (m.page) {
+        const html = fs.readFileSync(file("page"), "utf8");
+        for (const name of Object.keys(addonParts)) {
+          const mm = html.match(new RegExp(`<!--@${name}-->([\\s\\S]*?)<!--/@${name}-->`));
+          if (mm) staged.parts[name] = mm[1];
+        }
+      }
+      if (m.script) staged.script = fs.readFileSync(file("script"), "utf8");
+      if (m.server) {
+        const mod = require(file("server"))({ REMOTE, KEY, BASE, UPSTREAM_TIMEOUT_MS, stripHtml, ensureIndex, search, parseQuery, itemTree, patchIndex, readBody, sendJson, getIndex: () => idx, crypto });
+        for (const r of (mod && mod.routes) || []) {
+          if (!r || !["GET", "POST"].includes(r.method) || typeof r.handler !== "function" || !/^\/[a-z0-9/_-]{1,60}$/.test(r.path || "")) throw new Error("it declared a route the board can't accept");
+          if (CORE_PATHS.has(r.path) || r.path.startsWith("/api/") || addonRoutes.has(`${r.method} ${r.path}`)) throw new Error(`route ${r.path} is already in use`);
+          staged.routes.push(r);
+        }
+      }
+      for (const [name, text] of Object.entries(staged.parts)) addonParts[name].push(text);
+      if (staged.script) addonScripts.push(staged.script);
+      for (const r of staged.routes) { addonRoutes.set(`${r.method} ${r.path}`, r.handler); addonPaths.add(r.path); }
+      entry.status = "loaded";
+    } catch (e) {
+      entry.status = "error"; entry.error = e.message;
+      console.error(`Add-on "${dir}" not loaded: ${e.message}`);
+    }
+  }
+  const ok = addons.filter((a) => a.status === "loaded").map((a) => `${a.id} ${a.version}`);
+  if (ok.length) console.log(`Add-ons loaded: ${ok.join(", ")}`);
+}
+loadAddons();
+// Fill the page's add-on placeholders (they are simply removed when nothing is installed).
+function withAddons(page) {
+  for (const name of Object.keys(addonParts)) {
+    const tag = name === "css" ? "/*@addons:css*/" : `<!--@addons:${name}-->`;
+    page = page.split(tag).join(addonParts[name].join("\n"));
+  }
+  return page.split("<!--@addons:script-->").join(addonScripts.map((t) => `<script>\n${t}\n</script>`).join("\n"));
+}
+
+/* ---------- Reminders ----------
+   A task with a time in its text, like "Call dentist @2:30pm" or "@14:30", is a reminder for the day page it sits on.
+   Nothing extra is stored in WorkFlowy: the time is part of the task. The board shows a bell badge and a popup,
+   and this server can also send a push (ntfy or Pushover) when the time arrives, even with the board closed. */
+const TIME_RE = /(^|\s)@(\d{1,2})(?::(\d{2}))?\s?([ap])\.?m\.?(?=$|[\s.,;!?)])|(^|\s)@(\d{1,2}):(\d{2})(?=$|[\s.,;!?)])/i;
+function parseTime(text) {
+  const m = TIME_RE.exec(text || "");
+  if (!m) return null;
+  let h, mi;
+  if (m[4]) { h = Number(m[2]); mi = Number(m[3] || 0); if (h < 1 || h > 12) return null; h = (h % 12) + (m[4].toLowerCase() === "p" ? 12 : 0); }
+  else { h = Number(m[6]); mi = Number(m[7]); if (h > 23) return null; }
+  if (mi > 59) return null;
+  return { h, mi, token: m[0].trim() };
+}
+const REMINDER_TZ = process.env.REMINDER_TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
+try { new Intl.DateTimeFormat("en-US", { timeZone: REMINDER_TZ }); } catch (e) { console.error(`REMINDER_TZ "${REMINDER_TZ}" is not a time zone name (for example America/New_York).`); process.exit(1); }
+const NTFY_TOPIC = (process.env.NTFY_TOPIC || "").trim();
+const NTFY_URL = (process.env.NTFY_URL || "https://ntfy.sh").replace(/\/+$/, "");
+const NTFY_TOKEN = (process.env.NTFY_TOKEN || "").trim();
+const PUSHOVER_TOKEN = (process.env.PUSHOVER_TOKEN || "").trim();
+const PUSHOVER_USER = (process.env.PUSHOVER_USER || "").trim();
+const PUSH_ON = !!(NTFY_TOPIC || (PUSHOVER_TOKEN && PUSHOVER_USER));
+const REMINDER_NESTED = process.env.REMINDER_NESTED !== "0";
+const REMINDER_STATE = process.env.REMINDER_STATE || path.join(require("os").tmpdir(), "weekboard-reminders.json");
+const REM_SCAN_MS = 3 * 60 * 1000, REM_WINDOW_MS = 15 * 60 * 1000, REM_MAX_BULLETS = 20;
+
+function zonedParts(ts) {
+  const f = new Intl.DateTimeFormat("en-CA", { timeZone: REMINDER_TZ, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const o = {}; for (const p of f.formatToParts(new Date(ts))) o[p.type] = p.value;
+  return { key: `${o.year}-${o.month}-${o.day}`, utc: Date.UTC(+o.year, +o.month - 1, +o.day, +o.hour, +o.minute, +o.second) };
+}
+function zonedEpoch(key, h, mi) {                       // the moment key + h:mi happens in REMINDER_TZ
+  const [y, m, d] = key.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, mi);
+  let at = guess - (zonedParts(guess).utc - guess);
+  at = guess - (zonedParts(at).utc - at);
+  return at;
+}
+const rem = { key: "", items: [], scannedAt: 0, scanning: null, lastClient: 0, sent: {}, error: "" };
+try { rem.sent = JSON.parse(fs.readFileSync(REMINDER_STATE, "utf8")) || {}; } catch (e) {}
+function remSaveSent() {
+  const cut = Date.now() - 2 * 86400000;
+  for (const k of Object.keys(rem.sent)) if (rem.sent[k] < cut) delete rem.sent[k];
+  try { fs.writeFileSync(REMINDER_STATE, JSON.stringify(rem.sent)); } catch (e) {}
+}
+async function remKids(parent) {
+  const r = await fetch(`${BASE}/nodes?parent_id=${encodeURIComponent(parent)}`, { headers: { Authorization: `Bearer ${KEY}` }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  if (r.status === 404) return [];
+  if (!r.ok) throw new Error(`WorkFlowy answered ${r.status}`);
+  const j = await r.json();
+  return Array.isArray(j.nodes) ? j.nodes : [];
+}
+function parseTag(raw) {                                   // WorkFlowy's own date tag: <time startYear="2026" startMonth="10" startDay="28" startHour="14" startMinute="30">
+  const m = /<time\b([^>]*)>/i.exec(raw || "");
+  if (!m) return null;
+  const a = {}; for (const x of m[1].matchAll(/(\w+)="(\d+)"/g)) a[x[1]] = Number(x[2]);
+  if (!a.startYear || !a.startMonth || !a.startDay || a.startHour === undefined || a.startMinute === undefined) return null;   // a date with no time isn't a reminder
+  if (a.startHour > 23 || a.startMinute > 59) return null;
+  const p2 = (n) => String(n).padStart(2, "0");
+  return { key: `${a.startYear}-${p2(a.startMonth)}-${p2(a.startDay)}`, h: a.startHour, mi: a.startMinute };
+}
+function remItem(n, pageKey) {
+  if (n.completedAt) return null;
+  const raw = n.name || "";
+  const tag = parseTag(raw);
+  const text = stripHtml(raw.replace(/<time\b[^>]*>.*?<\/time>/gi, ""));
+  const t = tag || parseTime(text);
+  if (!t) return null;
+  const day = tag ? tag.key : pageKey;
+  return { id: n.id, day, time: `${String(t.h).padStart(2, "0")}:${String(t.mi).padStart(2, "0")}`, at: zonedEpoch(day, t.h, t.mi),
+    name: (t.token ? text.replace(t.token, "") : text).replace(/\s{2,}/g, " ").trim() || "(task)" };
+}
+async function remScan() {
+  if (rem.scanning) return rem.scanning;
+  rem.scanning = (async () => {
+    try {
+      const key = zonedParts(Date.now()).key;
+      const [ky, km, kd] = key.split("-").map(Number);
+      const nextKey = (i) => { const d = new Date(Date.UTC(ky, km - 1, kd + i)); return d.toISOString().slice(0, 10); };
+      const nodes = await remKids(key);
+      const items = [];
+      const todos = nodes.filter((n) => n.data && n.data.layoutMode === "todo");
+      if (REMINDER_NESTED) {
+        const bullets = nodes.filter((n) => !(n.data && n.data.layoutMode === "todo") && !/^WB-Notes$/i.test(stripHtml(n.name || "").trim())).slice(0, REM_MAX_BULLETS);
+        for (const b of bullets) { try { for (const n of await remKids(b.id)) if (n.data && n.data.layoutMode === "todo") todos.push(n); } catch (e) {} }
+      }
+      for (const n of todos) { const it = remItem(n, key); if (it) items.push(it); }
+      for (let i = 1; i <= 7; i++) {                       // a date tag on a task sitting on a coming day page still fires on its own day; plain @times wait for their day
+        const k = nextKey(i);
+        try { for (const n of await remKids(k)) if (n.data && n.data.layoutMode === "todo") { const it = remItem(n, k); if (it) items.push(it); } } catch (e) {}
+      }
+      items.sort((a, b) => a.at - b.at);
+      rem.key = key; rem.items = items; rem.scannedAt = Date.now(); rem.error = "";
+    } catch (e) { rem.error = e.message; rem.scannedAt = Date.now(); }
+    finally { rem.scanning = null; }
+  })();
+  return rem.scanning;
+}
+async function pushSend(title, message) {
+  const sent = [];
+  const click = REMOTE ? PUBLIC.origin : undefined;
+  if (NTFY_TOPIC) {
+    const headers = { "Content-Type": "application/json" };
+    if (NTFY_TOKEN) headers.Authorization = `Bearer ${NTFY_TOKEN}`;
+    const r = await fetch(NTFY_URL, { method: "POST", headers, body: JSON.stringify({ topic: NTFY_TOPIC, title, message, tags: ["bell"], click }), signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`ntfy answered ${r.status}`);
+    sent.push("ntfy");
+  }
+  if (PUSHOVER_TOKEN && PUSHOVER_USER) {
+    const r = await fetch("https://api.pushover.net/1/messages.json", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: PUSHOVER_TOKEN, user: PUSHOVER_USER, title, message, url: click }), signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`Pushover answered ${r.status}`);
+    sent.push("Pushover");
+  }
+  return sent;
+}
+async function remTick() {
+  if (!PUSH_ON && Date.now() - rem.lastClient > 10 * 60 * 1000) return;       // nobody to tell: don't poll WorkFlowy
+  if (Date.now() - rem.scannedAt > REM_SCAN_MS || rem.key !== zonedParts(Date.now()).key) await remScan();
+  if (!PUSH_ON) return;
+  const now = Date.now();
+  let changed = false;
+  for (const it of rem.items) {
+    const k = `${it.id}|${it.day}|${it.time}`;
+    if (it.at > now || now - it.at > REM_WINDOW_MS || rem.sent[k]) continue;
+    rem.sent[k] = now; changed = true;                                          // marked first, so a slow push can't send twice
+    pushSend(`Reminder · ${it.time}`, it.name).catch((e) => { console.error("Reminder push failed:", e.message); delete rem.sent[k]; });
+  }
+  if (changed) remSaveSent();
+}
+setInterval(() => { remTick().catch(() => {}); }, 30 * 1000).unref();
+setTimeout(() => { remTick().catch(() => {}); }, 5000).unref();
+async function serveReminders(url, res) {
+  rem.lastClient = Date.now();
+  if (url.searchParams.get("fresh") === "1" || Date.now() - rem.scannedAt > 90 * 1000 || rem.key !== zonedParts(Date.now()).key) await remScan();
+  sendJson(res, 200, { now: Date.now(), tz: REMINDER_TZ, items: rem.items, error: rem.error, push: { ntfy: !!NTFY_TOPIC, pushover: !!(PUSHOVER_TOKEN && PUSHOVER_USER) } });
+}
+async function serveReminderTest(res) {
+  if (!PUSH_ON) return sendJson(res, 400, { error: "No push service is set up. Set NTFY_TOPIC (or PUSHOVER_TOKEN and PUSHOVER_USER) on the server and restart it." });
+  try { sendJson(res, 200, { sent: await pushSend("Week Board test", "Push notifications are working.") }); }
+  catch (e) { sendJson(res, 502, { error: e.message }); }
+}
+
 const server = http.createServer(async (req, res) => {
   let url;
   try { url = new URL(req.url, "http://localhost"); } catch (e) { res.writeHead(400); return res.end(); }
@@ -609,6 +846,11 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/item") return serveItem(url, res);
   if (req.method === "GET" && url.pathname === "/resolve") return serveResolve(url, res);
   if (req.method === "GET" && url.pathname === "/done") return serveDone(url, res);
+  if (req.method === "GET" && url.pathname === "/reminders") return serveReminders(url, res);
+  if (req.method === "POST" && url.pathname === "/reminders/test") return serveReminderTest(res);
+  if (req.method === "GET" && url.pathname === "/addons") return sendJson(res, 200, { addons });
+  const addonHandler = addonRoutes.get(`${req.method} ${url.pathname}`);
+  if (addonHandler) return addonHandler(req, res, url);
 
   if (url.pathname.startsWith("/api/")) {
     if (!ALLOWED.test(url.pathname)) {
@@ -654,7 +896,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
     // Pass the configured notes-bullet name to the page through its notes-name meta tag.
-    const page = fs.readFileSync(path.join(__dirname, "index.html"), "utf8")
+    const page = withAddons(fs.readFileSync(path.join(__dirname, "index.html"), "utf8"))
       .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)
       .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
       .replace(/<script>/g, `<script nonce="${res.nonce}">`);

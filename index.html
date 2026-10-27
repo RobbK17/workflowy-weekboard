@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.1.0">
+<meta name="version" content="1.2.0">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <title>Workflowy Week Board</title>
@@ -30,6 +30,16 @@
   #sideBtn.off { background: var(--accent); border-color: var(--accent); color: #fff; }
   .settings-box { width: min(780px, 100%); height: min(560px, 84vh); }
   .set-body { flex: 1; min-height: 0; display: flex; }
+  /*@addons:css*/
+  .gadd { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 5px 8px; font: inherit; font-size: 13px; border: 1px dashed var(--border); border-radius: 6px; background: transparent; color: var(--text); }
+  .gadd:focus { outline: none; border-style: solid; border-color: var(--accent); background: var(--card); }
+  .gadd::placeholder { color: var(--muted); }
+  .addgrp { display: block; margin: 4px 0 0; padding: 2px 4px; border: none; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+  .addgrp:hover { color: var(--accent); border: none; }
+  .gname { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 5px 8px; font: inherit; font-size: 13px; border: 1px solid var(--accent); border-radius: 6px; background: var(--card); color: var(--text); }
+  .gname:focus { outline: none; }
+  .cnt.on { color: var(--accent); font-weight: 600; }
+  .xpin, .xclose { padding: 0 6px; }
   .set-nav { flex: none; width: 160px; box-sizing: border-box; padding: 10px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--border); background: rgba(127,127,127,.06); }
   .set-nav button { text-align: left; padding: 8px 10px; border: none; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
   .set-nav button:hover { background: rgba(127,127,127,.14); }
@@ -153,6 +163,28 @@
   .si.done .st2 { text-decoration: line-through; color: var(--muted); }
   .si .st2 { flex: 1; min-width: 0; word-break: break-word; }
   .subload { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .rm { border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; display: inline-flex; align-items: center; justify-content: center; height: 20px; line-height: 1; flex: none; }
+  .card:hover .rm, .card:focus-within .rm { opacity: 1; }
+  @media (hover: hover) {   /* the hover buttons float over the card's corner instead of taking text width */
+    .card .rm, .card .mv, .card .del { position: absolute; top: 3px; width: 24px; height: 22px; padding: 0; background: var(--card); border-radius: 0; }   /* touching, solid, so text never shows between the icons */
+    .card .del { right: 3px; border-radius: 0 4px 4px 0; } .card .mv { right: 27px; } .card .rm { right: 51px; border-radius: 4px 0 0 4px; box-shadow: -8px 0 6px -2px var(--card); }
+    .card:not(:hover):not(:focus-within) .rm { box-shadow: none; }
+  }
+  .bellb { white-space: nowrap; }
+  .rm:hover { color: var(--accent); }
+  @media (hover: none) { .rm { opacity: 1; } }
+  body.selmode .card .rm { visibility: hidden; }
+  .bellb { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 10px; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; vertical-align: baseline; }
+  .bellb:hover { color: var(--accent); border-color: var(--accent); }
+  .bellb.late { color: #b45309; border-color: #b45309; }
+  #rems { position: fixed; top: 64px; right: 12px; z-index: 95; display: flex; flex-direction: column; gap: 8px; width: min(340px, calc(100vw - 24px)); }
+  #rems .rem { background: var(--card); color: var(--text); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.2); font-size: 13px; }
+  #rems .rem b { display: block; font-size: 12px; color: var(--accent); margin-bottom: 2px; }
+  #rems .rem .rt { word-break: break-word; margin-bottom: 8px; }
+  #rems .rem .rb { display: flex; flex-wrap: wrap; gap: 6px; }
+  #rems .rem select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
+  #rems .rem button { padding: 4px 9px; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--text); cursor: pointer; font: inherit; }
+  #rems .rem button:hover { border-color: var(--accent); }
   .del, .mv { border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; display: inline-flex; align-items: center; justify-content: center; height: 20px; line-height: 1; flex: none; }
   .card:hover .del, .card:focus-within .del, .card:hover .mv, .card:focus-within .mv, .grp:hover .mv, .grp:focus-within .mv { opacity: 1; }
   @media (hover: none) { .del, .mv { opacity: 1; } }
@@ -421,6 +453,7 @@
   <div class="settings">
     <button id="settingsBtn" aria-haspopup="dialog" aria-expanded="false" title="Board and Plan day settings">&#9881; Settings</button>
   </div>
+  <!--@addons:button-->
   <button id="refresh" type="button" title="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)">&#8635;</button>
   <button id="sideBtn" aria-pressed="false" title="Hide the sidebar (Ctrl+\)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
 </header>
@@ -464,9 +497,11 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.1.0</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.2.0</span></div>
   </div>
 </footer>
+
+<!--@addons:panel-->
 
 <div class="modal" id="settingsPop" hidden>
   <div class="modal-box settings-box" role="dialog" aria-modal="true" aria-label="Settings">
@@ -475,6 +510,8 @@
       <nav class="set-nav" role="tablist" aria-label="Settings sections">
         <button type="button" role="tab" data-sec="board" class="on">Week board</button>
         <button type="button" role="tab" data-sec="plan">Plan day</button>
+        <button type="button" role="tab" data-sec="remind">Reminders</button>
+        <!--@addons:tab-->
       </nav>
       <div class="set-pane setpane" data-sec="board">
         <div class="setrow"><span>Days shown<small>Columns on the board. 3 is today plus the next two days.</small></span>
@@ -490,6 +527,12 @@
       <label class="sel"><span>Nested<small>Tasks indented under a plain bullet. Group: one card per bullet. Flatten: each task its own card.</small></span>
         <select id="optNested"><option value="off">Off</option><option value="group">Group</option><option value="flatten">Flatten</option></select></label>
       <label><input type="checkbox" id="optSubs"><span>Sub-items<small>Count on tasks that have sub-items, and a checklist you can open</small></span></label>
+      </div>
+      <div class="set-pane setpane" data-sec="remind" hidden>
+      <label><input type="checkbox" id="optRemind"><span>Reminder popups<small>Show a popup in the board when a task's time arrives</small></span></label>
+      <div class="setrow"><span>Browser notifications<small id="remNotifyNote"></small></span><button type="button" id="remNotifyBtn">Turn on</button></div>
+      <div class="setrow"><span>Push to your phone<small id="remPushNote">Checking…</small></span><button type="button" id="remPushTest" hidden>Send a test</button></div>
+      <div class="srcs"><div class="sh">How reminders work<small>Put a time in a task, such as <b>Call dentist @2:30pm</b> or <b>@14:30</b>, or press the bell on a card. The reminder is for the day the task sits on. The time stays in the task text, so nothing else is stored. Popups only fire for open tasks. Tasks nested under a bullet are included.</small></div></div>
       </div>
       <div class="set-pane setpane" data-sec="plan" hidden>
       <label class="sel"><span>Plan day limit<small>Open tasks that fill the meter in Plan day. 0 turns the meter off.</small></span>
@@ -509,6 +552,7 @@
         <div id="srcMsg" role="status"></div>
       </div>
       </div>
+      <!--@addons:pane-->
     </div>
   </div>
 </div>
@@ -572,6 +616,7 @@
   <button id="selDel" type="button" disabled>Delete</button>
   <button id="selCancel" type="button">Done selecting</button>
 </div>
+<div id="rems" aria-live="assertive"></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button id="toastUndo" type="button">Undo</button><button id="toastX" type="button" title="Dismiss">&#10005;</button></div>
 
 <script>
@@ -592,6 +637,8 @@ function sameName(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase
 
 const cache = {};        // dateKey -> sorted node array
 const dayBullets = {};   // dateKey -> plain bullets / headings under that day (they may hold tasks; see Nested)
+const emptyGroups = new Set((() => { try { return JSON.parse(sessionStorage.getItem("emptyGroups") || "[]"); } catch (e) { return []; } })());   // groups made here that have no tasks yet still show as cards (this tab only)
+const saveEmptyGroups = () => { try { sessionStorage.setItem("emptyGroups", JSON.stringify([...emptyGroups].slice(-50))); } catch (e) {} };
 const nest = {};         // bulletId -> { todos: tasks indented under that bullet }
 const nestQueued = new Set();
 
@@ -845,9 +892,9 @@ function entries(k, onlyOpen) {
   if (prefs.nested !== "off") {
     for (const b of dayBullets[k] || []) {
       const info = nest[b.id];
-      if (!info || !info.todos.length) continue;
+      if (!info || (!info.todos.length && !(prefs.nested === "group" && emptyGroups.has(b.id)))) continue;
       if (prefs.nested === "group") {
-        if (info.todos.some((t) => !hide(t)) || !(onlyOpen || prefs.hideDone)) out.push({ kind: "group", b, k, todos: info.todos, hideDone: !!(onlyOpen || prefs.hideDone), p: b.priority, s: 0 });
+        if (info.todos.some((t) => !hide(t)) || !(onlyOpen || prefs.hideDone) || emptyGroups.has(b.id)) out.push({ kind: "group", b, k, todos: info.todos, hideDone: !!(onlyOpen || prefs.hideDone), p: b.priority, s: 0 });
       } else {
         for (const t of info.todos) if (!hide(t)) out.push({ kind: "nested", n: t, b, k, p: b.priority, s: t.priority });
       }
@@ -890,7 +937,7 @@ function render() {
   });
   board.innerHTML = "";
   const todayKey = key(new Date());
-  const extra = extraKeys();
+  const extra = extraKeys(true);
 
   for (const d of days) {
     const k = key(d);
@@ -915,6 +962,7 @@ function render() {
     for (const e of ents) list.appendChild(entryEl(e, false));
 
     head.appendChild(makeAddBox(k));
+    if (prefs.nested === "group") head.appendChild(makeAddGroup(k));
     col.append(head, list);
 
     col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("over"); });
@@ -934,14 +982,14 @@ function render() {
   renderCal();
   const extras = document.getElementById("extras");
   extras.innerHTML = "";
-  if (prefs.showLate) {
+  if (prefs.showLate || peek.showLate) {
     const span = lateRange === "all" ? "All" : `${lateRange} ${lateRange === "1" ? "week" : "weeks"}`;
     extras.appendChild(extraColumn(`Past due (${span})`, "", entriesFor(extra.late, true), "late",
-      loadingExtras ? "Loading…" : "Nothing past due"));
+      loadingExtras ? "Loading…" : "Nothing past due", !prefs.showLate && "showLate", "optLate"));
   }
-  if (prefs.showSoon) {
+  if (prefs.showSoon || peek.showSoon) {
     extras.appendChild(extraColumn(`Upcoming (${LOOKAHEAD} days)`, "",
-      entriesFor(extra.soon, false), "soon", loadingExtras ? "Loading…" : "Nothing upcoming"));
+      entriesFor(extra.soon, false), "soon", loadingExtras ? "Loading…" : "Nothing upcoming", !prefs.showSoon && "showSoon", "optSoon"));
   }
   extras.querySelectorAll(".col").forEach((c) => { const t = c.querySelector(".tasks"); if (t && scrolls[c.className]) t.scrollTop = scrolls[c.className]; });
   renderCounters();
@@ -958,12 +1006,16 @@ function renderCounters() {
   const { late, soon } = extraKeys(true);
   const sum = (keys) => keys.reduce((t, k) => t + openCount(k), 0);
   const add = (pref, label, keys, optId) => {
-    if (prefs[pref]) return;
+    if (prefs[pref]) { peek[pref] = false; return; }
     const b = document.createElement("button");
-    b.type = "button"; b.className = "cnt";
+    b.type = "button"; b.className = "cnt" + (peek[pref] ? " on" : "");
     b.textContent = `${label} ${loadingExtras ? "…" : sum(keys)}`;
-    b.title = `Open tasks in ${label === "Past due" ? "Past due" : "Upcoming"}. Click to show the panel.`;
-    b.onclick = () => { const el = document.getElementById(optId); el.checked = true; el.onchange(); };
+    b.setAttribute("aria-pressed", peek[pref] ? "true" : "false");
+    b.title = peek[pref] ? `Hide the ${label} panel again (the setting stays off)` : `Open tasks in ${label}. Click to peek at the panel; the setting stays off.`;
+    b.onclick = () => {
+      setPeek(pref, !peek[pref], true);
+      if (peek[pref]) { const c = document.querySelector(`#extras .col.${pref === "showLate" ? "late" : "soon"}`); if (c && c.scrollIntoView) c.scrollIntoView({ block: "nearest" }); }
+    };
     parts.push(b);
   };
   add("showLate", "Past due", late, "optLate");
@@ -980,9 +1032,25 @@ function loadExtrasClosed() { try { return new Set(JSON.parse(localStorage.getIt
 const extrasClosed = loadExtrasClosed();
 function saveExtrasClosed() { try { localStorage.setItem("extrasClosed", JSON.stringify([...extrasClosed])); } catch (e) {} }
 
-function extraColumn(title, sub, items, cls, emptyText) {
+// Clicking a footer count (Past due / Upcoming) while that panel is switched off shows it as a temporary peek: the setting stays off.
+// A peek lasts until you close it or reload; the pin in the panel makes it a real setting.
+const peek = { showLate: false, showSoon: false };
+let peekReexpand = false;      // the Daily page was expanded (which hides these panels) and was folded back just for the peek
+function sideExpandedLook(on) {      // the expanded look, without saving it as the setting
+  document.getElementById("side").classList.toggle("expanded", on);
+  expandBtn.textContent = on ? "⤡" : "⤢";
+  expandBtn.title = on ? "Collapse back to the calendar view" : "Expand to fill the sidebar";
+}
+function setPeek(pref, on, restore) {
+  peek[pref] = on;
+  if (on && document.getElementById("side").classList.contains("expanded")) { peekReexpand = true; sideExpandedLook(false); }
+  if (!on && restore && peekReexpand && !peek.showLate && !peek.showSoon) { peekReexpand = false; sideExpandedLook(true); }
+  if (!on && !restore) peekReexpand = false;
+  render();
+}
+function extraColumn(title, sub, items, cls, emptyText, peekPref, optId) {
   const col = document.createElement("div");
-  const closed = extrasClosed.has(cls);
+  const closed = !peekPref && extrasClosed.has(cls);
   col.className = "col " + cls + (closed ? " folded" : "");
   const open = items.reduce((t, e) => t + entryOpen(e), 0);
   const head = document.createElement("div");
@@ -1000,14 +1068,24 @@ function extraColumn(title, sub, items, cls, emptyText) {
     roll.addEventListener("click", () => openRoll({ title: "Move past-due tasks", items: items.filter((e) => e.kind === "task").map((e) => ({ n: e.n, k: e.k })), dest: key(todayDate()) }));
     right.appendChild(roll);
   }
-  const tog = document.createElement("button");
-  tog.className = "xtog"; tog.type = "button";
+  if (peekPref) {
+    col.classList.add("peeking"); name.title = "Peek: shown for now, the setting is still off";
+    const pin = document.createElement("button");
+    pin.className = "xroll xpin"; pin.type = "button"; pin.textContent = "📌"; pin.title = "Keep showing this panel (turns the setting on)";
+    pin.addEventListener("click", () => { peek[peekPref] = false; peekReexpand = false; const el = document.getElementById(optId); el.checked = true; el.onchange(); });
+    const x = document.createElement("button");
+    x.className = "xroll xclose"; x.type = "button"; x.textContent = "✕"; x.title = "Close the peek";
+    x.addEventListener("click", () => setPeek(peekPref, false, true));
+    right.append(pin, x);
+  }
+  const tog = peekPref ? document.createElement("span") : document.createElement("button");
+  tog.className = "xtog"; if (!peekPref) tog.type = "button";
   tog.title = closed ? `Show ${title}` : `Hide ${title}`;
   tog.setAttribute("aria-expanded", closed ? "false" : "true");
   const ar = document.createElement("span");
   ar.className = "ar"; ar.textContent = closed ? "▸" : "▾";
   tog.append(ar, ` ${open} open`);
-  tog.addEventListener("click", () => {
+  if (!peekPref) tog.addEventListener("click", () => {
     if (closed) extrasClosed.delete(cls); else extrasClosed.add(cls);
     saveExtrasClosed(); render();
     if (closed) { const c = document.querySelector(`#extras .col.${cls}`); if (c && c.scrollIntoView) c.scrollIntoView({ block: "nearest" }); }   // make sure the opened list is on screen
@@ -1036,7 +1114,7 @@ function saveOpenCards() { try { localStorage.setItem("openCards", JSON.stringif
 
 function scheduleKids() {
   if (!prefs.showSubs) return;
-  const { late, soon } = extraKeys();
+  const { late, soon } = extraKeys(peek.showLate || peek.showSoon);
   const items = [...collect(weekDays().map(key), false), ...collect(late, true), ...collect(soon, false), ...collect(planExtraKeys(), false)];
   for (const { n } of items) {
     if (kids[n.id] || kidsQueued.has(n.id)) continue;
@@ -1201,7 +1279,9 @@ function groupCard(e, showDate) {
         t.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
       }));
       const txt = document.createElement("span");
-      txt.className = "st2"; txt.textContent = visibleText(t.name) || "(empty)";
+      txt.className = "st2";
+      const ttag = parseTag(t.name), ttm = ttag || parseTime(plain(t.name));
+      txt.textContent = (ttm && !ttag ? dropTime(visibleText(t.name)) : visibleText(t.name)) || "(empty)";
       txt.title = "Double-click to edit";
       txt.addEventListener("dblclick", () => {         // edit a task inside the group in place
         if (selMode) return;
@@ -1210,18 +1290,93 @@ function groupCard(e, showDate) {
         startEdit(t, txt, () => act(() => reloadBullet(b.id)), () => { el.draggable = true; });
       });
       row.append(cb, txt);
+      if (ttm && !t.completedAt) {
+        const bb = document.createElement("button");
+        bb.type = "button"; bb.className = "bellb"; bb.textContent = "🔔 " + fmtTime(ttm.h, ttm.mi) + (ttag && ttag.key !== k ? " · " + dayLabel(ttag.key) : "");
+        bb.title = ttag ? "Reminder from the date tag" : "Reminder: click to change";
+        bb.addEventListener("click", (ev) => { ev.stopPropagation(); openRemPop(bb, t, k, b, ttm); });
+        row.appendChild(bb);
+      }
       list.appendChild(row);
     }
     el.appendChild(list);
+    el.appendChild(makeGroupAdd(b, k, el));
   }
   return el;
+}
+
+// "+ Add task" at the bottom of a group card: adds a task under the group's bullet. Enter adds and stays ready for the next one.
+function makeGroupAdd(b, k, card) {
+  const add = document.createElement("input");
+  add.className = "gadd"; add.placeholder = "+ Add task"; add.enterKeyHint = "done";
+  add.dataset.gid = b.id;
+  add.addEventListener("focus", () => { card.draggable = false; });
+  add.addEventListener("blur", () => { card.draggable = !selMode; });
+  add.addEventListener("keydown", async (e) => {
+    if (e.key === "Escape") { add.blur(); return; }
+    if (e.key !== "Enter" || !add.value.trim()) return;
+    const name = add.value.trim();
+    add.value = "";
+    const gname = (visibleText(b.name) || "group").slice(0, 30);
+    await act(async () => {
+      const res = await call("POST", "/nodes", { parent_id: b.id, name, layoutMode: "todo", position: "bottom" });
+      await reloadBullet(b.id);
+      emptyGroups.delete(b.id); saveEmptyGroups();
+      loadPage();                         // the Daily page shows the group's lines too
+      const id = res && res.item_id;
+      const short = name.length > 40 ? name.slice(0, 39) + "…" : name;
+      if (id) pushUndo(`Added “${short}” to “${gname}”`, async () => { await call("DELETE", `/nodes/${id}`); await reloadBullet(b.id); });
+    });
+    const again = document.querySelector(`input.gadd[data-gid="${b.id}"]`);
+    if (again) again.focus();
+  });
+  return add;
+}
+
+// "+ Add group" under a day's add box (Nested set to Group): makes a plain bullet at the bottom of the day. It shows as a card
+// straight away, ready for its first task (an empty group stays visible in this tab; after a reload it shows again once it has a task).
+function makeAddGroup(k) {
+  const wrap = document.createElement("div");
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "addgrp"; btn.textContent = "+ Add group";
+  btn.title = "Make a group: a bullet that tasks can be added under";
+  btn.addEventListener("click", () => {
+    const inp = document.createElement("input");
+    inp.className = "gname"; inp.placeholder = "Group name, then Enter"; inp.maxLength = 200;
+    wrap.replaceChildren(inp);
+    inp.focus();
+    let busy = false;
+    const close = () => { if (!busy) render(); };
+    inp.addEventListener("blur", close);
+    inp.addEventListener("keydown", async (e) => {
+      if (e.key === "Escape") { render(); return; }
+      if (e.key !== "Enter" || !inp.value.trim() || busy) return;
+      busy = true;
+      const name = inp.value.trim();
+      await act(async () => {
+        const res = await call("POST", "/nodes", { parent_id: k, name, layoutMode: "bullets", position: "bottom" });
+        const id = res && res.item_id;
+        await loadDay(k);
+        loadPage();
+        if (id) {
+          nest[id] = { todos: [] }; emptyGroups.add(id); saveEmptyGroups();
+          const short = name.length > 40 ? name.slice(0, 39) + "…" : name;
+          pushUndo(`Added group “${short}” to ${dayLabel(k)}`, async () => { await call("DELETE", `/nodes/${id}`); emptyGroups.delete(id); delete nest[id]; await loadDay(k); });
+        }
+      });
+      const first = [...document.querySelectorAll("input.gadd")].find((x) => x.dataset.gid && (dayBullets[k] || []).some((b) => b.id === x.dataset.gid && emptyGroups.has(b.id)));
+      if (first) first.focus();
+    });
+  });
+  wrap.appendChild(btn);
+  return wrap;
 }
 
 // Fetches the tasks under each visible plain bullet, in the background, one small request per bullet (cached until ↻).
 let nestTimer = null;
 function scheduleNested() {
   if (prefs.nested === "off") return;
-  const { late, soon } = extraKeys();
+  const { late, soon } = extraKeys(peek.showLate || peek.showSoon);
   for (const k of [...new Set([...weekDays().map(key), ...fullWeekKeys(), ...late, ...soon, ...(planMode ? [planDay] : [])])]) {
     for (const b of dayBullets[k] || []) {
       if (nest[b.id] || nestQueued.has(b.id)) continue;
@@ -1280,7 +1435,15 @@ function card(n, k, showDate, opts) {
 
   const txt = document.createElement("div");
   txt.className = "txt";
-  txt.textContent = plain(n.name);
+  const tag = parseTag(n.name), tm = tag || parseTime(plain(n.name));
+  txt.textContent = tag ? plain(n.name) : tm ? dropTime(plain(n.name)) : plain(n.name);
+  if (tm && !n.completedAt) {
+    const bb = document.createElement("button");
+    bb.type = "button"; bb.className = "bellb"; bb.textContent = "🔔 " + fmtTime(tm.h, tm.mi) + (tag && tag.key !== k ? " · " + dayLabel(tag.key) : "");
+    bb.title = tag ? "Reminder from the date tag" : "Reminder: click to change";
+    bb.addEventListener("click", (e) => { e.stopPropagation(); openRemPop(bb, n, k, nested ? opts.bullet : null, tm); });
+    txt.appendChild(bb);
+  }
   if (nested) {                                          // which bullet it belongs to
     const via = document.createElement("span");
     via.className = "via"; via.textContent = (visibleText(opts.bullet.name) || "(empty)") + " ›";
@@ -1335,7 +1498,11 @@ function card(n, k, showDate, opts) {
   };
   mv.addEventListener("click", (e) => { e.stopPropagation(); openMovePop(mv, k, moveTo); });
 
-  el.append(cb, txt, mv, del);
+  const rb = document.createElement("button");
+  rb.className = "rm"; rb.innerHTML = BELL_ICON; rb.title = "Set a reminder…";
+  rb.addEventListener("click", (e) => { e.stopPropagation(); openRemPop(rb, n, k, nested ? opts.bullet : null, tm); });
+
+  el.append(cb, txt, rb, mv, del);
   return el;
 }
 
@@ -1349,7 +1516,7 @@ function openMovePop(anchor, from, onPick) {
   closeMovePop();
   if (wasMine) return;                                     // clicking 📅 again just closes it
   const pop = document.createElement("div");
-  pop.className = "movepop"; pop._anchor = anchor;
+  pop.className = "movepop"; pop._anchor = anchor; pop._t = Date.now();
   pop.addEventListener("click", (e) => e.stopPropagation());
   const quick = document.createElement("div");
   quick.className = "mq";
@@ -1382,7 +1549,7 @@ function openMovePop(anchor, from, onPick) {
 }
 document.addEventListener("click", closeMovePop);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && movePop) { closeMovePop(); e.stopPropagation(); } }, true);
-window.addEventListener("scroll", closeMovePop, true);
+window.addEventListener("scroll", () => { if (movePop && Date.now() - (movePop._t || 0) < 400) return; closeMovePop(); }, true);   // (a scroll that was already under way when it opened doesn't close it)
 
 async function act(fn) {
   showError("");
@@ -1782,21 +1949,27 @@ function renderPage() {
     return;
   }
   // inNotes: this line is the notes bullet or sits inside it. The notes bullet itself can't be removed from here.
-  const walk = (nodes, level, inNotes, parent, grandId) => {
+  // With Hide completed on, ticked tasks (and anything indented under them) are left out of the Daily page too.
+  const hideDone = prefs.hideDone && !viewItem;
+  const visible = (list) => (hideDone ? list.filter((x) => !(x.data && x.data.layoutMode === "todo" && x.completedAt)) : list);
+  const walk = (all, level, inNotes, parent, grandId) => {
+    const nodes = visible(all);
     nodes.forEach((n, i) => {
       const isNotesBullet = !inNotes && !viewItem && level === 0 && sameName(plain(n.name), notesName);
       const here = inNotes || isNotesBullet;
-      const hasKids = !!(n.children && n.children.length);
+      const hasKids = !!(n.children && visible(n.children).length);
       const closed = hasKids && collapsed.has(n.id) && addingFor !== n.id;   // adding under a line opens it
       // "−" is offered everywhere on Daily page except the notes bullet itself, and inside it only on lines with nothing underneath
       // In the item editor from search: only lines with nothing underneath, and never the opened item itself.
-      const removable = viewItem ? (level > 0 && !hasKids) : (!isNotesBullet && (!here || !hasKids));
+      const anyKids = !!(n.children && n.children.length);      // hidden completed lines still count: deleting a line deletes what is under it
+      const removable = viewItem ? (level > 0 && !anyKids) : (!isNotesBullet && (!here || !anyKids));
       tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, removable, hasKids ? (closed ? "closed" : "open") : "", parent && grandId ? { parent, grandId } : null));
       if (hasKids && !closed) walk(n.children, level + 1, here, n, parent ? parent.id : (viewItem ? null : pageKey()));
       if (addingFor === n.id) tree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
     });
   };
   walk(roots, 0, false, null, null);
+  if (!tree.children.length) tree.innerHTML = `<div class="empty">${viewItem ? "Nothing here" : "Nothing to show (completed items are hidden)"}</div>`;
   tree.scrollTop = keepScroll;
   const box = tree.querySelector(".pl-add input");
   if (box) box.focus();
@@ -2055,7 +2228,7 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
   el.checked = prefs[pref];
   el.onchange = () => {
     prefs[pref] = el.checked; setPref(pref, el.checked);
-    if (pref === "hideDone" || pref === "showSubs") render(); else loadWeek();   // these are instant; the others need to fetch days
+    if (pref === "hideDone" || pref === "showSubs") { render(); if (pref === "hideDone") renderPage(); } else loadWeek();   // these are instant; the others need to fetch days
   };
 }
 
@@ -2067,11 +2240,11 @@ function showSettingsSection(sec) {
   document.querySelectorAll(".set-pane").forEach((p) => { p.hidden = p.dataset.sec !== sec; });
   try { localStorage.setItem("settingsSection", sec); } catch (e) {}
 }
-document.querySelectorAll(".set-nav button").forEach((b) => { b.onclick = () => showSettingsSection(b.dataset.sec); });
+document.querySelectorAll(".set-nav button").forEach((b) => { b.onclick = () => { showSettingsSection(b.dataset.sec); if (b.dataset.sec === "ai" && typeof loadAiStatus === "function") loadAiStatus(); }; });
 function setSettingsOpen(on) {
   settingsPop.hidden = !on;
   settingsBtn.setAttribute("aria-expanded", on ? "true" : "false");
-  if (on) { let sec = "board"; try { sec = localStorage.getItem("settingsSection") || "board"; } catch (e) {} showSettingsSection(sec === "plan" ? "plan" : "board"); }
+  if (on) { let sec = "board"; try { sec = localStorage.getItem("settingsSection") || "board"; } catch (e) {} showSettingsSection(sec === "plan" || (sec === "ai" && typeof aiStatus !== "undefined" && aiStatus && aiStatus.configured) ? sec : "board"); }
 }
 settingsBtn.onclick = (e) => { e.stopPropagation(); setSettingsOpen(settingsPop.hidden); };
 document.getElementById("settingsClose").onclick = () => { setSettingsOpen(false); settingsBtn.focus(); };
@@ -2345,6 +2518,178 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const shortName = (n) => { const t = (plain(n.name) || "").trim() || "(empty)"; return t.length > 40 ? t.slice(0, 39) + "…" : t; };
 const dayLabel = (k) => (ISO_DAY.test(k) ? keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : sourceName(k));   // a plan source (Inbox...) shows its own name
 
+/* ---------- Reminders ----------
+   A time in a task's text ("Call dentist @2:30pm" or "@14:30") is a reminder for the day the task sits on. */
+const BELL_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M4 11V7a4 4 0 018 0v4l1 1.5H3zM6.5 14a1.5 1.5 0 003 0"/></svg>';
+const TIME_RE = /(^|\s)@(\d{1,2})(?::(\d{2}))?\s?([ap])\.?m\.?(?=$|[\s.,;!?)])|(^|\s)@(\d{1,2}):(\d{2})(?=$|[\s.,;!?)])/i;
+function parseTime(text) {
+  const m = TIME_RE.exec(text || "");
+  if (!m) return null;
+  let h, mi;
+  if (m[4]) { h = Number(m[2]); mi = Number(m[3] || 0); if (h < 1 || h > 12) return null; h = (h % 12) + (m[4].toLowerCase() === "p" ? 12 : 0); }
+  else { h = Number(m[6]); mi = Number(m[7]); if (h > 23) return null; }
+  if (mi > 59) return null;
+  return { h, mi, token: m[0].trim() };
+}
+function parseTag(raw) {                                  // WorkFlowy's own date tag with a time
+  const m = /<time\b([^>]*)>/i.exec(raw || "");
+  if (!m) return null;
+  const a = {}; for (const x of m[1].matchAll(/(\w+)="(\d+)"/g)) a[x[1]] = Number(x[2]);
+  if (!a.startYear || !a.startMonth || !a.startDay || a.startHour === undefined || a.startMinute === undefined) return null;
+  return { key: `${a.startYear}-${pad2(a.startMonth)}-${pad2(a.startDay)}`, h: a.startHour, mi: a.startMinute, fromTag: true };
+}
+function dropTime(s) { return s.replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim(); }
+function fmtTime(h, mi) { return new Date(2000, 0, 1, h, mi).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
+const pad2 = (n) => String(n).padStart(2, "0");
+
+async function setReminder(n, k, bullet, hhmm) {
+  const base = (n.name || "").replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
+  const name = hhmm ? `${base} @${hhmm}`.trim() : base;
+  await act(async () => {
+    await call("POST", `/nodes/${n.id}`, { name });
+    if (bullet) await reloadBullet(bullet.id); else await loadDay(k);
+  });
+  remPoll(true);
+}
+function openRemPop(anchor, n, k, bullet, cur) {
+  const wasMine = movePop && movePop._anchor === anchor;
+  closeMovePop();
+  if (wasMine) return;
+  const pop = document.createElement("div");
+  pop.className = "movepop"; pop._anchor = anchor; pop._t = Date.now();
+  pop.addEventListener("click", (e) => e.stopPropagation());
+  const done = (hhmm) => {
+    closeMovePop();
+    if (hhmm && typeof Notification !== "undefined" && Notification.permission === "default") { try { Notification.requestPermission().then(remNotifyState); } catch (e) {} }
+    setReminder(n, k, bullet, hhmm);
+    if (hhmm) showToast("Reminder set for " + fmtTime(+hhmm.slice(0, 2), +hhmm.slice(3)) + (k === key(new Date()) ? "" : " on " + dayLabel(k)), false);
+  };
+  if (cur && cur.fromTag) {                                // the time lives in WorkFlowy's date tag, which the board doesn't rewrite
+    const msg = document.createElement("div");
+    msg.textContent = "This reminder comes from the task's date tag. Edit the date in WorkFlowy (or double-click the card) to change it.";
+    const close = document.createElement("button");
+    close.type = "button"; close.textContent = "Close"; close.className = "cancel"; close.addEventListener("click", closeMovePop);
+    pop.append(msg, close);
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect(), w = pop.offsetWidth;
+    pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px"; pop.style.top = (r.bottom + 4) + "px";
+    movePop = pop; return;
+  }
+  const quick = document.createElement("div");
+  quick.className = "mq";
+  for (const [label, mins] of [["In 30 min", 30], ["In 1 hour", 60]]) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label;
+    b.addEventListener("click", () => { const d = new Date(Date.now() + mins * 60000); done(`${pad2(d.getHours())}:${pad2(d.getMinutes())}`); });
+    quick.appendChild(b);
+  }
+  const row = document.createElement("div");
+  row.className = "mr";
+  const inp = document.createElement("input");
+  inp.type = "time"; inp.value = cur ? `${pad2(cur.h)}:${pad2(cur.mi)}` : "09:00";
+  const go = document.createElement("button");
+  go.type = "button"; go.textContent = "Set"; go.className = "go";
+  go.addEventListener("click", () => { if (inp.value) done(inp.value); });
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") go.click(); });
+  row.append(inp, go);
+  pop.append(quick, row);
+  if (cur) {
+    const rmv = document.createElement("button");
+    rmv.type = "button"; rmv.textContent = "Remove reminder"; rmv.className = "cancel";
+    rmv.addEventListener("click", () => done(null));
+    pop.appendChild(rmv);
+  }
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+  pop.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+  movePop = pop;
+  inp.focus({ preventScroll: true });
+}
+
+let remItems = [], remInfo = { push: {} };
+const remFired = (() => { try { return JSON.parse(localStorage.getItem("remFired") || "{}"); } catch (e) { return {}; } })();
+const remSnooze = {};
+const remKey = (it) => `${it.id}|${it.day}|${it.time}`;
+function remSaveFired() {
+  const cut = Date.now() - 2 * 86400000;
+  for (const x of Object.keys(remFired)) if (remFired[x] < cut) delete remFired[x];
+  try { localStorage.setItem("remFired", JSON.stringify(remFired)); } catch (e) {}
+}
+async function remPoll(fresh) {
+  try {
+    const res = await fetch("/reminders" + (fresh ? "?fresh=1" : ""));
+    if (!res.ok) return;
+    const j = await res.json();
+    remItems = j.items || []; remInfo = j;
+    remPushState(); remTick();
+  } catch (e) {}
+}
+function remShow(it) {
+  const box = document.getElementById("rems");
+  const el = document.createElement("div");
+  el.className = "rem";
+  el.innerHTML = "<b></b><div class='rt'></div><div class='rb'></div>";
+  el.querySelector("b").textContent = "🔔 Reminder · " + fmtTime(+it.time.slice(0, 2), +it.time.slice(3));
+  el.querySelector(".rt").textContent = it.name;
+  const rb = el.querySelector(".rb");
+  const btn = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { el.remove(); fn(); }; rb.appendChild(b); };
+  btn("✓ Complete", async () => {
+    try { await call("POST", `/nodes/${it.id}/complete`); remItems = remItems.filter((x) => x.id !== it.id); await loadWeek(); } catch (e) { showError(e.message); }
+  });
+  const snz = document.createElement("select");
+  snz.title = "Remind me again in…";
+  snz.innerHTML = "<option value='' selected disabled>Snooze…</option>" + [5, 10, 15, 20, 30, 45, 60].map((m) => `<option value="${m}">${m} min</option>`).join("");
+  snz.onchange = () => { remSnooze[remKey(it)] = Date.now() + Number(snz.value) * 60000; el.remove(); };
+  rb.appendChild(snz);
+  btn("Dismiss", () => {});
+  box.appendChild(el);
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    try { const nt = new Notification("Reminder · " + it.time, { body: it.name, tag: remKey(it) }); nt.onclick = () => { window.focus(); nt.close(); }; } catch (e) {}
+  }
+}
+function remTick() {
+  if (!getBool("remind", true)) return;
+  const now = Date.now();
+  for (const it of remItems) {
+    const k = remKey(it), snz = remSnooze[k];
+    if (snz) { if (now >= snz) { delete remSnooze[k]; remShow(it); } continue; }
+    if (it.at > now || now - it.at > 60 * 60000 || remFired[k]) continue;
+    remFired[k] = now; remSaveFired();
+    remShow(it);
+  }
+}
+setInterval(remTick, 15000);
+setInterval(() => remPoll(false), 90000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) remPoll(false); });
+
+function remNotifyState() {
+  const note = document.getElementById("remNotifyNote"), btn = document.getElementById("remNotifyBtn");
+  if (typeof Notification === "undefined") { note.textContent = "This browser can't show notifications."; btn.hidden = true; return; }
+  const p = Notification.permission;
+  note.textContent = p === "granted" ? "On. A system notification appears with the popup while the board is open in a tab." : p === "denied" ? "Blocked. Allow notifications for this site in your browser's settings." : "Also show a system notification (needs your permission once).";
+  btn.hidden = p !== "default";
+}
+function remPushState() {
+  const note = document.getElementById("remPushNote"), btn = document.getElementById("remPushTest");
+  const ps = remInfo.push || {};
+  const on = [ps.ntfy && "ntfy", ps.pushover && "Pushover"].filter(Boolean);
+  note.textContent = on.length ? `On through ${on.join(" and ")}. The server sends it at the task's time even when the board is closed. Server time zone: ${remInfo.tz || "?"}.` : "Not set up. Set NTFY_TOPIC (or PUSHOVER_TOKEN and PUSHOVER_USER) on the server and restart it. See the README.";
+  btn.hidden = !on.length;
+}
+document.getElementById("remNotifyBtn").onclick = () => { try { Notification.requestPermission().then(remNotifyState); } catch (e) {} };
+document.getElementById("remPushTest").onclick = async (ev) => {
+  const b = ev.currentTarget; b.disabled = true;
+  try {
+    const res = await fetch("/reminders/test", { method: "POST" }), j = await res.json().catch(() => ({}));
+    showToast(res.ok ? "Test sent through " + j.sent.join(" and ") : (j.error || "Test failed"), false);
+  } catch (e) { showToast("Test failed: " + e.message, false); }
+  b.disabled = false;
+};
+{ const el = document.getElementById("optRemind"); el.checked = getBool("remind", true); el.onchange = () => setPref("remind", el.checked); }
+remNotifyState();
+remPoll(false);
+
 /* ---------- Toast + Undo ---------- */
 const toastEl = document.getElementById("toast");
 const toastMsg = document.getElementById("toastMsg");
@@ -2389,6 +2734,7 @@ async function reloadBullet(id) {
 async function reloadParents(parents) {
   const ids = [...new Set(parents.filter(Boolean))];
   await Promise.all(ids.map((p) => (ISO_DAY.test(p) ? loadDay(p) : srcById(p) ? loadSource(srcById(p), true) : (nest[p] ? reloadBullet(p) : null))));
+  if (ids.includes(pageKey())) loadPage();                 // the Daily page shows that day too, so it follows the move
 }
 
 // Move tasks (or a group's bullet) to the bottom of a day. items: [{ id, from, name }]. Remembered for Undo.
@@ -3079,5 +3425,6 @@ applyNotesLabels();
 loadWeek();
 loadPage();
 </script>
+<!--@addons:script-->
 </body>
 </html>
