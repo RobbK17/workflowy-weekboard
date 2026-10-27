@@ -1,0 +1,11 @@
+{
+  "id": "crypt",
+  "name": "Encryption (wbcrypt)",
+  "version": "0.3.0",
+  "description": "Encrypt names right in the item editor, and encrypt or decrypt any text in a panel. Done in your browser; the passphrase never leaves the page.",
+  "requires": { "board": "1.2.1" },
+  "localOnly": false,
+  "page": "page.html",
+  "script": "page.js",
+  "docs": "README.md"
+}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.2.0">
+<meta name="version" content="1.2.1">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <title>Workflowy Week Board</title>
@@ -155,10 +155,14 @@
   .subtog { display: inline-block; margin-top: 3px; padding: 0 6px; border: none; border-radius: 10px; background: rgba(127,127,127,.18);
             color: var(--muted); font-size: 11px; cursor: pointer; }
   .subtog:hover { color: var(--accent); }
+  .sublist .st2.editable { cursor: text; }
   .sublist { margin: 4px 0 0; padding-left: 4px; border-left: 2px solid rgba(127,127,127,.25); }
   .sublist .sublist { margin-left: 10px; }
   .si { display: flex; gap: 6px; align-items: flex-start; font-size: 13px; padding: 1px 0; cursor: default; }
+  .si, .sublist, .subwrap { min-width: 0; }
+  .si .pl-edit { overflow: hidden; }
   .si .sb { flex: none; width: 13px; text-align: center; color: var(--muted); }
+  .si .sb.nb { width: auto; min-width: 13px; font-variant-numeric: tabular-nums; }
   .si input[type=checkbox] { margin: 2px 0 0; }
   .si.done .st2 { text-decoration: line-through; color: var(--muted); }
   .si .st2 { flex: 1; min-width: 0; word-break: break-word; }
@@ -250,6 +254,20 @@
   .pl .delc:hover { color: #c0392b; }
   .pl:hover .addc, .pl:hover .indc, .pl:hover .outc, .pl:hover .delc, .pl:focus-within .addc, .pl:focus-within .indc, .pl:focus-within .outc, .pl:focus-within .delc { opacity: 1; }
   @media (hover: none) { .pl .addc, .pl .indc, .pl .outc, .pl .delc { opacity: 1; } }
+  .pl .b.nb { width: auto; min-width: 13px; font-variant-numeric: tabular-nums; }
+  .pe-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 3px 0; }
+  .pe-tools:empty { display: none; }
+  .pe-tools { container-type: inline-size; }
+  @container (max-width: 295px) { .pe-tools .addtype .lb { display: none; } }
+  .pe-tools .addtype { margin: 0; }
+  .pe-tools .crypt-bar { margin: 0; }
+  .pe-tools { gap: 4px 6px; }
+  .pe-tools .addtype { gap: 3px; }
+  .pe-tools .addtype button { padding: 1px 6px; font-size: 11.5px; white-space: nowrap; }
+  .pe-tools .crypt-bar button { padding: 1px 6px; font-size: 12px; white-space: nowrap; }
+  .addtype { display: flex; gap: 4px; margin-bottom: 3px; }
+  .addtype button { font: inherit; font-size: 12px; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+  .addtype button.on { background: var(--text); color: var(--card); border-color: var(--text); }
   .pl-add { padding: 2px 0 4px; }
   .pl-add input { width: 100%; font: inherit; padding: 3px 6px; border: 1px dashed var(--border);
                   border-radius: 4px; background: var(--card); color: var(--text); }
@@ -497,7 +515,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.2.0</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.2.1</span></div>
   </div>
 </footer>
 
@@ -692,6 +710,29 @@ function todayDate() { const n = new Date(); return new Date(n.getFullYear(), n.
 function plain(html) {
   return new DOMParser().parseFromString(html || "", "text/html").body.textContent;
 }
+
+/* ---------- Add-on hooks and encrypted-text display ----------
+   Encrypted text from the Encryption add-on looks like "wbenc1." followed by letters, digits, "-" and "_". The board
+   doesn't need that add-on to know the shape: anywhere a task's name is shown, such text appears as a lock instead of a
+   long string of characters. The stored text is never changed by this.
+   Add-ons (see addons/README.md) can register for two moments in the item editor. With nothing registered, these do nothing.
+     boardHooks.on("editorOpen", (ctx) => { ... })
+         runs when an editor opens. ctx: { node, title, note, box, save(), cancel(), onClose(fn) }
+     boardHooks.on("beforeSave", async (text, ctx) => text)
+         gets the title text about to be saved and returns what to save instead. Throw an Error to stop the save: its
+         message is shown and the editor stays open. ctx: { node, field: "name" } */
+const TOKEN_TEXT_RE = /wbenc1\.[A-Za-z0-9_-]{59,}/g;
+const maskTokens = (s) => String(s == null ? "" : s).replace(TOKEN_TEXT_RE, "🔒");
+const shownName = (html) => maskTokens(plain(html));          // plain(), for showing a name
+const shownVisible = (raw) => maskTokens(visibleText(raw));   // visibleText(), for showing a name
+const boardHooks = (() => {
+  const list = { editorOpen: [], beforeSave: [] };
+  return {
+    on(name, fn) { if (list[name] && typeof fn === "function") list[name].push(fn); },
+    fire(name, ctx) { for (const fn of list[name] || []) { try { fn(ctx); } catch (e) { console.error("Add-on hook failed:", e); } } },
+    async pipe(name, value, ctx) { for (const fn of list[name] || []) value = await fn(value, ctx); return value; },
+  };
+})();
 function showError(msg) {
   const el = document.getElementById("error");
   el.textContent = msg; el.style.display = msg ? "block" : "none";
@@ -921,7 +962,18 @@ function entryEl(e, showDate) {
   return card(e.n, e.k, showDate);
 }
 
+// While a line is being edited, redraws caused by background loads wait until the editor closes (they used to wipe it out).
+const redrawQueue = new Map();
+const editorOpen = () => !!document.querySelector(".pl-edit");
+function deferRedraw(key, fn) { if (!editorOpen()) return false; redrawQueue.set(key, fn); return true; }
+function flushRedraws() {
+  if (editorOpen() || !redrawQueue.size) return;
+  const fns = [...redrawQueue.values()]; redrawQueue.clear();
+  for (const f of fns) { try { f(); } catch (e) { console.error(e); } }
+}
+
 function render() {
+  if (deferRedraw("render", render)) return;
   const days = weekDays();
   const fmt = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const last = days[days.length - 1];
@@ -1127,6 +1179,7 @@ function scheduleKids() {
 }
 
 function refreshSubs(id) {
+  if (deferRedraw("subs" + id, () => refreshSubs(id))) return;
   document.querySelectorAll(`.subwrap[data-id="${id}"]`).forEach((w) => fillSubs(w, id));
 }
 
@@ -1147,7 +1200,7 @@ function toggleSubs(id) {
 }
 
 // The sub-items of a task as a small checklist (nested as deep as they go).
-function subList(nodes) {
+function subList(nodes, rootId) {
   const box = document.createElement("div");
   box.className = "sublist";
   for (const c of nodes) {
@@ -1168,14 +1221,29 @@ function subList(nodes) {
       row.appendChild(cb);
     } else {
       const b = document.createElement("span");
-      b.className = "sb"; b.textContent = "•";
+      if (c.data && c.data.layoutMode === "numbered") {            // consecutive numbered lines count up from 1
+        const prevN = nodes[nodes.indexOf(c) - 1];
+        c._num = (prevN && prevN.data && prevN.data.layoutMode === "numbered" && prevN._num ? prevN._num : 0) + 1;
+        b.className = "sb nb"; b.textContent = c._num + ".";
+      } else { b.className = "sb"; b.textContent = "•"; }
       row.appendChild(b);
     }
     const t = document.createElement("span");
-    t.className = "st2"; t.textContent = visibleText(c.name) || "(empty)";
+    t.className = "st2"; t.textContent = shownVisible(c.name) || "(empty)";
+    if (rootId) {                                       // click a sub-item to edit it (this is where an add-on such as Encrypt gets its turn)
+      t.classList.add("editable"); t.title = "Click to edit";
+      t.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (String(window.getSelection && window.getSelection()) !== "") return;
+        const card = t.closest(".card"), wasDraggable = card ? card.draggable : false;
+        if (card) card.draggable = false;                // so clicking buttons and selecting text inside the editor doesn't start dragging the card
+        const restore = () => { if (card) card.draggable = wasDraggable; };
+        startEdit(c, t, async () => { restore(); if (kids[rootId]) delete kids[rootId].tree; refreshSubs(rootId); }, restore, { type: true });
+      });
+    }
     row.appendChild(t);
     box.appendChild(row);
-    if (c.children && c.children.length) box.appendChild(subList(c.children));
+    if (c.children && c.children.length) box.appendChild(subList(c.children, rootId));
   }
   return box;
 }
@@ -1193,7 +1261,7 @@ function fillSubs(wrap, id) {
   b.addEventListener("click", (e) => { e.stopPropagation(); toggleSubs(id); });
   wrap.appendChild(b);
   if (!open) return;
-  if (info.tree) wrap.appendChild(subList(info.tree));
+  if (info.tree) wrap.appendChild(subList(info.tree, id));
   else {
     const l = document.createElement("div");
     l.className = "subload"; l.textContent = "Loading…";
@@ -1223,7 +1291,7 @@ function groupCard(e, showDate) {
     toggleSel(b, k, null, el, true);
   }, true);
   el.addEventListener("dragstart", (ev) => {
-    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (visibleText(b.name) || "group").slice(0, 40) }));
+    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40) }));
     el.classList.add("dragging");
   });
   el.addEventListener("dragend", () => el.classList.remove("dragging"));
@@ -1236,7 +1304,7 @@ function groupCard(e, showDate) {
   arrow.className = "ga"; arrow.textContent = closed ? "▸" : "▾"; arrow.title = closed ? "Show tasks" : "Hide tasks";
   arrow.addEventListener("click", () => { if (closed) groupsClosed.delete(b.id); else groupsClosed.add(b.id); saveGroupsClosed(); render(); });
   const title = document.createElement("span");
-  title.className = "gt"; title.textContent = visibleText(b.name) || "(empty)";
+  title.className = "gt"; title.textContent = shownVisible(b.name) || "(empty)";
   if (showDate) {
     const badge = document.createElement("span");
     badge.className = "badge";
@@ -1259,7 +1327,7 @@ function groupCard(e, showDate) {
     ev.stopPropagation();
     openMovePop(mv, k, (to) => {
       if (!ISO_DAY.test(to) || to === k) return;
-      act(() => moveMany([{ id: b.id, from: k, name: (visibleText(b.name) || "group").slice(0, 40) }], to));
+      act(() => moveMany([{ id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40) }], to));
     });
   });
   head.append(arrow, title, pill, mv);
@@ -1281,7 +1349,7 @@ function groupCard(e, showDate) {
       const txt = document.createElement("span");
       txt.className = "st2";
       const ttag = parseTag(t.name), ttm = ttag || parseTime(plain(t.name));
-      txt.textContent = (ttm && !ttag ? dropTime(visibleText(t.name)) : visibleText(t.name)) || "(empty)";
+      txt.textContent = (ttm && !ttag ? dropTime(shownVisible(t.name)) : shownVisible(t.name)) || "(empty)";
       txt.title = "Double-click to edit";
       txt.addEventListener("dblclick", () => {         // edit a task inside the group in place
         if (selMode) return;
@@ -1317,7 +1385,7 @@ function makeGroupAdd(b, k, card) {
     if (e.key !== "Enter" || !add.value.trim()) return;
     const name = add.value.trim();
     add.value = "";
-    const gname = (visibleText(b.name) || "group").slice(0, 30);
+    const gname = (shownVisible(b.name) || "group").slice(0, 30);
     await act(async () => {
       const res = await call("POST", "/nodes", { parent_id: b.id, name, layoutMode: "todo", position: "bottom" });
       await reloadBullet(b.id);
@@ -1436,7 +1504,7 @@ function card(n, k, showDate, opts) {
   const txt = document.createElement("div");
   txt.className = "txt";
   const tag = parseTag(n.name), tm = tag || parseTime(plain(n.name));
-  txt.textContent = tag ? plain(n.name) : tm ? dropTime(plain(n.name)) : plain(n.name);
+  txt.textContent = tag ? shownName(n.name) : tm ? dropTime(shownName(n.name)) : shownName(n.name);
   if (tm && !n.completedAt) {
     const bb = document.createElement("button");
     bb.type = "button"; bb.className = "bellb"; bb.textContent = "🔔 " + fmtTime(tm.h, tm.mi) + (tag && tag.key !== k ? " · " + dayLabel(tag.key) : "");
@@ -1446,7 +1514,7 @@ function card(n, k, showDate, opts) {
   }
   if (nested) {                                          // which bullet it belongs to
     const via = document.createElement("span");
-    via.className = "via"; via.textContent = (visibleText(opts.bullet.name) || "(empty)") + " ›";
+    via.className = "via"; via.textContent = (shownVisible(opts.bullet.name) || "(empty)") + " ›";
     txt.prepend(via);
   }
   if (showDate) {
@@ -1617,8 +1685,9 @@ function parseOutline(text) {
     const body = m[2].trim();
     if (!body || body === "-") continue;
     const todo = body.match(/^\[( |x|X)\]\s+(.*)$/);
-    const name = todo ? `- [${todo[1] === " " ? " " : "x"}] ${todo[2]}` : body;
-    items.push({ level: Math.floor(m[1].replace(/\t/g, "  ").length / 2), name, raw });
+    const num = !todo && body.match(/^\d{1,3}[.)]\s+(.+)$/);     // "1. text" is a numbered line
+    const name = todo ? `- [${todo[1] === " " ? " " : "x"}] ${todo[2]}` : num ? num[1].trim() : body;
+    items.push({ level: Math.floor(m[1].replace(/\t/g, "  ").length / 2), name, raw, ...(num ? { type: "numbered" } : {}) });
   }
   return items;
 }
@@ -1697,7 +1766,7 @@ async function moveNotes() {
   const movable = nodes.filter((n) =>
     !sameName(plain(n.name), notesName) && ((n.data && n.data.layoutMode) || "bullets") === "bullets");
   if (!movable.length) { setStatus("No plain bullets to move"); return; }
-  const preview = movable.slice(0, 5).map((n) => "• " + (plain(n.name).slice(0, 60) || "(empty)")).join("\n") +
+  const preview = movable.slice(0, 5).map((n) => "• " + (shownName(n.name).slice(0, 60) || "(empty)")).join("\n") +
     (movable.length > 5 ? `\n…and ${movable.length - 5} more` : "");
   if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from ${shownDayWord()} page into ${notesName}?\n\n` +
                `${preview}\n\nSub-bullets move with them. Todos and headings stay put.`)) return;
@@ -1732,7 +1801,11 @@ async function addLines(parentId, items) {
     for (const it of items) {
       const level = Math.min(it.level - base, stack.length);   // can't skip a level
       const parent = level === 0 ? parentId : stack[level - 1];
-      const res = await call("POST", "/nodes", { parent_id: parent, name: it.name, position: "bottom" });
+      const body = { parent_id: parent, name: it.name, position: "bottom" };
+      if (it.type && it.type !== "bullets") body.layoutMode = it.type;
+      let res;
+      try { res = await call("POST", "/nodes", body); }
+      catch (e) { if (!body.layoutMode) throw e; delete body.layoutMode; res = await call("POST", "/nodes", body); }   // type refused: add as a plain bullet
       if (!res || !res.item_id) throw new Error("WorkFlowy didn't confirm the new line");
       stack.length = level;
       stack[level] = res.item_id;
@@ -1840,7 +1913,7 @@ function applyEdit(raw, next) {
 }
 
 // Replaces the line's text with editing boxes (title, and its note). Enter saves, Esc cancels, clicking away saves.
-function startEdit(n, textEl, onSaved, onClose) {
+function startEdit(n, textEl, onSaved, onClose, opts) {
   const origName = n.name || "", origNote = n.note || "";
   const titleText = visibleText(origName), noteText = visibleText(origNote);
   const box = document.createElement("div");
@@ -1851,24 +1924,55 @@ function startEdit(n, textEl, onSaved, onClose) {
   note.className = "pe-note"; note.rows = 2; note.value = noteText; note.placeholder = "Note";
   const hint = document.createElement("div");
   hint.className = "pe-hint"; hint.textContent = "Enter saves · Esc cancels · Shift+Enter: new line in the note";
-  box.append(title, note, hint);
+  box.append(title);
+  const tools = document.createElement("div");         // one row under the name: add-ons (such as Encrypt) and the line type sit side by side
+  tools.className = "pe-tools";
+  box.append(tools);
+  // Line type (Daily page and item view only): Bullet, Task or Numbered. Other kinds (headings, quotes, code) are left alone.
+  const curType = (n.data && n.data.layoutMode) || "bullets";
+  let nextType = curType;
+  if (opts && opts.type && ["bullets", "todo", "numbered"].includes(curType)) {
+    const seg = document.createElement("div");
+    seg.className = "addtype pe-type"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Type of this line");
+    const paint = () => { for (const b of seg.children) b.classList.toggle("on", b.dataset.type === nextType); };
+    for (const [key, glyph, label] of [["bullets", "•", "Bullet"], ["todo", "☐", "Task"], ["numbered", "1.", "Numbered"]]) {
+      const b = document.createElement("button");
+      b.type = "button"; b.dataset.type = key; b.title = `Make this a ${label.toLowerCase()} line`; b.setAttribute("aria-label", label);
+      b.append(glyph + " ");
+      const lb = document.createElement("span"); lb.className = "lb"; lb.textContent = label; b.append(lb);
+      b.addEventListener("mousedown", (e) => e.preventDefault());       // keep focus in the editor
+      b.addEventListener("click", () => { nextType = key; paint(); title.focus(); });
+      seg.appendChild(b);
+    }
+    paint();
+    tools.append(seg);
+  }
+  box.append(note, hint);
   textEl.replaceWith(box);
   const fit = (el) => { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; };
   [title, note].forEach((el) => { el.addEventListener("input", () => fit(el)); fit(el); });
 
+  const closers = [];                                  // add-ons are told when this editor goes away
+  const closed = () => { for (const f of closers) { try { f(); } catch (e) { /* an add-on's problem */ } } flushRedraws(); };
   let finished = false;
   const finish = async (save) => {
     if (finished) return;
     finished = true;
-    if (!save) { box.replaceWith(textEl); if (onClose) onClose(); return; }
-    const nextTitle = title.value.replace(/\s*\n\s*/g, " ").trim();
-    const nextNote = note.value.replace(/\s+$/, "");
+    if (!save) { box.replaceWith(textEl); closed(); if (onClose) onClose(); return; }
+    let nextTitle = title.value.replace(/\s*\n\s*/g, " ").trim();
+    let nextNote = note.value.replace(/\s+$/, "");
+    title.disabled = note.disabled = true;
+    try {                                                                                       // an add-on may rewrite the title or note, or stop the save by throwing
+      nextTitle = await boardHooks.pipe("beforeSave", nextTitle, { node: n, field: "name" });
+      nextNote = await boardHooks.pipe("beforeSave", nextNote, { node: n, field: "note" });
+    }
+    catch (e) { showError(e.message); finished = false; title.disabled = note.disabled = false; title.focus(); return; }
     const body = {};
     if (nextTitle && nextTitle !== titleText) body.name = applyEdit(origName, nextTitle);
     if (nextNote !== noteText) body.note = nextNote === "" ? "" : applyEdit(origNote, nextNote);
-    if (!Object.keys(body).length) { box.replaceWith(textEl); if (onClose) onClose(); return; }
-    title.disabled = note.disabled = true;
-    try { await call("POST", `/nodes/${n.id}`, body); await onSaved(); }
+    if (nextType !== curType) body.layoutMode = nextType;
+    if (!Object.keys(body).length) { box.replaceWith(textEl); closed(); if (onClose) onClose(); return; }
+    try { await call("POST", `/nodes/${n.id}`, body); await onSaved(); box.remove(); closed(); }
     catch (e) { showError(e.message); finished = false; title.disabled = note.disabled = false; title.focus(); }
   };
   const keys = (multiline) => (e) => {
@@ -1877,8 +1981,17 @@ function startEdit(n, textEl, onSaved, onClose) {
   };
   title.addEventListener("keydown", keys(false));
   note.addEventListener("keydown", keys(true));
-  box.addEventListener("focusout", () => setTimeout(() => { if (!finished && !box.contains(document.activeElement)) finish(true); }, 0));
+  // Safari doesn't focus a button when it is clicked, so clicking a button inside the editor looks like clicking away. A press inside the box is not clicking away: focus goes back to where it was.
+  let lastDown = 0, lastFocus = null;
+  box.addEventListener("mousedown", () => { lastDown = Date.now(); });
+  box.addEventListener("focusin", (e) => { lastFocus = e.target; });
+  box.addEventListener("focusout", () => setTimeout(() => {
+    if (finished || box.dataset.hold || box.contains(document.activeElement)) return;     // an add-on's dialog (passphrase) may hold focus outside the box
+    if (Date.now() - lastDown < 600) { if (lastFocus && box.contains(lastFocus)) lastFocus.focus(); return; }
+    finish(true);
+  }, 0));   // an add-on can pause click-away saving with box.dataset.hold (its passphrase prompt)
   title.focus(); title.select();
+  boardHooks.fire("editorOpen", { node: n, title, note, box, tools, save: () => finish(true), cancel: () => finish(false), onClose: (fn) => closers.push(fn) });
 }
 
 /* ---------- Daily page (read from WorkFlowy, shown above the pad) ---------- */
@@ -1940,6 +2053,7 @@ async function loadPage() {
 
 // Draws Daily page in the sidebar, or (when a search result is open) the item editor inside the search window.
 function renderPage() {
+  if (deferRedraw("renderPage", renderPage)) return;
   const tree = viewItem ? itemTree : pageTree;
   const roots = viewItem ? itemNodes : pageNodes;
   const keepScroll = tree.scrollTop;          // stay where you were after a reload or edit
@@ -2005,13 +2119,49 @@ function addRow(parent, level) {
   wrap.style.paddingLeft = level * 16 + "px";
   const input = document.createElement("input");
   input.placeholder = "Add under this line… (Enter adds, Esc closes)";
+  // Type picker: what kind of line Enter adds. Remembered in this browser.
+  const TYPES = [["bullets", "•", "Bullet"], ["todo", "☐", "Task"], ["numbered", "1.", "Numbered"]];
+  let type = "bullets";
+  try { const t = localStorage.getItem("addType"); if (TYPES.some((x) => x[0] === t)) type = t; } catch (e) {}
+  const seg = document.createElement("div");
+  seg.className = "addtype"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Type of new line");
+  const paint = () => { for (const b of seg.children) b.classList.toggle("on", b.dataset.type === type); };
+  for (const [key, glyph, label] of TYPES) {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.type = key; b.textContent = `${glyph} ${label}`; b.title = `Add as ${label.toLowerCase()}`;
+    b.addEventListener("mousedown", (e) => e.preventDefault());       // keep focus in the input
+    b.addEventListener("click", () => {
+      type = key; try { localStorage.setItem("addType", key); } catch (e) {}
+      paint(); input.focus();
+    });
+    seg.appendChild(b);
+  }
+  paint();
+  // Typing "[] ", "1. " or "- " at the start picks the type for that one line.
+  const readLine = (raw) => {
+    let name = raw.trim(), t = type;
+    let m;
+    if ((m = name.match(/^\[ ?\]\s+(.+)$/))) { t = "todo"; name = m[1]; }
+    else if ((m = name.match(/^\d{1,3}[.)]\s+(.+)$/))) { t = "numbered"; name = m[1]; }
+    else if ((m = name.match(/^[-*•]\s+(.+)$/))) { t = "bullets"; name = m[1]; }
+    return { name: name.trim(), type: t };
+  };
   input.addEventListener("keydown", async (e) => {
     if (e.key === "Escape") { e.stopPropagation(); addingFor = null; renderPage(); return; }
     if (e.key !== "Enter" || !input.value.trim()) return;
-    const name = input.value.trim();
+    const { name, type: t } = readLine(input.value);
+    if (!name) return;
     input.disabled = true;
     try {
-      const res = await call("POST", "/nodes", { parent_id: parent.id, name, position: "bottom" });
+      const body = { parent_id: parent.id, name, position: "bottom" };
+      if (t !== "bullets") body.layoutMode = t;
+      try { await call("POST", "/nodes", body); }
+      catch (err) {
+        if (!body.layoutMode) throw err;
+        delete body.layoutMode;                                        // type refused: add as a plain bullet
+        await call("POST", "/nodes", body);
+        showError(`WorkFlowy wouldn't make a ${t === "todo" ? "task" : t} line, so it was added as a bullet.`);
+      }
       if (viewItem) await reloadItem(); else await loadPage();
     } catch (err) { showError(err.message); input.disabled = false; }
   });
@@ -2022,6 +2172,7 @@ function addRow(parent, level) {
     if (!items.length) return;
     e.preventDefault();
     input.disabled = true;
+    for (const it of items) if (!it.type && type === "numbered" && !/^- \[[ x]\] /.test(it.name)) it.type = "numbered";   // unmarked lines follow the picker
     const r = await addLines(parent.id, items);
     if (r.error) showError(r.error.message);
     if (r.top.length) pushUndo(`Added ${r.done} ${r.done === 1 ? "line" : "lines"}`, async () => {
@@ -2030,6 +2181,7 @@ function addRow(parent, level) {
     });
     try { await reloadAfter(); } catch (err) { showError(err.message); }
   });
+  wrap.appendChild(seg);
   wrap.appendChild(input);
   return wrap;
 }
@@ -2067,13 +2219,16 @@ function pageLine(n, level, prev, removable, fold, out) {
     row.appendChild(cb);
   } else {
     const b = document.createElement("span");
-    b.className = "b"; b.textContent = "•";
+    if (mode === "numbered") {                         // counts consecutive numbered lines, restarts after any other line
+      n._num = (prev && ((prev.data && prev.data.layoutMode) || "bullets") === "numbered" && prev._num ? prev._num : 0) + 1;
+      b.className = "b nb"; b.textContent = n._num + ".";
+    } else { b.className = "b"; b.textContent = "•"; }
     row.appendChild(b);
   }
 
   const t = document.createElement("span");
   t.className = "t";
-  t.textContent = visibleText(n.name) || "(empty)";
+  t.textContent = shownVisible(n.name) || "(empty)";
   if (fold === "closed") {                             // how many lines are hidden
     const pc = document.createElement("span");
     const hidden = countBelow(n);
@@ -2091,7 +2246,7 @@ function pageLine(n, level, prev, removable, fold, out) {
     startEdit(n, t, async () => {
       if (viewItem) await reloadItem();
       else { await Promise.all([loadPage(), loadDay(pageKey())]); render(); }
-    });
+    }, null, { type: true });
   });
   row.appendChild(t);
 
@@ -2133,7 +2288,7 @@ function pageLine(n, level, prev, removable, fold, out) {
     minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
     minus.addEventListener("click", async () => {
       const below = countBelow(n);
-      const label = plain(n.name) || "(empty)";
+      const label = shownName(n.name) || "(empty)";
       if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
       minus.disabled = true;
       try { await call("DELETE", `/nodes/${n.id}`); if (viewItem) await reloadItem(); else await loadPage(); }
@@ -2316,9 +2471,9 @@ function resultEl(hit, terms, i) {
   const title = document.createElement("div");
   title.className = "st" + (hit.todo && hit.done ? " done" : "");
   if (hit.todo) title.append(hit.done ? "☑ " : "☐ ");
-  title.append(...highlight(hit.name || "(empty)", terms));
+  title.append(...highlight(maskTokens(hit.name) || "(empty)", terms));
   const path = document.createElement("div");
-  path.className = "sp"; path.textContent = hit.path.join(" › ") || "Top level";
+  path.className = "sp"; path.textContent = hit.path.map(maskTokens).join(" › ") || "Top level";
   row.append(title, path);
   if (!hit.nameHit && hit.snippet) {                       // matched in the note: show where
     const d = document.createElement("div");
@@ -2439,7 +2594,7 @@ function updateViewBar() {
   const back = document.createElement("button");
   back.textContent = "← Results"; back.title = "Back to the search results (Esc)"; back.onclick = () => closeItem();
   const path = document.createElement("span");
-  path.textContent = itemPath.concat(plain(itemNodes[0].name) || "(empty)").join(" › ");
+  path.textContent = itemPath.map(maskTokens).concat(shownName(itemNodes[0].name) || "(empty)").join(" › ");
   const link = document.createElement("a");
   link.href = "https://workflowy.com/#/" + viewItem.slice(-12);   // WorkFlowy links use the last 12 characters of the id
   link.target = "_blank"; link.rel = "noopener"; link.textContent = "Open in WorkFlowy ↗";
@@ -2515,7 +2670,7 @@ document.addEventListener("keydown", (e) => {
    ==================================================================================================== */
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-const shortName = (n) => { const t = (plain(n.name) || "").trim() || "(empty)"; return t.length > 40 ? t.slice(0, 39) + "…" : t; };
+const shortName = (n) => { const t = (shownName(n.name) || "").trim() || "(empty)"; return t.length > 40 ? t.slice(0, 39) + "…" : t; };
 const dayLabel = (k) => (ISO_DAY.test(k) ? keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : sourceName(k));   // a plan source (Inbox...) shows its own name
 
 /* ---------- Reminders ----------
@@ -2958,7 +3113,7 @@ function openRoll({ title, items, dest }) {
     cb.type = "checkbox"; cb.checked = true; cb.dataset.i = i;
     cb.addEventListener("change", updateRollCount);
     const t = document.createElement("span");
-    t.className = "rt"; t.textContent = plain(it.n.name) || "(empty)";
+    t.className = "rt"; t.textContent = shownName(it.n.name) || "(empty)";
     const d = document.createElement("span");
     d.className = "rd"; d.textContent = dayLabel(it.k);
     row.append(cb, t, d);
@@ -3034,11 +3189,11 @@ function renderDone(note) {
       const mid = document.createElement("span");
       mid.className = "dmid";
       const name = document.createElement("span");
-      name.className = "dname"; name.textContent = hit.name || "(empty)";
+      name.className = "dname"; name.textContent = maskTokens(hit.name) || "(empty)";
       mid.appendChild(name);
       if (hit.path && hit.path.length) {
         const p = document.createElement("span");
-        p.className = "dpath"; p.textContent = hit.path.join(" › ");
+        p.className = "dpath"; p.textContent = hit.path.map(maskTokens).join(" › ");
         mid.appendChild(p);
       }
       const a = document.createElement("a");
@@ -3196,7 +3351,7 @@ function planRow(n, k, label) {
   const row = document.createElement("div");
   row.className = "brow";
   const t = document.createElement("span");
-  t.className = "bt"; t.textContent = plain(n.name) || "(empty)";
+  t.className = "bt"; t.textContent = shownName(n.name) || "(empty)";
   const d = document.createElement("span");
   d.className = "bd"; d.textContent = ISO_DAY.test(k) ? dayLabel(k) : "";
   const b = document.createElement("button");
@@ -3366,7 +3521,7 @@ srcAddEl.onclick = async () => {
     const data = await call("GET", `/nodes?parent_id=${id}`);
     if (data === null) throw new Error("WorkFlowy doesn't know that id.");
     if (!found && !srcNameEl.value.trim()) {              // no name typed and none from the lookup: ask WorkFlowy for the node's own name
-      try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = plain((nd && nd.name) || ""); } catch (e) { /* falls back to "Inbox" */ }
+      try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = shownName((nd && nd.name) || ""); } catch (e) { /* falls back to "Inbox" */ }
     }
     const open = (data.nodes || []).filter((n) => n.data && n.data.layoutMode === "todo" && !n.completedAt).length;
     const name = srcNameEl.value.trim().replace(/\s+/g, " ") || found.slice(0, 40) || "Inbox";

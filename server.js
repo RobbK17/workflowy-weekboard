@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.2.0
+// Version 1.2.1
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 
 const http = require("http");
 const fs = require("fs");
@@ -103,6 +103,10 @@ let idx = null;            // { byId: Map, kids: Map(parentId -> [nodes]), at }
 let lastDownloadAt = 0;
 let lastUse = Date.now();
 let loading = null;
+
+// Encrypted text from the Encryption add-on ("wbenc1." + letters, digits, "-", "_"). Anything that leaves this server as a
+// message (push reminders) shows a lock instead, so an encrypted value is never sent to a push service as a long string.
+const maskTokens = (s) => String(s).replace(/wbenc1\.[A-Za-z0-9_-]{59,}/g, "🔒");
 
 function stripHtml(s) {
   if (!s) return "";
@@ -764,7 +768,7 @@ function remItem(n, pageKey) {
   if (!t) return null;
   const day = tag ? tag.key : pageKey;
   return { id: n.id, day, time: `${String(t.h).padStart(2, "0")}:${String(t.mi).padStart(2, "0")}`, at: zonedEpoch(day, t.h, t.mi),
-    name: (t.token ? text.replace(t.token, "") : text).replace(/\s{2,}/g, " ").trim() || "(task)" };
+    name: maskTokens((t.token ? text.replace(t.token, "") : text).replace(/\s{2,}/g, " ").trim()) || "(task)" };
 }
 async function remScan() {
   if (rem.scanning) return rem.scanning;

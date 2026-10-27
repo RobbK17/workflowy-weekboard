@@ -1,0 +1,93 @@
+<!-- Page parts of the Encryption (wbcrypt) add-on. The board fills each named part into index.html: css, button, panel. No server part: everything runs in the browser. -->
+<!--@css-->
+#cryptBtn { cursor: pointer; }
+#cryptBtn.crypt-on { background: #1e8e4e; color: #fff; border-color: #1e8e4e; font-weight: 600; }
+.crypt-modal { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.crypt-dialog { width: min(380px, 100%); background: Canvas; color: CanvasText; border: 1px solid GrayText; border-radius: 12px; padding: 18px; box-shadow: 0 14px 40px rgba(0,0,0,.4); font-size: 14px; display: flex; flex-direction: column; gap: 10px; }
+.crypt-dialog h2 { margin: 0; font-size: 17px; }
+.crypt-dialog p { margin: 0; color: GrayText; font-size: 12.5px; line-height: 1.45; }
+.crypt-dialog input { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; background: Field; color: FieldText; border: 1px solid GrayText; border-radius: 6px; }
+.crypt-dialog .crypt-pmsg { min-height: 1.2em; flex-basis: auto; }
+.crypt-dbtns { display: flex; justify-content: flex-end; gap: 8px; }
+.crypt-strength { font-size: 12px; min-height: 1.2em; color: GrayText; }
+.crypt-strength.s1 { color: #c0392b; }
+.crypt-strength.s2 { color: #b9770e; }
+.crypt-strength.s3 { color: #1e8e4e; }
+.crypt-warn { margin-top: 8px; font-size: 12px; color: #b9770e; }
+.crypt-dbtns .crypt-linkbtn { margin-right: auto; border: none; background: none; color: GrayText; text-decoration: underline; padding: 6px 0; font-size: 12px; }
+.crypt-dbtns button { font: inherit; padding: 6px 16px; cursor: pointer; border-radius: 6px; }
+#cryptPanel { position: fixed; top: 56px; right: 12px; width: min(420px, calc(100vw - 24px)); max-height: calc(100vh - 72px); overflow: auto; z-index: 1000;
+  background: Canvas; color: CanvasText; border: 1px solid GrayText; border-radius: 10px; padding: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.28); font-size: 14px; }
+#cryptPanel[hidden] { display: none; }
+#cryptPanel h2 { margin: 0 0 4px; font-size: 16px; }
+#cryptPanel p.cryptNote { margin: 0 0 10px; color: GrayText; font-size: 12px; line-height: 1.4; }
+#cryptPanel label { display: block; margin: 8px 0 3px; font-size: 12px; color: GrayText; }
+#cryptPanel input, #cryptPanel textarea, #cryptPanel select { width: 100%; box-sizing: border-box; font: inherit; padding: 6px 8px; background: Field; color: FieldText; border: 1px solid GrayText; border-radius: 6px; }
+#cryptPanel textarea { min-height: 64px; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+#cryptPanel .cryptRow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+#cryptPanel .cryptRow button { flex: 1 1 auto; padding: 6px 10px; cursor: pointer; font: inherit; }
+#cryptState { margin-top: 8px; font-size: 12px; }
+#cryptMsg { margin-top: 8px; min-height: 1.2em; font-size: 12px; }
+#cryptMsg.cryptErr { color: #c0392b; }
+#cryptFound { margin: 8px 0 0; padding: 0; list-style: none; }
+#cryptFound li { padding: 6px 0; border-top: 1px solid GrayText; word-break: break-word; }
+#cryptFound li small { display: block; color: GrayText; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.cryptErr { color: #c0392b; }
+/* in the item editor */
+.crypt-bar { display: flex; align-items: center; gap: 6px; margin: 2px 0 4px; font-size: 12px; }
+.crypt-bar button { cursor: pointer; padding: 1px 7px; font: inherit; white-space: nowrap; }
+.crypt-bar { flex: none; }
+.crypt-bar button[hidden] { display: none; }
+.crypt-status { color: GrayText; }
+.crypt-status.cryptErr { color: #c0392b; }
+.crypt-pmsg { flex-basis: 100%; font-size: 12px; color: #c0392b; }
+<!--/@css-->
+<!--@button--><button id="cryptBtn" type="button" title="Encryption: protect sensitive text before it goes into WorkFlowy" aria-haspopup="dialog" aria-controls="cryptPanel">🔒</button><!--/@button-->
+<!--@panel-->
+<div id="cryptPanel" role="dialog" aria-label="Encryption" hidden>
+  <h2>🔒 Encryption</h2>
+  <p class="cryptNote">Runs in this browser only. Your passphrase is held in memory, never saved, and never sent to the board's server or to WorkFlowy. A forgotten passphrase cannot be recovered.</p>
+
+  <label for="cryptPass">Passphrase</label>
+  <input id="cryptPass" type="password" autocomplete="off" spellcheck="false">
+  <div id="cryptConfirmWrap">
+    <label for="cryptPass2">Type it again (first time this session, so a typo can't lock you out)</label>
+    <input id="cryptPass2" type="password" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="cryptState">Locked</div>
+
+  <label for="cryptText">Text</label>
+  <textarea id="cryptText" spellcheck="false" placeholder="Type or paste text to encrypt, or a wbenc1. token to decrypt"></textarea>
+  <div class="cryptRow">
+    <button id="cryptEnc" type="button">Encrypt</button>
+    <button id="cryptDec" type="button">Decrypt</button>
+  </div>
+
+  <label for="cryptOut">Result</label>
+  <textarea id="cryptOut" readonly spellcheck="false"></textarea>
+  <div class="cryptRow">
+    <button id="cryptCopy" type="button">Copy result</button>
+    <button id="cryptScan" type="button">Show tokens on this board</button>
+    <button id="cryptLock" type="button">Lock now</button>
+    <button id="cryptChange" type="button" title="Re-encrypt everything with a new passphrase">Change passphrase…</button>
+  </div>
+  <div id="cryptMsg" role="status"></div>
+  <ul id="cryptFound"></ul>
+
+  <label for="cryptAuto">Lock automatically after</label>
+  <select id="cryptAuto">
+    <option value="1">1 minute idle</option>
+    <option value="5" selected>5 minutes idle</option>
+    <option value="15">15 minutes idle</option>
+    <option value="60">1 hour idle</option>
+  </select>
+</div>
+<!--/@panel-->
+<!--@tab--><button type="button" role="tab" data-sec="crypt">Encryption</button><!--/@tab-->
+<!--@pane-->
+<div class="set-pane setpane" data-sec="crypt" hidden>
+  <label><input type="checkbox" id="cryptOptEnabled"><span>Enable encryption<small>Master switch. Off: the 🔒 padlock in the header is hidden, item editors are left completely alone, and you are locked. Encrypted names still show as 🔒 on the board. Nothing already encrypted is changed.</small></span></label>
+  <label><input type="checkbox" id="cryptOptEditor"><span>Encrypt inside the item editor<small>On: an Encrypt / Unlock button in every editor, and encrypted text shown as ⟦readable⟧ while you are unlocked. Off: editors are left alone and you use the 🔒 panel to encrypt and decrypt.</small></span></label>
+  <label><input type="checkbox" id="cryptOptPlaceholder"><span>Show &lt;&lt;secret&gt;&gt; instead of the long encrypted text<small>Only when the editor setting above is off. Editors show &lt;&lt;secret&gt;&gt; in place of each encrypted part and put the original back when you save. Keep each &lt;&lt;secret&gt;&gt; as it is; the text around them can be edited.</small></span></label>
+</div>
+<!--/@pane-->

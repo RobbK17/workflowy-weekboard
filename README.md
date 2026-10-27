@@ -4,9 +4,20 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.2.0**
+**Version 1.2.1**
 
-### What's new since 1.1.1
+### What's new in 1.2.1
+
+- **Choose what a new line is.** The **Add under this line…** box (the **+** on a Daily page line, and in the search window's item editor) now has three small buttons: **• Bullet**, **☐ Task** and **1. Numbered**. Your last choice is remembered in this browser. You can also type `[] ` (task), `1. ` (numbered) or `- ` (bullet) at the start of a line to pick the type for just that line, and a pasted list keeps its `1.` numbered lines. If WorkFlowy refuses the type, the line is added as a plain bullet and a message says so.
+- **Numbered lines show their numbers.** Lines whose WorkFlowy type is numbered now appear as **1.**, **2.**, **3.** on the Daily page, in the item editor and in the sub-item checklists on cards. The count restarts after any line that isn't numbered. (WorkFlowy lets a numbered list start from another number; the API doesn't report that, so the board always counts from 1.)
+- **Change a line's type.** Open a line to edit it on the Daily page, in the search window's item editor, or from a sub-item on a card, and the same three buttons appear under the name box. Pick another, then press Enter or click away to save. Headings, quotes and code lines are left alone (no buttons), and board cards and group titles don't show them either, because turning a board task into a bullet would make it vanish from the board.
+- **Sub-items on cards can be edited.** Click a sub-item's text in a card's checklist to edit it, with its note and type, the same way as on the Daily page. The card can't be dragged while you edit.
+- **Editors are no longer wiped by background loads.** A slow WorkFlowy used to let a background refresh redraw the board and close the box you were typing in. The board now waits to redraw until the editor closes. Clicking a button inside an editor also no longer counts as "clicking away" (this fixed buttons doing nothing in Safari).
+- **Encrypted text.** The board shows any text of the form `wbenc1.…` (the format of the optional **crypt** add-on) as a **🔒** wherever a name is displayed: cards, the Daily page, search results, the Done window, and push or popup reminders. This works even without the add-on and only changes how text is shown, never what is stored. The server also masks it in push reminder text, so a secret never goes to ntfy or Pushover. See "Encryption" below.
+- **Add-on hooks.** Add-ons can now take part in the item editor: `boardHooks.on("editorOpen", …)` and `boardHooks.on("beforeSave", …)` (the second runs for the name and for the note), a `ctx.tools` row under the name box for small controls, and a way to keep an editor open while the add-on shows its own dialog. See `addons/ADDONS.md`.
+- **New included add-on: crypt (Encryption).** Encrypt sensitive names and notes before they go into WorkFlowy, with an Encrypt/Unlock button in the editor, a 🔒 button in the header, a panel, a command-line tool, a **Settings > Encryption** tab, a one-entry unlock and a Change passphrase tool. See `addons/crypt/README.md` and "Encryption" below.
+
+### Also new in 1.2.0 (since 1.1.1)
 
 - **Reminders (1.2.0).** Put a time in a task (`@2:30pm`) or use WorkFlowy's date tag with a time, and the board shows a 🔔 badge, pops up when it's due, and can push to your phone through ntfy or Pushover. A 🔔 button on each card sets the time. New **Reminders** section in Settings. See "Reminders" below, including how to set up ntfy and Pushover. New settings: `REMINDER_TZ`, `NTFY_TOPIC`, `NTFY_URL`, `NTFY_TOKEN`, `PUSHOVER_TOKEN`, `PUSHOVER_USER`, `REMINDER_NESTED`, `REMINDER_STATE`.
 - **Peek at Past due / Upcoming.** With a panel switched off, clicking its count at the bottom right shows the panel without changing the setting (press **📌** to keep it on, **✕** or the count to close it).
@@ -21,6 +32,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 |------|--------------|
 | `server.js` | A tiny Node server. It holds your API key, forwards requests to WorkFlowy, and serves the page. Your key never reaches the browser. |
 | `index.html` | The board itself (a single page, no build step, no dependencies). |
+| `addons/` | Optional extras (see `addons/ADDONS.md`). Included: `crypt` (Encryption, see `addons/crypt/README.md`). Delete the folder and the board is the plain board. |
 | `Dockerfile`, `fly.toml`, `.dockerignore` | Only for Option 3 (Fly.io). |
 | `deploy/weekboard.service`, `deploy/weekboard.env.example`, `deploy/Caddyfile` | Only for Option 2 (your own server). |
 
@@ -233,12 +245,12 @@ All settings are environment variables, set the same way as the key above.
   - **Group cards too:** double-click the group's name to rename the bullet in place, or double-click any task inside the group to edit it. Same box and keys as above, formatting kept. A group's name may use two lines and is cut after that; the "2 of 3 open" pill sits under the name, and the calendar icon stays at the top right of the card. Hovering it says "Double-click to rename".
 - Click ✕ to delete (permanent, with a confirmation). If the task has sub-items, the confirmation says how many, because they are deleted too.
 - Drag a task onto another day's column to move it (mouse only; this doesn't work by touch). Its sub-items move with it.
-- **Sub-items:** a task that has lines underneath it shows a small **▸ 3 sub-items** button. Click it to open a checklist right on the card, nested as deep as the items go. Tick a sub-item to complete it. The checklist is for reading and ticking; add, edit, or delete sub-items in WorkFlowy, or in the search item editor.
+- **Sub-items:** a task that has lines underneath it shows a small **▸ 3 sub-items** button. Click it to open a checklist right on the card, nested as deep as the items go. Tick a sub-item to complete it, or click its text to edit it (with its note, and its type: bullet, task or numbered). Numbered sub-items show their numbers. To add or delete sub-items, use WorkFlowy, the Daily page, or the search item editor.
 - **Card buttons:** hover a task to show three small buttons in its top-right corner: 🔔 sets a reminder (see "Reminders"), the calendar icon moves it, and ✕ deletes it.
 - **Move to a date:** hover a task and click the calendar icon for a small menu: Today, Tomorrow, next Monday, or any date (type it or use the date picker). Cancel, Esc, or a click elsewhere closes it. The task moves to the bottom of that day's page, even a day outside the days shown. (Dragging a card onto a day column still works for days on the board.) In Group mode, the calendar icon on a group moves the whole bullet with all its tasks.
 - The day header and add box stay in place while the task list scrolls.
 
-**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day sources) and **Reminders** (popups, browser notifications, push status; see "Reminders" below). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
+**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day sources) and **Reminders** (popups, browser notifications, push status; see "Reminders" below), plus one section for each installed add-on that has settings (the crypt add-on adds **Encryption**). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
 - **Hide completed:** hides checked-off tasks, on the board and in the sidebar's Daily page (a ticked task there is hidden along with anything indented under it; the item editor opened from search still shows everything). Deleting a line with **−** still warns about the lines underneath, hidden or not.
 - **Past due:** adds a panel of open tasks from *before* the days on screen. Choose how far back with **Past due range** just below it in Settings: 1, 2, 3 or 4 weeks, or All (default 2 weeks). The panel's title shows the range, for example **Past due (2 weeks)**, and a small **→ Today** button next to the count opens a preview to move the open ones to today.
 - **Upcoming:** adds a panel of tasks in the 14 days *after* the days on screen. Both panels have a **▾ 3 open** button next to the title: click it to fold the panel up to just its header (it becomes **▸ 3 open**), and click again to open it. Whether each is folded is remembered in your browser.
@@ -264,11 +276,12 @@ Both panels are relative to the view. If you're looking at last week, Past due s
   - **Back and forward:** the **‹** and **›** arrows beside the title step the pane to the previous or next day's page, and the date next to the heading changes. The header stays on one line. When you're away from today the date turns into a link: click it to jump back to today. Everything in the pane works on any day (edit, add, indent, delete, expand and collapse). The add box underneath is part of the same panel and follows the day shown, so stepping back a day and adding a note writes to that day's WB-Notes bullet (see below).
   - **Expand and collapse:** a line that has lines underneath shows **▾** (open) or **▸** (collapsed) at its left. Click it to hide or show those lines. A collapsed line shows how many lines are hidden, for example `(3)`. The same arrows work in the item editor in the search window. Clicking **+** on a collapsed line opens it, and so does indenting a line under it. **This is only remembered in your browser:** WorkFlowy's API can't read or change which bullets are expanded, so collapsing here doesn't collapse anything in WorkFlowy, and the reverse.
   - **Editing a line in place:** click a line's text and it turns into a box right where it is, with the text selected. **Enter** saves, **Esc** cancels, and clicking away saves. A second box underneath holds the line's **note** (the smaller grey text WorkFlowy can show under a bullet). **Shift+Enter** starts a new line in the note, and saving an empty note removes it. A line that has a note shows its first line in small grey type under the title. Only what you changed is saved, and an empty title is ignored.
+  - **Line type:** under the title box are three small buttons, **• Bullet**, **☐ Task** and **1. Numbered**, with the current one highlighted. Pick another and save to change the line's type. Numbered lines show **1.**, **2.**… in the pane and restart after any other line. Headings, quotes and code lines show no buttons and are never changed.
   - **Formatting survives.** WorkFlowy stores bold, italics and links as markup inside the text. The box shows only the words, and on saving, only the words you changed are replaced, so formatting around them stays. Words typed right after a bold word become bold, like in a normal editor. If a line's formatting can't be matched safely, the line is saved as plain text rather than risk garbling it.
   - Hover a line and click **<** to outdent it (offered on every line below the first level): it moves up one level and sits directly below its old parent. Lines that were under the old parent after it stay where they are. Outdenting a direct child of WB-Notes takes it out of the notes bullet and puts it on the day's page, and a todo moved there then shows on the board. If many lines have to be re-ordered to place it (more than 25), it asks first. In the item editor the opened item's own children can't be outdented. Undo puts the line back.
   - Hover a line and click **>** to indent it: it becomes the last child of the line above it and takes its own sub-bullets along. The first line in a group has no **>**, since there's nothing above it to indent under.
   - Hover a line and click **−** to delete it. It asks first, and anything under the line is deleted too (the confirmation says how many lines). The **−** is never offered on the notes bullet (WB-Notes) itself. Inside WB-Notes it only appears on lines that have nothing underneath, so a note with sub-bullets can't be removed in one click (delete its sub-bullets first). Deleting is permanent.
-  - Hover a line and click **+** to add a new line under it (as its last child). The box stays open so you can add several in a row; press Enter to add and Esc to close. **Pasting several lines** into that box adds them all at once, nested by their indent (undo removes them).
+  - Hover a line and click **+** to add a new line under it (as its last child). The box stays open so you can add several in a row; press Enter to add and Esc to close. Above the box, **• Bullet / ☐ Task / 1. Numbered** choose what kind of line is added (remembered in this browser); starting the text with `[] `, `1. ` or `- ` picks the type for that line alone. **Pasting several lines** into that box adds them all at once, nested by their indent, keeping `1.` numbered lines (undo removes them).
 - **Add to WB-Notes:** the one-line box under the Daily page (one panel, one header). Its grey hint says where a line will go, for example **Add to WB-Notes · today**. Everything you add goes into a single bullet on **the day the Daily page is showing** (named **WB-Notes** by default), so your notes stay together. When that day isn't today, the box gets a blue border and the hint names the date, so you don't write to the wrong day by accident.
   - The board finds the WB-Notes bullet by name each day and creates it (at the bottom of the page) if it isn't there yet, so adding again and again just keeps adding to it.
   - Type a line and press **Enter**: it's added at the bottom of WB-Notes right away, and the box stays focused for the next one. `[ ] text` makes a todo (it stays inside WB-Notes, so it isn't on the board).
@@ -316,7 +329,7 @@ A task becomes a reminder in either of two ways:
 - **WorkFlowy's own date tag with a time.** In WorkFlowy type `!!` or `/date` and add a time, for example *Wed, Oct 28, 2026 at 2:30pm*. The reminder fires at that date and time, wherever the task sits. A date with no time is not a reminder.
 - **A time in the task text.** Write `Call dentist @2:30pm`, `Stand-up @9:15` or `Pay rent @17:00`. The reminder is for the day page the task sits on. You can also hover a card, press its 🔔 and pick a time, or **In 30 min** / **In 1 hour**; the board writes the `@time` for you.
 
-The time stays in the task in WorkFlowy, so the board stores nothing extra. A card with a reminder shows a **🔔 2:30 PM** badge (with the date if it differs from the page). For `@time` reminders the badge replaces the `@` text, and clicking it changes or removes the time. A date tag's time is changed in WorkFlowy.
+The time stays in the task in WorkFlowy, so the board stores nothing extra. If part of the task is encrypted (see "Encryption"), keep the `@time` outside the encrypted part so the reminder still works; popups and push messages show the encrypted part as 🔒. A card with a reminder shows a **🔔 2:30 PM** badge (with the date if it differs from the page). For `@time` reminders the badge replaces the `@` text, and clicking it changes or removes the time. A date tag's time is changed in WorkFlowy.
 
 **Popup and browser notification (in the board)**
 
@@ -374,6 +387,19 @@ Set `REMINDER_TZ` on your own server and on Fly, because they run in UTC. On Fly
 - *An error from ntfy or Pushover:* the topic, token or user key is mistyped.
 - *The test works but real reminders come at the wrong time:* `REMINDER_TZ` isn't set on a VPS or Fly server.
 
+## Encryption (optional crypt add-on)
+
+WorkFlowy can read what you store in it, so the included **crypt** add-on lets you encrypt the sensitive parts of a name or note *before* it goes into WorkFlowy. WorkFlowy then holds unreadable `wbenc1.…` text, and only someone with your passphrase can read it. Everything is done in your browser with AES-256-GCM; the passphrase is never saved, never sent to the board's server and never sent to WorkFlowy.
+
+- **In the item editor:** select words and press the **🔒 Encrypt** button (or Ctrl/Cmd+Shift+E), or press it with nothing selected to protect the whole name (`@times`, `#tags` and `@mentions` stay readable, so reminders still work). While you are unlocked, encrypted parts show as `⟦readable⟧` and are encrypted again when you save. The button is **🔓 Unlock** when a line holds encrypted text and you are locked.
+- **Unlock once for the session:** click the **🔒** in the header, type your passphrase and press Enter. The button turns into a green **🔓 Unlocked**. The first time you choose the passphrase (typed twice, with a strength hint); after that one entry is enough, because a small check value is kept in the browser. It locks again after 5 idle minutes (changeable), when you hide the tab, or when you press **Lock now**.
+- **Panel:** the green button opens a panel that encrypts and decrypts any text (this is also how you put encrypted text into a note), locks, and has **Change passphrase…**, which re-encrypts everything already in your outline with a new passphrase after showing you the counts.
+- **Settings > Encryption:** **Enable encryption** (master switch: off hides the header padlock and leaves editors alone), **Encrypt inside the item editor**, and, when that is off, **Show `<<secret>>` instead of the long encrypted text**.
+- **Command line:** `node addons/crypt/cli.js enc "text"` and `dec` work without the board.
+- **What it doesn't hide:** the rest of a name, tags, dates, structure and any unencrypted notes stay readable, and WorkFlowy can still see roughly how long each secret is. Search can't see inside encrypted text. A lost passphrase can't be recovered.
+
+Full details, the safety rules and the token format are in `addons/crypt/README.md`.
+
 ## How it maps to WorkFlowy
 
 - Each column is a day in your WorkFlowy **calendar** (for example `2026-10-23`). Tasks are that day's children.
@@ -382,6 +408,7 @@ Set `REMINDER_TZ` on your own server and on Fly, because they run in UTC. On Fly
 - The board stores nothing itself. Every action is a live call to WorkFlowy.
 - Notes added from the add box go inside the **WB-Notes** bullet on the day the Daily page is showing (today unless you stepped back). Since the board only reads the top level of each day, nothing inside WB-Notes appears on the board, including `[ ]` todos added there. Add tasks that should show on the board with the **+ Add task** box in a day's column.
 - Changes you make in WorkFlowy appear on the board when you reload (↻), change weeks, or toggle an option. There's no live sync.
+- **Line types.** The board reads and sets a line's type (`layoutMode`): `todo` for tasks, `bullets` for plain bullets and `numbered` for numbered lines (WorkFlowy's API documents the other values but accepts `numbered` too). Headings, quotes and code blocks are shown as they are and never changed by the board.
 
 ## Troubleshooting
 
@@ -450,6 +477,7 @@ Other easy changes:
 - The browser can't reach WorkFlowy's full export. Only the server uses it, to build the search copy.
 - **Use a long, unique password** (`openssl rand -base64 24`). It is the only thing between the internet and your outline. There's no second step such as a one-time code, and the lockout is per address, so a very large distributed guessing attack is only limited by the password's strength.
 - **Your outline sits in the host's memory while search is in use,** unencrypted, and is cleared after 10 idle minutes (`IDLE_PURGE_MINUTES`). Use a host you trust. For `fly`, Fly staff and their infrastructure can in principle access a running machine.
+- **Encrypted text stays encrypted in the server's copy.** With the crypt add-on, anything you encrypt is stored in WorkFlowy, and therefore in the search copy, only as `wbenc1.…` text. The server never has the passphrase, so it can't read it, and it masks encrypted text in push reminders. The rest of the outline is still held unencrypted, as described above.
 - It's a single-user app (one WorkFlowy key, one password). Don't share the password.
 - Sessions are kept in memory, so restarting the server signs everyone out. Run one instance only.
 - Keep the server patched (`sudo apt update && sudo apt upgrade`, or let unattended upgrades do it) and update Node.js and the board when new versions come out. On Fly, redeploy now and then to pick up a newer Node image.
@@ -466,5 +494,6 @@ Other easy changes:
 - The whole outline is held in the server's memory while search is in use. That's fine for tens of thousands of items but heavy for very large outlines. It isn't encrypted, so the protection is the idle purge, the login (hosted modes) or localhost-only access (`local`), and your own disk and account security.
 - Calendar day pages (such as 2026-10-23) can show up in results with their date as the path.
 - Dragging a card to another day is remembered by Undo too, but touch screens still can't drag: use the calendar icon or Selector there.
-- Settings, and which lines you've collapsed, are stored in the browser (`localStorage`), so they're per browser.
+- Settings, which lines you've collapsed, the last line type you picked for new lines, and the crypt add-on's switches and check value are stored in the browser (`localStorage`), so they're per browser.
+- The line-type buttons don't appear on board cards, group titles, or on headings, quotes and code lines. A numbered list that starts from a number other than 1 in WorkFlowy shows from 1 on the board.
 - The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. It was tested against a mock of that API, so report anything that behaves differently on a real account.
