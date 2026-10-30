@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="version" content="1.3.0">
+<meta name="notes-name" content="WB-Notes">
+<meta name="theme-color" content="#2f6fed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Week Board">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<title>Week Board</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --col: #ebecf0; --card: #fff; --text: #172b4d; --muted: #6b778c;
+    --accent: #2f6fed; --today: #fff4d6; --border: #dfe1e6; --late: #fde8e8; --ok: #1f8a4c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161a; --col: #1e2126; --card: #2a2e35; --text: #e6e8eb; --muted: #8b95a3;
+            --accent: #6a9bff; --today: #3a3220; --border: #343942; --late: #3b2226; --ok: #54c283; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 16px/1.4 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text);
+         display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+  button { font: inherit; color: inherit; }
+  header { flex: none; padding: calc(10px + env(safe-area-inset-top)) 14px 6px; display: flex; align-items: center; gap: 6px; }
+  header h1 { font-size: 17px; margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header h1 small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+  .ib { flex: none; width: 40px; height: 40px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-size: 18px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+  .ib:active { background: var(--col); }
+  #strip { flex: none; display: grid; grid-template-columns: repeat(var(--cols, 7), 1fr); gap: 5px; padding: 4px 10px 8px; }
+  .dchip { border: 1px solid var(--border); border-radius: 12px; background: var(--col); padding: 6px 0 5px; text-align: center; cursor: pointer; min-width: 0; }
+  .dchip .dw { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .dchip .dn { display: block; font-size: 17px; font-weight: 600; }
+  .dchip .dc { display: block; min-height: 15px; font-size: 11px; color: var(--muted); }
+  .dchip.we { opacity: .75; }
+  .dchip.today { background: var(--today); }
+  .dchip.sel { background: var(--accent); border-color: var(--accent); color: #fff; opacity: 1; }
+  .dchip.sel .dw, .dchip.sel .dc { color: rgba(255,255,255,.85); }
+  #dayhead { flex: none; padding: 2px 14px 6px; display: flex; align-items: baseline; gap: 8px; }
+  #dayhead h2 { margin: 0; font-size: 18px; flex: 1; }
+  #dayhead label { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  #dayhead input { width: 18px; height: 18px; }
+  #err { flex: none; margin: 0 14px 6px; padding: 8px 10px; border-radius: 8px; background: var(--late); font-size: 14px; display: none; }
+  #list { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 10px 12px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+  .card { display: flex; align-items: flex-start; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+  .card.done .t { text-decoration: line-through; color: var(--muted); }
+  .card input[type=checkbox] { flex: none; width: 24px; height: 24px; margin: 1px 0 0; accent-color: var(--accent); }
+  .card .body { flex: 1; min-width: 0; }
+  .card.line { background: transparent; border-style: dashed; }
+  .card .mark { flex: none; width: 24px; text-align: center; color: var(--muted); font-weight: 700; line-height: 1.4; }
+  .card .t.hd { font-weight: 700; }
+  .card .t { word-wrap: break-word; overflow-wrap: anywhere; }
+  .card .n { font-size: 13px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .chip { display: inline-block; margin-top: 6px; padding: 1px 9px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--muted); }
+  #extras { flex: none; display: flex; gap: 8px; padding: 0 10px 6px; }
+  #extras button { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-size: 14px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #extras button b { font-weight: 700; }
+  #extras button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #extras button.hot:not(.on) b { color: #d43b3b; }
+  .sec { display: flex; align-items: baseline; gap: 8px; width: 100%; margin: 10px 0 6px; padding: 4px 4px; border: none; background: none; text-align: left; font-weight: 600; cursor: pointer; }
+  .sec span { font-weight: 400; font-size: 12px; color: var(--muted); }
+  .bulk { display: block; width: 100%; margin: 4px 0 6px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; background: none; color: var(--accent); font-weight: 600; cursor: pointer; }
+  #addhint { flex: 0 0 100%; text-align: left; padding: 2px 4px 0; border: none; background: none; font-size: 13px; color: var(--accent); cursor: pointer; }
+  #addhint[hidden] { display: none; }
+  .srow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--border); font-size: 16px; }
+  .srow small { display: block; color: var(--muted); font-size: 12px; }
+  .srow select { font: inherit; font-size: 15px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+  .srow input[type=checkbox] { flex: none; width: 24px; height: 24px; accent-color: var(--accent); }
+  .grp { margin-bottom: 8px; }
+  .ghrow { display: flex; align-items: center; gap: 4px; }
+  .ghrow .more { margin: 0; flex: none; }
+  .gh { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 6px 6px; border: none; background: none; text-align: left; font-weight: 600; cursor: pointer; }
+  .gh .ar { flex: none; width: 30px; text-align: center; font-size: 26px; line-height: 1; color: var(--accent); transition: transform .15s; }
+  .grp.shut .gh .ar { transform: rotate(-90deg); }
+  .gh .gn { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .gh .gc { flex: none; font-size: 12px; font-weight: 400; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0 8px; }
+  .gbody { margin-left: 10px; padding-left: 8px; border-left: 2px solid var(--border); }
+  .grp.shut .gbody { display: none; }
+  .gadd { width: 100%; margin: 0 0 4px; font: inherit; font-size: 15px; padding: 9px 11px; border: 1px dashed var(--border); border-radius: 10px; background: transparent; color: var(--text); }
+  .gaddrow { display: flex; gap: 6px; align-items: flex-start; }
+  .gaddrow .gadd { flex: 1; min-width: 0; }
+  .gtypewrap { position: relative; flex: none; width: 44px; height: 40px; border: 1px dashed var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--text); }
+  .gtglyph { pointer-events: none; }
+  .gtype { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+  .gtypewrap:focus-within { border-style: solid; border-color: var(--accent); }
+  .gaddbtn { flex: none; height: 40px; padding: 0 14px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .gaddbtn:disabled { background: var(--col); color: var(--muted); cursor: default; }
+  .gadd:focus { outline: none; border-style: solid; border-color: var(--accent); background: var(--card); }
+  .gtag { display: block; font-size: 12px; color: var(--muted); margin-bottom: 1px; overflow-wrap: anywhere; }
+  .more { flex: none; width: 36px; height: 36px; margin: -6px -6px -6px 0; border: none; background: none; font-size: 22px; line-height: 1; color: var(--muted); cursor: pointer; border-radius: 8px; }
+  .more:active { background: var(--col); }
+  .zopen { flex: none; width: 32px; height: 36px; margin: -6px 0 -6px 0; border: none; background: none; font-size: 24px; line-height: 1; color: var(--muted); cursor: pointer; border-radius: 8px; }
+  .zopen:active { background: var(--col); }
+  .zbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+  .zbar button { border: 1px solid var(--border); background: var(--col); color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .zbar .zc { border: none; background: none; padding: 2px 2px; font-weight: 400; font-size: 13px; color: var(--accent); }
+  .zbar .zc.cur { color: var(--text); }
+  .zadd { margin-top: 6px; }
+  #unlockbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 14px 6px; padding: 6px 10px; border-radius: 10px; background: rgba(46,160,67,.14); border: 1px solid rgba(46,160,67,.45); font-size: 13px; }
+  #unlockbar button { border: 1px solid rgba(46,160,67,.6); background: transparent; color: inherit; border-radius: 8px; padding: 3px 10px; font-weight: 600; cursor: pointer; }
+  .dec { border-left: 4px solid #2ea043 !important; }
+  .decmark { margin-right: 4px; }
+  #addbar { flex: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--bg); }
+  #addbar input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); }
+  #addbar input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #addbar button { flex: none; padding: 0 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+  /* bottom sheet */
+  #shade { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; z-index: 20; }
+  #sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--card); border-radius: 16px 16px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); display: none; max-height: 85dvh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.25); }
+  #sheet h3 { margin: 0 0 4px; font-size: 15px; overflow-wrap: anywhere; }
+  #sheet .sub { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .sbtn { display: block; width: 100%; text-align: left; padding: 14px 12px; margin: 0; border: none; border-bottom: 1px solid var(--border); background: none; font-size: 16px; cursor: pointer; }
+  .sbtn:active { background: var(--col); }
+  .sbtn.danger { color: #d43b3b; }
+  .sbtn.cancel { border-bottom: none; color: var(--muted); text-align: center; }
+  #sheet textarea { width: 100%; min-height: 84px; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); resize: vertical; }
+  #toast button { border: none; background: none; color: #9cc0ff; font-weight: 700; font-size: 14px; padding: 2px 4px; cursor: pointer; }
+  #sheet .row { display: flex; gap: 8px; margin-top: 10px; }
+  #sheet .row button { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--col); font-weight: 600; cursor: pointer; }
+  #sheet .row button.go { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #sheet input[type=date], #sheet input[type=time] { width: 100%; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); margin-top: 8px; }
+  #toast { display: none; align-items: center; gap: 12px; position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #172b4d; color: #fff; padding: 9px 14px; border-radius: 999px; font-size: 14px; z-index: 30; display: none; max-width: 90vw; }
+</style>
+</head>
+<body>
+<header>
+  <button class="ib" id="prevW" aria-label="Previous week">‹</button>
+  <h1 id="title">Week Board<small id="range"></small></h1>
+  <button class="ib" id="nextW" aria-label="Next week">›</button>
+  <button class="ib" id="today" aria-label="Go to today" title="Today">⌂</button>
+  <button class="ib" id="reload" aria-label="Refresh">↻</button>
+  <button class="ib" id="menu" aria-label="Menu">⋯</button>
+</header>
+<div id="strip"></div>
+<div id="extras"></div>
+<div id="dayhead"><h2 id="dayname"></h2><label id="doneLabel"><input type="checkbox" id="showDone"> Show done</label></div>
+<div id="err"></div>
+<div id="list"></div>
+<form id="addbar" autocomplete="off">
+  <button type="button" id="addhint" hidden></button>
+  <input id="addin" type="text" placeholder="+ Add task" enterkeyhint="done" aria-label="Add task to this day" autocapitalize="sentences">
+  <button type="submit">Add</button>
+</form>
+<div id="shade"></div>
+<div id="sheet" role="dialog" aria-modal="true"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const API = "/api/v1";
+const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, "0");
+const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const keyToDate = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+const mondayOf = (d) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return new Date(x.getFullYear(), x.getMonth(), x.getDate()); };
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } };
+
+// the week starts on Monday, or on Sunday when Week length is "7 days (Sun–Sat)"
+let weekType = ["5", "7", "7s"].includes(store.get("m.span", "7")) ? store.get("m.span", "7") : "7";
+let span = weekType === "5" ? 5 : 7;
+const startOf = (d) => { if (weekType !== "7s") return mondayOf(d); const x = new Date(d); x.setDate(x.getDate() - x.getDay()); return new Date(x.getFullYear(), x.getMonth(), x.getDate()); };
+let weekStart = startOf(today());
+let sel = key(today());
+let showDone = store.get("m.showDone", "0") === "1";
+let showLate = store.get("m.showLate", "1") === "1", showSoon = store.get("m.showSoon", "1") === "1";
+const cache = {};                       // day key -> tasks, in outline order
+const bullets = {};                     // day key -> bullets/headings of that day (candidates for groups)
+const nest = {};                        // bullet id -> { todos: [...] }
+const sect = {};                        // Inbox heading id -> every child, any type (a heading in the Inbox is a section)
+const allOf = {};                       // list key -> every child of any type (the Inbox shows them all)
+const typeOf = (n) => (n.data && n.data.layoutMode) || "bullets";
+let mine = new Set(); try { mine = new Set(JSON.parse(store.get("m.groups", "[]"))); } catch (e) { /* none */ }   // groups added here, shown even while empty
+const saveMine = () => store.set("m.groups", JSON.stringify([...mine].slice(-200)));
+const NOTES = ((document.querySelector('meta[name="notes-name"]') || {}).content || "WB-Notes").trim().toLowerCase();
+let mode = store.get("m.nested", "group");                // group | flatten | off
+let shut = new Set(); try { shut = new Set(JSON.parse(store.get("m.shut", "[]"))); } catch (e) { /* none */ }
+const saveShut = () => store.set("m.shut", JSON.stringify([...shut]));
+let loadToken = 0;
+let view = "day";                       // day | late | soon | inbox
+let zoom = [];                          // opened bullets, outermost first: { id, name, up, day, from }; empty = the normal board
+const zkids = {};                      // opened item id -> its children, any type
+let inbox = null; try { const v = JSON.parse(store.get("m.inbox", "null")); if (v && v.id) inbox = { id: String(v.id), name: String(v.name || "Inbox") }; } catch (e) { /* none */ }
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+let extrasReady = false, extrasAt = 0;
+const LATE_DAYS = 14, SOON_DAYS = 14;
+const undoStack = [];
+
+/* ---------- sharing settings between devices (optional, per device, off by default) ---------- */
+let sync = store.get("m.sync", "0") === "1";
+let applying = false, pushTimer = 0, syncAt = store.get("m.syncAt", "");
+const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.inbox"]);
+let inboxGone = false;                 // true only after "Remove" on this device, so a device without an Inbox never wipes the shared one
+const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; return o; };
+{ const rawSet = store.set; store.set = (k, v) => { rawSet(k, v); if (sync && !applying && SHARED_KEYS.has(k)) pushShared(); }; }
+function pushShared(now) {
+  clearTimeout(pushTimer);
+  const go = async () => {
+    try {
+      const r = await fetch("/m/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: sharedNow() }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `failed (${r.status})`);
+      syncAt = j.updated || ""; store.set("m.syncAt", syncAt); if (!inbox) inboxGone = false;
+    } catch (e) { toast("Couldn't share settings: " + e.message); }
+  };
+  if (now) return go();
+  pushTimer = setTimeout(go, 600);
+}
+function applyShared(s) {
+  applying = true;
+  try {
+    if (["group", "flatten", "off"].includes(s.nested)) { mode = s.nested; store.set("m.nested", mode); }
+    if (["5", "7", "7s"].includes(s.span)) { weekType = s.span; span = weekType === "5" ? 5 : 7; store.set("m.span", weekType); weekStart = startOf(keyToDate(sel)); }
+    for (const [k, mk] of [["showLate", "m.showLate"], ["showSoon", "m.showSoon"], ["showDone", "m.showDone"]]) {
+      if (typeof s[k] === "boolean") { if (k === "showLate") showLate = s[k]; else if (k === "showSoon") showSoon = s[k]; else showDone = s[k]; store.set(mk, s[k] ? "1" : "0"); }
+    }
+    if (s.inbox === null) { inbox = null; store.set("m.inbox", "null"); }
+    else if (s.inbox && s.inbox.id) { inbox = { id: String(s.inbox.id), name: String(s.inbox.name || "Inbox") }; store.set("m.inbox", JSON.stringify(inbox)); }
+    if ((view === "late" && !showLate) || (view === "soon" && !showSoon) || (view === "inbox" && !inbox)) view = "day";
+    $("showDone").checked = showDone;
+  } finally { applying = false; }
+}
+// Fetch the shared settings; returns { enabled, settings, updated } or null when the server can't be reached.
+async function fetchShared() { try { return await getJson("/m/settings"); } catch (e) { return null; } }
+// Apply the shared settings if they changed since this device last saw them. Returns true when something was applied.
+async function pullShared() {
+  const j = await fetchShared();
+  if (!j || !j.enabled || !j.settings || !j.updated || j.updated === syncAt) return false;
+  applyShared(j.settings); syncAt = j.updated; store.set("m.syncAt", syncAt);
+  return true;
+}
+
+/* ---------- editing formatted text (ported unchanged from the desktop board) ----------
+   Text with tags (a date, a link, bold) is edited as its visible words; the tags stay where they are. */
+const entityCache = {};
+function decodeEntity(e) {
+  return entityCache[e] || (entityCache[e] = new DOMParser().parseFromString(e, "text/html").body.textContent);
+}
+function tokenize(raw) {
+  const out = [];
+  for (const m of String(raw || "").matchAll(/<br\s*\/?>|<[^>]*>|&(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);|[\s\S]/gi)) {
+    const r = m[0];
+    if (/^<br/i.test(r)) out.push({ raw: r, text: "\n" });
+    else if (r.length > 1 && r[0] === "<") out.push({ raw: r, text: "" });
+    else if (r.length > 1 && r[0] === "&") out.push({ raw: r, text: decodeEntity(r) });
+    else out.push({ raw: r, text: r });
+  }
+  return out;
+}
+const visibleText = (raw) => tokenize(raw).map((t) => t.text).join("");
+const escapeMarkup = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function applyEdit(raw, next) {
+  const toks = tokenize(raw);
+  const old = toks.map((t) => t.text).join("");
+  if (old === next) return raw;
+  if (!toks.some((t) => t.raw !== t.text)) return next;
+  let p = 0;
+  while (p < old.length && p < next.length && old[p] === next[p]) p++;
+  let s = 0;
+  while (s < old.length - p && s < next.length - p && old[old.length - 1 - s] === next[next.length - 1 - s]) s++;
+  const delStart = p, delEnd = old.length - s, insert = escapeMarkup(next.slice(p, next.length - s));
+  const pureInsert = delStart === delEnd;
+  let pos = 0, out = "", inserted = false;
+  if (pureInsert && delStart === 0) { out = insert; inserted = true; }   // typing at the very start
+  for (const t of toks) {
+    if (!t.text.length) { out += t.raw; continue; }          // tags stay where they are
+    const a = pos, b = pos + t.text.length;
+    pos = b;
+    if (!pureInsert && !inserted && a >= delStart) { out += insert; inserted = true; }   // replacing: new words go where the old ones were
+    if (a >= delStart && b <= delEnd && !pureInsert) continue;   // a removed character
+    out += t.raw;
+    if (pureInsert && !inserted && b === delStart) { out += insert; inserted = true; }   // typing continues the formatting of the character before
+  }
+  if (!inserted) out += insert;
+  return visibleText(out) === next ? out : escapeMarkup(next);   // safety net: never save something that reads differently
+}
+
+
+/* ---------- text helpers ---------- */
+const plain = (html) => new DOMParser().parseFromString(html || "", "text/html").body.textContent || "";
+const TOKEN = /wbenc1\.[A-Za-z0-9_-]{59,}/g;           // text from the Encryption add-on is shown as a lock
+/* ---------- Encryption: read-only unlock ----------
+   Encrypted text (wbenc1 tokens from the Encryption add-on) shows as a lock. "Unlock encryption" asks for the passphrase and shows the
+   decrypted text between ⟦ ⟧. The passphrase and the decrypted text live in this page's memory only (never stored or sent); Lock, a reload
+   or five minutes away forgets them. Same format as the add-on: wbenc1.<base64url(salt16 | iv12 | ciphertext+tag)>, PBKDF2-SHA256 x 600000, AES-256-GCM. */
+let pass = null, passOk = false, hiddenAt = 0, decDraw = 0, decRunning = false;
+const decCache = new Map(), pendingTok = new Set(), failedTok = new Set();       // token -> text; tokens waiting; tokens that did not open
+const lockLabel = (t) => { if (decCache.has(t)) return "⟦" + decCache.get(t) + "⟧"; if (pass !== null && !failedTok.has(t)) pendingTok.add(t); return "🔒"; };
+const shown = (raw) => plain(raw).replace(TOKEN, lockLabel);
+const showNote = (txt) => String(txt).replace(TOKEN, lockLabel);
+// true when some text of this item was opened by the unlock (so it can be marked)
+const isOpened = (n) => decCache.size > 0 && [n.name, n.note].some((f) => (String(f || "").match(TOKEN) || []).some((t) => decCache.has(t)));
+const unb64 = (str) => { const b = atob(str.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(str.length / 4) * 4, "=")); const o = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) o[i] = b.charCodeAt(i); return o; };
+async function decryptToken(token, passphrase) {
+  const raw = unb64(token.slice(7)), salt = raw.slice(0, 16), iv = raw.slice(16, 28), ct = raw.slice(28);
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase.normalize("NFKC")), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  return new TextDecoder("utf-8", { fatal: true }).decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv, tagLength: 128 }, key, ct));
+}
+function tokensOf(list, set) { for (const n of list || []) for (const f of [n.name, n.note]) { const m = String(f || "").match(TOKEN); if (m) m.forEach((t) => set.add(t)); } }
+function findTokens() {                                    // what the current view shows first, else anything loaded
+  const set = new Set(), k = view === "inbox" && inbox ? inbox.id : sel;
+  if (zoom.length) tokensOf(zkids[zoom[zoom.length - 1].id], set);
+  tokensOf(allOf[k], set); for (const b of bullets[k] || []) { tokensOf((nest[b.id] || {}).todos, set); tokensOf(sect[b.id], set); }
+  if (!set.size) for (const g in allOf) tokensOf(allOf[g], set);
+  return [...set];
+}
+async function runDecrypt() {
+  if (decRunning || pass === null) return; decRunning = true;
+  try {
+    while (pass !== null && pendingTok.size) {
+      const t = pendingTok.values().next().value; pendingTok.delete(t); const p0 = pass;
+      try { const txt = await decryptToken(t, p0); if (pass !== p0) break; decCache.set(t, txt); passOk = true; }
+      catch (e) { if (pass !== p0) break; if (!passOk) { lockCrypto("That passphrase doesn't open this text"); break; } failedTok.add(t); }
+      clearTimeout(decDraw); decDraw = setTimeout(draw, 120);
+    }
+  } finally { decRunning = false; }
+}
+function lockCrypto(msg) { pass = null; passOk = false; decCache.clear(); failedTok.clear(); pendingTok.clear(); draw(); if (msg) toast(msg); }
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") hiddenAt = Date.now();
+  else if (pass !== null && hiddenAt && Date.now() - hiddenAt > 5 * 60000) lockCrypto("Encryption locked after 5 minutes away");
+});
+const TIME_RE = /(^|\s)@(\d{1,2})(?::(\d{2}))?\s?([ap])\.?m\.?(?=$|[\s.,;!?)])|(^|\s)@(\d{1,2}):(\d{2})(?=$|[\s.,;!?)])/i;
+function timeOf(text) {
+  const m = TIME_RE.exec(text || ""); if (!m) return null;
+  let h, mi;
+  if (m[4]) { h = Number(m[2]); mi = Number(m[3] || 0); if (h < 1 || h > 12) return null; h = (h % 12) + (m[4].toLowerCase() === "p" ? 12 : 0); }
+  else { h = Number(m[6]); mi = Number(m[7]); if (h > 23) return null; }
+  if (mi > 59) return null;
+  return { h, mi, token: m[0].trim() };
+}
+const fmtTime = (h, mi) => new Date(2000, 0, 1, h, mi).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+const stripTime = (s) => s.replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
+
+/* ---------- WorkFlowy through the board's proxy ---------- */
+function err(msg) { const e = $("err"); e.textContent = msg || ""; e.style.display = msg ? "block" : "none"; }
+async function call(method, path, body) {
+  const res = await fetch(API + path, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 401) { location.href = "/login"; throw new Error("Signed out. Redirecting to the sign-in page…"); }
+  if (res.status === 404 && method === "GET") return null;          // a day that doesn't exist yet is just empty
+  if (!res.ok) throw new Error(`${method} ${path} failed (${res.status}): ${await res.text()}`);
+  return res.status === 204 ? null : res.json().catch(() => null);
+}
+async function getJson(path) {
+  const res = await fetch(path);
+  if (res.status === 401) { location.href = "/login"; throw new Error("Signed out. Redirecting to the sign-in page…"); }
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || `${path} failed (${res.status})`);
+  return j;
+}
+async function loadDay(k) {
+  const data = await call("GET", `/nodes?parent_id=${k}`);
+  const nodes = data && data.nodes ? data.nodes : [];
+  cache[k] = nodes.filter((n) => n.data && n.data.layoutMode === "todo").sort((a, b) => a.priority - b.priority);
+  allOf[k] = nodes.slice().sort((a, b) => a.priority - b.priority);
+  bullets[k] = nodes.filter((n) => /^(bullets|h[1-3])$/.test((n.data && n.data.layoutMode) || "bullets") && plain(n.name).trim().toLowerCase() !== NOTES).sort((a, b) => a.priority - b.priority);
+}
+async function loadNest(k, force) {
+  if (mode === "off") return;
+  const todo = (bullets[k] || []).filter((b) => force || !nest[b.id]);
+  const queue = [...todo];
+  const worker = async () => {
+    while (queue.length) {
+      const b = queue.shift();
+      try { const d = await call("GET", `/nodes?parent_id=${b.id}`); nest[b.id] = { todos: ((d && d.nodes) || []).filter((n) => n.data && n.data.layoutMode === "todo").sort((x, y) => x.priority - y.priority) }; }
+      catch (e) { nest[b.id] = { todos: [], failed: true }; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+}
+// everything shown for a day, in outline order: its tasks and (unless Groups is off) the tasks under its bullets
+function entriesOf(k) {
+  const out = [];
+  for (const n of cache[k] || []) out.push({ kind: "task", n, p: n.priority, s: 0 });
+  if (mode !== "off") for (const b of bullets[k] || []) {
+    const info = nest[b.id]; if (!info) continue;
+    const vis = info.todos.filter((t) => showDone || !t.completedAt);
+    if (!vis.length && !(mode === "group" && !info.todos.length && mine.has(b.id))) continue;     // a group added here shows while it is empty
+    if (mode === "group") out.push({ kind: "group", b, todos: vis, all: info.todos, p: b.priority, s: 0 });
+    else for (const t of vis) out.push({ kind: "nested", n: t, b, p: b.priority, s: t.priority });
+  }
+  return out.sort((a, b) => a.p - b.p || a.s - b.s);
+}
+function removeNode(id) {
+  for (const k in cache) cache[k] = cache[k].filter((x) => x.id !== id);
+  for (const k in allOf) allOf[k] = allOf[k].filter((x) => x.id !== id);
+  for (const k in bullets) bullets[k] = bullets[k].filter((x) => x.id !== id);
+  for (const h in sect) sect[h] = sect[h].filter((x) => x.id !== id);
+  for (const h in zkids) zkids[h] = zkids[h].filter((x) => x.id !== id);
+  delete nest[id]; delete sect[id]; mine.delete(id);
+  for (const b in nest) nest[b].todos = nest[b].todos.filter((x) => x.id !== id);
+}
+async function loadKeys(keys) {
+  let first = "";
+  const queue = [...keys];
+  const worker = async () => { while (queue.length) { try { await loadDay(queue.shift()); } catch (e) { if (!first) first = e.message; } } };
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+  return first;
+}
+const weekKeys = () => [...Array(span)].map((_, i) => key(addDays(weekStart, i)));
+const lateKeys = () => [...Array(LATE_DAYS)].map((_, i) => key(addDays(today(), i - LATE_DAYS)));      // oldest first
+const soonKeys = () => [...Array(SOON_DAYS)].map((_, i) => key(addDays(today(), i + 1)));
+async function loadWeek(force) {
+  const t = ++loadToken;
+  const e = await loadKeys(weekKeys());
+  if (t !== loadToken) return;
+  err(e); draw();
+  if (mode !== "off") {
+    await loadNest(sel, true); if (t !== loadToken) return; draw();            // the day you're looking at first
+    for (const k of weekKeys()) { if (k !== sel) { await loadNest(k, true); if (t !== loadToken) return; } }
+    draw();
+  }
+  if (inbox) { try { await loadInbox(); if (t === loadToken) draw(); } catch (e) { /* the button shows ? */ } }
+  if (!showLate && !showSoon) return;
+  if (!force && extrasReady && Date.now() - extrasAt < 60000) return;
+  const wk = new Set(weekKeys()), need = [...(showLate ? lateKeys() : []), ...(showSoon ? soonKeys() : [])].filter((k) => !wk.has(k));
+  const e2 = await loadKeys(need); if (t !== loadToken) return;
+  if (mode !== "off") { for (const k of need) { await loadNest(k, true); if (t !== loadToken) return; } }
+  if (e2 && !e) err(e2);
+  extrasReady = true; extrasAt = Date.now(); draw();
+}
+const isHead = (n) => /^h[1-3]$/.test(typeOf(n));
+// every child of each heading in the Inbox, whatever its type
+async function loadSections() {
+  if (!inbox) return;
+  const hs = (bullets[inbox.id] || []).filter(isHead), keep = new Set(hs.map((h) => h.id));
+  for (const h in sect) if (!keep.has(h)) delete sect[h];
+  const queue = [...hs];
+  const worker = async () => { while (queue.length) { const h = queue.shift(); try { const d = await call("GET", `/nodes?parent_id=${h.id}`); sect[h.id] = ((d && d.nodes) || []).sort((x, y) => x.priority - y.priority); } catch (e) { if (!sect[h.id]) sect[h.id] = []; } } };
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+}
+async function loadInbox() { await loadDay(inbox.id); if (mode !== "off") await loadNest(inbox.id, true); await loadSections(); }
+// where a task sits: its day, or a bullet under a day
+function whereIs(id) {
+  for (const k in cache) if (cache[k].some((x) => x.id === id)) return { pid: k, day: k };
+  for (const b in nest) if (nest[b].todos.some((x) => x.id === id)) { for (const k in bullets) if (bullets[k].some((x) => x.id === b)) return { pid: b, day: k }; return { pid: b, day: null }; }
+  for (const k in allOf) if (allOf[k].some((x) => x.id === id)) return { pid: k, day: k };          // bullets, headings and numbered lines
+  for (const h in sect) if (sect[h].some((x) => x.id === id)) return { pid: h, day: inbox ? inbox.id : null };   // inside an Inbox section
+  return null;
+}
+async function reloadDays(keys) {
+  await loadKeys([...new Set(keys.filter(Boolean))]);
+  if (mode !== "off") for (const k of new Set(keys.filter(Boolean))) await loadNest(k, true);
+  if (inbox && keys.includes(inbox.id)) await loadSections();
+  if (zoom.length) await loadZoom();
+  draw();
+}
+const dayText = (k) => keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+/* ---------- drawing ---------- */
+const openCount = (k) => (cache[k] || []).filter((n) => !n.completedAt).length +
+  (mode === "off" ? 0 : (bullets[k] || []).reduce((a, b) => a + ((nest[b.id] && nest[b.id].todos) || []).filter((n) => !n.completedAt).length, 0));
+function draw() { drawView(); updateUnlockBar(); if (pass !== null && pendingTok.size) runDecrypt(); }
+// a line above the list while unlocked: how many items on screen were opened, and a Lock button
+function updateUnlockBar() {
+  let bar = $("unlockbar");
+  if (pass === null) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement("div"); bar.id = "unlockbar";
+    const t = document.createElement("span"); t.id = "unlockText";
+    const b = document.createElement("button"); b.type = "button"; b.textContent = "Lock"; b.onclick = () => lockCrypto("Locked");
+    bar.append(t, b); $("list").parentNode.insertBefore(bar, $("list"));
+  }
+  const n = document.querySelectorAll("#list .dec").length;
+  $("unlockText").textContent = "🔓 Unlocked · " + (n === 1 ? "1 item" : n + " items") + " opened here";
+}
+function drawView() {
+  const wk = weekKeys();
+  if (!wk.includes(sel)) sel = wk[0];
+  drawExtras();
+  $("strip").style.setProperty("--cols", span);
+  const a = weekStart, b = addDays(weekStart, span - 1);
+  $("range").textContent = `${a.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${b.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  const strip = $("strip"); strip.textContent = "";
+  const tk = key(today());
+  wk.forEach((k, i) => {
+    const d = keyToDate(k), c = openCount(k);
+    const el = document.createElement("button");
+    el.type = "button"; el.className = "dchip" + (view === "day" && k === sel ? " sel" : "") + (k === tk ? " today" : "") + ([0, 6].includes(d.getDay()) ? " we" : "");
+    el.setAttribute("aria-label", d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) + `, ${c} open`);
+    el.innerHTML = '<span class="dw"></span><span class="dn"></span><span class="dc"></span>';
+    el.children[0].textContent = d.toLocaleDateString(undefined, { weekday: "short" });
+    el.children[1].textContent = d.getDate();
+    el.children[2].textContent = c ? `● ${c}` : "";
+    el.onclick = () => { view = "day"; sel = k; draw(); loadNest(k).then(draw); };
+    strip.appendChild(el);
+  });
+  $("strip").style.display = zoom.length ? "none" : ""; if (zoom.length) $("extras").style.display = "none";
+  $("addbar").style.display = !zoom.length && (view === "day" || view === "inbox") ? "flex" : "none";
+  $("addin").placeholder = view === "inbox" ? "+ Add to " + inbox.name : "+ Add task";
+  $("doneLabel").style.display = view === "day" && !zoom.length ? "" : "none";
+  const list = $("list"), keep = list.scrollTop; list.textContent = "";
+  if (zoom.length) { drawZoom(list); return; }
+  if (view === "inbox") { $("dayname").textContent = inbox.name; drawInboxList(list); return; }
+  if (view !== "day") { $("dayname").textContent = view === "late" ? "Past due" : "Upcoming"; drawExtraList(list); return; }
+  $("dayname").textContent = keyToDate(sel).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) + (sel === tk ? " · Today" : "");
+  $("showDone").checked = showDone;
+  if (!(sel in cache)) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
+  const ents = entriesOf(sel).filter((e) => e.kind !== "task" || showDone || !e.n.completedAt);
+  if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = (cache[sel] || []).length || openCount(sel) ? "All done 🎉" : "Nothing yet"; list.appendChild(m); }
+  for (const e of ents) list.appendChild(e.kind === "group" ? groupEl(e) : cardEl(e.n, e.kind === "nested" ? e.b : null));
+  list.scrollTop = keep;
+}
+// open tasks (top level and under bullets) of the given days, oldest first, with where each one sits
+function openIn(keys) {
+  const out = [];
+  for (const k of keys) for (const e of entriesOf(k)) {
+    if (e.kind === "group") { for (const t of e.all) if (!t.completedAt) out.push({ n: t, k, b: e.b }); }
+    else if (!e.n.completedAt) out.push({ n: e.n, k, b: e.b });
+  }
+  return out;
+}
+function drawExtras() {
+  const box = $("extras"); box.textContent = "";
+  const mk = (v, label, items) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = (view === v ? "on" : "") + (v === "late" && items.length ? " hot" : "");
+    const c = document.createElement("b"); c.textContent = extrasReady ? String(items.length) : "…";
+    b.append(label + " ", c);
+    b.onclick = () => { view = view === v ? "day" : v; draw(); };
+    box.appendChild(b);
+  };
+  if (view === "late" && !showLate) view = "day";
+  if (view === "soon" && !showSoon) view = "day";
+  if (view === "inbox" && !inbox) view = "day";
+  box.style.display = showLate || showSoon || inbox ? "" : "none";
+  if (showLate) mk("late", "Past due", openIn(lateKeys()));
+  if (showSoon) mk("soon", "Upcoming", openIn(soonKeys()));
+  if (inbox) {
+    const b = document.createElement("button"); b.type = "button"; b.className = view === "inbox" ? "on" : "";
+    const c = document.createElement("b"); c.textContent = inbox.id in allOf ? String(inboxCount()) : "…";
+    b.append("📥 " + (inbox.name.length > 12 ? inbox.name.slice(0, 11) + "… " : inbox.name + " "), c);
+    b.onclick = () => { view = view === "inbox" ? "day" : "inbox"; draw(); if (view === "inbox") loadInbox().then(draw).catch((e) => err(e.message)); };
+    box.appendChild(b);
+  }
+}
+// Everything in the Inbox, in outline order: tasks, groups (a bullet or heading holding tasks) and plain lines (bullets, headings, numbered)
+function inboxEntries() {
+  const out = []; let num = 0;
+  for (const n of (inbox && allOf[inbox.id]) || []) {
+    const t = typeOf(n);
+    if (t === "numbered") { num++; n._num = num; } else num = 0;
+    if (t === "todo") { if (!n.completedAt) out.push({ kind: "task", n }); continue; }
+    if (isHead(n)) { out.push({ kind: "section", b: n, items: sect[n.id] || null }); continue; }                // a heading holds anything
+    const info = /^(bullets|h[1-3])$/.test(t) && mode !== "off" ? nest[n.id] : null;
+    if (info && mode === "flatten") { for (const x of info.todos) if (!x.completedAt) out.push({ kind: "nested", n: x, b: n }); continue; }
+    if (info && mode === "group" && (info.todos.length ? info.todos.some((x) => showDone || !x.completedAt) : mine.has(n.id))) {
+      out.push({ kind: "group", b: n, todos: info.todos.filter((x) => showDone || !x.completedAt), all: info.todos }); continue;
+    }
+    out.push({ kind: "line", n });
+  }
+  return out;
+}
+const inboxTasks = () => inboxEntries().flatMap((e) => e.kind === "task" || e.kind === "nested" ? [{ n: e.n, k: inbox.id }] : e.kind === "group" ? e.all.filter((x) => !x.completedAt).map((n) => ({ n, k: inbox.id })) : e.kind === "section" ? (e.items || []).filter((x) => typeOf(x) === "todo" && !x.completedAt).map((n) => ({ n, k: inbox.id })) : []);
+const sectionShown = (e) => (e.items || []).filter((x) => typeOf(x) !== "todo" || showDone || !x.completedAt);
+const inboxCount = () => inboxEntries().reduce((a, e) => a + (e.kind === "group" ? e.all.filter((x) => !x.completedAt).length : e.kind === "section" ? sectionShown(e).length : 1), 0);
+function drawInboxList(list) {
+  if (!(inbox.id in allOf)) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
+  const ents = inboxEntries(), tasks = inboxTasks();
+  if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Your " + inbox.name + " is empty 🎉"; list.appendChild(m); return; }
+  if (tasks.length > 1) { const bulk = document.createElement("button"); bulk.type = "button"; bulk.className = "bulk"; bulk.textContent = `Move all ${tasks.length} tasks to today…`; bulk.onclick = () => openBulk(tasks); list.appendChild(bulk); }
+  for (const e of ents) list.appendChild(e.kind === "group" ? groupEl(e) : e.kind === "section" ? sectionEl(e) : cardEl(e.n, e.kind === "nested" ? e.b : null));
+}
+function drawExtraList(list) {
+  const keys = view === "late" ? lateKeys() : soonKeys();
+  if (!extrasReady) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
+  const items = openIn(keys);
+  if (!items.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = view === "late" ? "Nothing past due 🎉" : "Nothing coming up in the next two weeks"; list.appendChild(m); return; }
+  if (view === "late") {
+    const bulk = document.createElement("button"); bulk.type = "button"; bulk.className = "bulk"; bulk.textContent = `Move all ${items.length} to today…`;
+    bulk.onclick = () => openBulk(items); list.appendChild(bulk);
+  }
+  const tk = key(today());
+  for (const k of keys) {
+    const here = items.filter((x) => x.k === k); if (!here.length) continue;
+    const h = document.createElement("button"); h.type = "button"; h.className = "sec";
+    const diff = Math.round((keyToDate(k) - keyToDate(tk)) / 86400000);
+    h.textContent = dayText(k) + " "; const sp = document.createElement("span"); sp.textContent = diff < 0 ? `${-diff} day${diff === -1 ? "" : "s"} ago` : diff === 1 ? "tomorrow" : `in ${diff} days`; h.appendChild(sp);
+    h.onclick = () => { view = "day"; weekStart = startOf(keyToDate(k)); sel = k; draw(); loadWeek(); };
+    list.appendChild(h);
+    for (const x of here) list.appendChild(cardEl(x.n, x.b));
+  }
+}
+function openBulk(items) {
+  openSheet((s) => {
+    head(s, `Move ${items.length} task${items.length === 1 ? "" : "s"} to today?`, "Everything shown under Past due goes to the end of today's list.");
+    sbtn(s, "Move to today", async () => {
+      closeSheet(); const tk = key(today()), moved = [];
+      try {
+        for (const x of items) { const from = whereIs(x.n.id); await call("POST", `/nodes/${x.n.id}/move`, { parent_id: tk, position: "bottom" }); moved.push({ id: x.n.id, from: from ? from.pid : x.k }); }
+        err("");
+      } catch (e) { err(e.message); }
+      const days = [...new Set([tk, ...items.map((x) => x.k)])];
+      if (moved.length) pushUndo(`Moved ${moved.length} to today`, async () => { for (const m of moved) await call("POST", `/nodes/${m.id}/move`, { parent_id: m.from, position: "bottom" }); await reloadDays(days); });
+      await reloadDays(days);
+    });
+    sbtn(s, "Cancel", closeSheet, "cancel");
+  });
+}
+// After a background reload: redraw, but never wipe an add box you have started typing in, and keep the cursor in it
+function redrawKeepingAdd() {
+  const cur = document.activeElement, isAdd = !!(cur && cur.classList && cur.classList.contains("gadd"));
+  if (isAdd && cur.value) return;                              // the data is already updated; the next redraw shows it
+  const grp = isAdd ? cur.closest(".grp") : null, gid = grp ? grp.dataset.id : "";
+  draw();
+  if (gid) { const again = document.querySelector(`.grp[data-id="${gid}"] .gadd`); if (again) again.focus(); }
+}
+// The row under a group or section: [type] [text] [Add]. Enter and the Add button do the same; submit(name, kind) does the saving.
+function addRowEl(placeholder, label, withType, submit) {
+  const row = document.createElement("div"); row.className = "gaddrow";
+  let ty = null;
+  if (withType) {
+    const G = { todo: "☐", bullets: "•", numbered: "1." };
+    const wrap = document.createElement("span"); wrap.className = "gtypewrap";
+    const glyph = document.createElement("span"); glyph.className = "gtglyph"; glyph.setAttribute("aria-hidden", "true");
+    ty = document.createElement("select"); ty.className = "gtype"; ty.setAttribute("aria-label", "Type of the new item");
+    for (const [v, l] of [["todo", "☐ Task"], ["bullets", "• Bullet"], ["numbered", "1. Numbered"]]) { const o = document.createElement("option"); o.value = v; o.textContent = l; ty.appendChild(o); }
+    { const last = store.get("m.addType", "todo"); ty.value = G[last] ? last : "todo"; }
+    glyph.textContent = G[ty.value];
+    ty.onchange = () => { store.set("m.addType", ty.value); glyph.textContent = G[ty.value]; };
+    wrap.append(glyph, ty); row.appendChild(wrap);
+  }
+  const add = document.createElement("input"); add.type = "text"; add.className = "gadd"; add.placeholder = placeholder; add.enterKeyHint = "done"; add.setAttribute("aria-label", label);
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "gaddbtn"; btn.textContent = "Add"; btn.disabled = true;
+  add.oninput = () => { btn.disabled = !add.value.trim(); };
+  const go = async () => {
+    const name = add.value.trim(); if (!name) return;
+    add.disabled = btn.disabled = true; if (ty) ty.disabled = true;
+    try { await submit(name, ty ? ty.value : "todo"); }
+    catch (x) { err(x.message); add.disabled = false; btn.disabled = !add.value.trim(); if (ty) ty.disabled = false; }
+  };
+  add.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); go(); } };
+  btn.onclick = go;
+  row.append(add, btn);
+  return row;
+}
+function groupEl(e) {
+  const g = document.createElement("div"); g.className = "grp" + (shut.has(e.b.id) ? " shut" : "");
+  const hr = document.createElement("div"); hr.className = "ghrow";
+  const h = document.createElement("button"); h.type = "button"; h.className = "gh";
+  const gm = document.createElement("button"); gm.type = "button"; gm.className = "more"; gm.textContent = "⋯"; gm.setAttribute("aria-label", "Group options"); gm.onclick = () => openGroupMenu(e.b);
+  hr.append(h, openBtn(e.b), gm);
+  const open = e.all.filter((t) => !t.completedAt).length;
+  h.innerHTML = '<span class="ar">▾</span><span class="gn"></span><span class="gc"></span>';
+  h.children[1].textContent = (isOpened(e.b) ? "🔓 " : "") + (shown(e.b.name) || "(untitled)"); h.children[2].textContent = open + " open";
+  if (isOpened(e.b)) hr.classList.add("dec");
+  h.setAttribute("aria-expanded", shut.has(e.b.id) ? "false" : "true");
+  h.onclick = () => { g.classList.toggle("shut"); if (g.classList.contains("shut")) shut.add(e.b.id); else shut.delete(e.b.id); saveShut(); h.setAttribute("aria-expanded", String(!g.classList.contains("shut"))); };
+  const body = document.createElement("div"); body.className = "gbody";
+  for (const t of e.todos) body.appendChild(cardEl(t));
+  body.appendChild(addRowEl("+ Add task", "Add task to " + shown(e.b.name), false, async (name) => {
+    const res = await call("POST", "/nodes", { parent_id: e.b.id, name, layoutMode: "todo", position: "bottom" });
+    const id = res && (res.item_id || res.id || (res.node && res.node.id));
+    (nest[e.b.id] = nest[e.b.id] || { todos: [] }).todos.push({ id: id || "tmp" + Date.now(), name, note: "", priority: 1e9, completedAt: null, data: { layoutMode: "todo" } });
+    err(""); draw(); const again = document.querySelector(`.grp[data-id="${e.b.id}"] .gadd`); if (again) again.focus();
+    loadNest(sel, true).then(redrawKeepingAdd).catch(() => {});
+  })); g.dataset.id = e.b.id;
+  g.append(hr, body);
+  return g;
+}
+// An Inbox heading: a section that holds tasks, bullets and numbered lines
+function sectionEl(e) {
+  const b = e.b, g = document.createElement("div"); g.className = "grp isec" + (shut.has(b.id) ? " shut" : ""); g.dataset.id = b.id;
+  const hr = document.createElement("div"); hr.className = "ghrow";
+  const h = document.createElement("button"); h.type = "button"; h.className = "gh";
+  const gm = document.createElement("button"); gm.type = "button"; gm.className = "more"; gm.textContent = "⋯"; gm.setAttribute("aria-label", "Section options"); gm.onclick = () => openSectionMenu(b);
+  hr.append(h, openBtn(b), gm);
+  const items = e.items ? sectionShown(e) : [];
+  h.innerHTML = '<span class="ar">▾</span><span class="gn"></span><span class="gc"></span>';
+  h.children[1].textContent = (isOpened(b) ? "🔓 " : "") + (shown(b.name) || "(untitled)"); h.children[1].style.fontWeight = "700";
+  if (isOpened(b)) hr.classList.add("dec");
+  h.children[2].textContent = e.items ? items.length + (items.length === 1 ? " item" : " items") : "…";
+  h.setAttribute("aria-expanded", shut.has(b.id) ? "false" : "true");
+  h.onclick = () => { g.classList.toggle("shut"); if (g.classList.contains("shut")) shut.add(b.id); else shut.delete(b.id); saveShut(); h.setAttribute("aria-expanded", String(!g.classList.contains("shut"))); };
+  const body = document.createElement("div"); body.className = "gbody";
+  let num = 0;
+  for (const c of items) { if (typeOf(c) === "numbered") { num++; c._num = num; } else num = 0; body.appendChild(cardEl(c)); }
+  body.appendChild(addRowEl("+ Add item", "Add an item to " + shown(b.name), true, async (name, kind) => {
+    const req = { parent_id: b.id, name, position: "bottom" }; if (kind !== "bullets") req.layoutMode = kind;
+    const res = await call("POST", "/nodes", req);
+    const id = res && (res.item_id || res.id || (res.node && res.node.id));
+    const node = { id: id || "tmp" + Date.now(), name, note: "", priority: 1e9, completedAt: null, data: { layoutMode: kind } };
+    (sect[b.id] = sect[b.id] || []).push(node); if (kind === "todo" && nest[b.id]) nest[b.id].todos.push(node);
+    err(""); draw(); const again = document.querySelector(`.grp[data-id="${b.id}"] .gadd`); if (again) again.focus();
+    loadSections().then(redrawKeepingAdd).catch(() => {});
+  }));
+  g.append(hr, body);
+  return g;
+}
+// encrypted text is edited on the desktop page, so it is not offered here
+function plainEditable(n) { const ok = !TOKEN.test(n.name || ""); TOKEN.lastIndex = 0; return ok; }
+function openSectionMenu(b) {
+  const w = groupWhere(b.id), tk = key(today()), cnt = (sect[b.id] || []).length;
+  openSheet((s) => {
+    head(s, shown(b.name) || "(untitled)", `A section. Its ${cnt} item${cnt === 1 ? "" : "s"} move with it.`);
+    sbtn(s, "› Open", () => zoomInto(b));
+    if (plainEditable(b)) sbtn(s, "✎ Rename…", () => openEdit(b));
+    sbtn(s, "⇡ Move section to top", () => groupToTop(b));
+    if (w && w.day !== tk) sbtn(s, "↦ Move section to today", () => moveGroup(b, tk));
+    sbtn(s, "→ Move section to another day…", () => openMoveGroup(b));
+    sbtn(s, "⇄ Change type…", () => openType(b));
+    if (!cnt) sbtn(s, "🗑 Delete section", () => openDelete(b), "danger");
+    sbtn(s, "Close", closeSheet, "cancel");
+  });
+}
+function cardEl(n, bullet, inZoom) {
+  const ty = typeOf(n), isTask = ty === "todo";
+  const el = document.createElement("div"); el.className = "card" + (n.completedAt ? " done" : "") + (isTask ? "" : " line"); el.dataset.id = n.id;
+  const mk = document.createElement("span"); mk.className = "mark"; mk.setAttribute("aria-hidden", "true");
+  mk.textContent = ty === "numbered" ? (n._num || 1) + "." : /^h[1-3]$/.test(ty) ? "H" : "•";
+  const cb =document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.setAttribute("aria-label", "Done");
+  cb.onchange = async () => {
+    const done = cb.checked; cb.disabled = true;
+    try {
+      await call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`); n.completedAt = done ? Math.floor(Date.now() / 1000) : null; err("");
+      pushUndo(`${done ? "Completed" : "Reopened"} “${shortText(n)}”`, async () => { await call("POST", `/nodes/${n.id}/${done ? "uncomplete" : "complete"}`); n.completedAt = done ? null : Math.floor(Date.now() / 1000); });
+    }
+    catch (e) { err(e.message); cb.checked = !done; }
+    draw();
+  };
+  const body = document.createElement("div"); body.className = "body";
+  const tm = timeOf(plain(n.name));
+  if (bullet) { const gt = document.createElement("span"); gt.className = "gtag"; gt.textContent = "▸ " + (shown(bullet.name) || "(untitled)"); body.appendChild(gt); }
+  const t = document.createElement("div"); t.className = "t" + (/^h[1-3]$/.test(ty) ? " hd" : ""); t.textContent = shown(tm && isTask ? stripTime(plain(n.name)) : n.name) || "(empty)";
+  if (isOpened(n)) { el.classList.add("dec"); const dm = document.createElement("span"); dm.className = "decmark"; dm.setAttribute("aria-label", "Decrypted"); dm.textContent = "🔓"; t.prepend(dm); }
+  body.appendChild(t);
+  const note = plain(n.note || "").trim();
+  if (note) { const nn = document.createElement("div"); nn.className = "n"; nn.textContent = showNote(note); body.appendChild(nn); }
+  if (tm && isTask) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "🔔 " + fmtTime(tm.h, tm.mi); body.appendChild(c); }
+  const menu = inZoom ? openZoomMenu : openMenu;
+  body.onclick = () => menu(n);
+  const more = document.createElement("button"); more.type = "button"; more.className = "more"; more.textContent = "⋯"; more.setAttribute("aria-label", "Task options");
+  more.onclick = () => menu(n);
+  el.append(isTask ? cb : mk, body);
+  if (!isTask) el.appendChild(openBtn(n));
+  el.appendChild(more);
+  return el;
+}
+
+/* ---------- zoom: open a bullet, heading or group to see and edit everything under it ---------- */
+const zoomTop = () => zoom[zoom.length - 1];
+function openBtn(n) {
+  const b = document.createElement("button"); b.type = "button"; b.className = "zopen"; b.textContent = "›";
+  b.setAttribute("aria-label", "Open " + (shown(n.name) || "item")); b.onclick = (ev) => { ev.stopPropagation(); zoomInto(n); };
+  return b;
+}
+async function loadZoom() {
+  if (!zoom.length) return;
+  const t = zoomTop();
+  try { const d = await call("GET", `/nodes?parent_id=${t.id}`); zkids[t.id] = ((d && d.nodes) || []).sort((x, y) => x.priority - y.priority); }
+  catch (e) { err(e.message); if (!zkids[t.id]) zkids[t.id] = []; }
+}
+async function zoomInto(n) {
+  closeSheet();
+  if (!zoom.length) {
+    const w = whereIs(n.id) || groupWhere(n.id);
+    zoom.push({ id: n.id, name: n.name, up: w ? w.pid : null, day: w ? w.day : null, from: w && inbox && w.day === inbox.id ? inbox.name : w && ISO_DAY.test(w.day || "") ? dayText(w.day) : "Board" });
+  } else zoom.push({ id: n.id, name: n.name });
+  delete zkids[n.id]; draw(); $("list").scrollTop = 0;
+  await loadZoom(); draw();
+}
+// one level back (or out of the zoom); the list it came from is read again, since things may have changed
+function zoomTo(depth) {
+  const root = zoom[0], leaving = depth === 0;
+  zoom = zoom.slice(0, depth); closeSheet(); err(""); draw();
+  if (leaving) { if (root && root.day) reloadDays([root.day]); else loadWeek(true); }
+  else loadZoom().then(draw);
+}
+const zoomParent = () => (zoom.length > 1 ? zoom[zoom.length - 2].id : zoom[0].up);
+function drawZoom(list) {
+  const top = zoomTop();
+  $("dayname").textContent = shown(top.name) || "(untitled)";
+  const bar = document.createElement("div"); bar.className = "zbar";
+  const back = document.createElement("button"); back.type = "button"; back.textContent = "‹ Back"; back.setAttribute("aria-label", "Back"); back.onclick = () => zoomTo(zoom.length - 1);
+  bar.appendChild(back);
+  const crumb = (label, depth, cur) => { const c = document.createElement("button"); c.type = "button"; c.className = "zc" + (cur ? " cur" : ""); c.textContent = label; if (!cur) c.onclick = () => zoomTo(depth); bar.appendChild(c); };
+  crumb(zoom[0].from, 0, false);
+  zoom.forEach((z, i) => { const sep = document.createElement("span"); sep.textContent = "›"; bar.appendChild(sep); const nm = shown(z.name) || "(untitled)"; crumb(nm.length > 18 ? nm.slice(0, 17) + "…" : nm, i + 1, i === zoom.length - 1); });
+  list.appendChild(bar);
+  const kids = zkids[top.id];
+  if (!kids) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
+  if (!kids.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Nothing under this yet"; list.appendChild(m); }
+  let num = 0;
+  for (const c of kids) { if (typeOf(c) === "numbered") { num++; c._num = num; } else num = 0; list.appendChild(cardEl(c, null, true)); }
+  const wrap = document.createElement("div"); wrap.className = "zadd";
+  wrap.appendChild(addRowEl("+ Add item", "Add an item to " + (shown(top.name) || "this item"), true, async (name, kind) => {
+    const req = { parent_id: top.id, name, position: "bottom" }; if (kind !== "bullets") req.layoutMode = kind;
+    const res = await call("POST", "/nodes", req);
+    const id = res && (res.item_id || res.id || (res.node && res.node.id));
+    (zkids[top.id] = zkids[top.id] || []).push({ id: id || "tmp" + Date.now(), name, note: "", priority: 1e9, completedAt: null, data: { layoutMode: kind } });
+    err(""); draw(); focusZoomAdd();
+    loadZoom().then(zoomRedraw).catch(() => {});
+  }));
+  list.appendChild(wrap);
+}
+function focusZoomAdd() { const a = document.querySelector("#list .zadd .gadd"); if (a) a.focus(); }
+function zoomRedraw() {
+  const cur = document.activeElement, isAdd = !!(cur && cur.classList && cur.classList.contains("gadd"));
+  if (isAdd && cur.value) return;
+  draw(); if (isAdd) focusZoomAdd();
+}
+async function zoomMove(n, dest, what) {
+  closeSheet();
+  const top = zoomTop();
+  const keys = [inbox && dest === inbox.id ? dest : null, ISO_DAY.test(dest) ? dest : null];
+  try {
+    await call("POST", `/nodes/${n.id}/move`, { parent_id: dest, position: "bottom" });
+    err(""); await reloadDays(keys);
+    pushUndo(`Moved “${shortText(n)}” ${what}`, async () => { await call("POST", `/nodes/${n.id}/move`, { parent_id: top.id, position: "bottom" }); await reloadDays(keys); });
+  } catch (e) { err(e.message); }
+}
+function openZoomMenu(n) {
+  const isTask = typeOf(n) === "todo", top = zoomTop(), up = zoomParent();
+  openSheet((s) => {
+    head(s, shown(n.name) || "(empty)");
+    if (plainEditable(n)) {
+      sbtn(s, "✎ Edit", () => openEdit(n));
+      if (isTask) sbtn(s, timeOf(plain(n.name)) ? "⏰ Change reminder…" : "⏰ Set reminder…", () => openReminder(n));
+    } else { const p = document.createElement("div"); p.className = "sub"; p.textContent = "Encrypted text can only be edited on the desktop page."; s.appendChild(p); }
+    sbtn(s, "› Open", () => zoomInto(n));
+    if (up) sbtn(s, "⇤ Out one level", () => zoomMove(n, up, "out one level"));
+    const targets = (zkids[top.id] || []).filter((b) => b.id !== n.id && /^(bullets|h[1-3])$/.test(typeOf(b)));
+    if (targets.length) sbtn(s, "⇥ Move under…", () => openSheet((s2) => {
+      head(s2, "Move under…", shown(n.name));
+      for (const b of targets) sbtn(s2, "▸ " + (shown(b.name) || "(untitled)"), () => zoomMove(n, b.id, `to “${shortText(b)}”`));
+      sbtn(s2, "Cancel", closeSheet, "cancel");
+    }));
+    if (inbox && top.id !== inbox.id) sbtn(s, "📥 Move to " + inbox.name, () => zoomMove(n, inbox.id, "to " + inbox.name));
+    sbtn(s, "⇄ Change type…", () => openType(n));
+    sbtn(s, "🗑 Delete", () => openDelete(n), "danger");
+    sbtn(s, "Close", closeSheet, "cancel");
+  });
+}
+
+/* ---------- bottom sheet ---------- */
+function openSheet(build) {
+  $("toast").style.display = "none";                       // the toast would sit on top of the sheet's buttons
+  const s = $("sheet"); s.textContent = ""; build(s);
+  s.style.display = "block"; $("shade").style.display = "block";
+}
+function closeSheet() { $("sheet").style.display = "none"; $("shade").style.display = "none"; $("sheet").textContent = ""; }
+$("shade").onclick = closeSheet;
+function sbtn(parent, text, fn, cls) { const b = document.createElement("button"); b.type = "button"; b.className = "sbtn " + (cls || ""); b.textContent = text; b.onclick = fn; parent.appendChild(b); return b; }
+function head(parent, title, sub) {
+  const h = document.createElement("h3"); h.textContent = title; parent.appendChild(h);
+  if (sub) { const p = document.createElement("div"); p.className = "sub"; p.textContent = sub; parent.appendChild(p); }
+}
+let toastTimer = 0;
+function toast(msg, undoable) {
+  const t = $("toast"); t.textContent = "";
+  const m = document.createElement("span"); m.textContent = msg; t.appendChild(m);
+  if (undoable) { const b = document.createElement("button"); b.type = "button"; b.textContent = "Undo"; b.onclick = doUndo; t.appendChild(b); }
+  t.style.display = "flex"; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = "none"; }, undoable ? 7000 : 2600);
+}
+function pushUndo(label, run) { undoStack.push({ label, run }); if (undoStack.length > 20) undoStack.shift(); toast(label, true); }
+async function doUndo() {
+  const u = undoStack.pop(); $("toast").style.display = "none";
+  if (!u) { toast("Nothing to undo"); return; }
+  try { await u.run(); err(""); draw(); toast("Undone: " + u.label); } catch (e) { err("Couldn't undo: " + e.message); }
+}
+const shortText = (n) => { const x = shown(n.name) || "task"; return x.length > 32 ? x.slice(0, 31) + "…" : x; };
+
+function openMenu(n) {
+  openSheet((s) => {
+    head(s, shown(n.name) || "(empty)");
+    const raw = n.name || "";
+    const editable = !TOKEN.test(raw);                            // encrypted text is edited on the desktop page; formatted text keeps its tags
+    TOKEN.lastIndex = 0;
+    const w = whereIs(n.id), tk = key(today());
+    const isTask = typeOf(n) === "todo";
+    if (editable) {
+      sbtn(s, "✎ Edit", () => openEdit(n));
+      if (isTask) sbtn(s, timeOf(plain(n.name)) ? "⏰ Change reminder…" : "⏰ Set reminder…", () => openReminder(n));
+    } else { const p = document.createElement("div"); p.className = "sub"; p.textContent = "Encrypted text can only be edited on the desktop page."; s.appendChild(p); }
+    if (w && w.day && w.day !== tk) sbtn(s, "↦ Move to today", () => moveTo(n, tk));
+    sbtn(s, "→ Move to another day…", () => openMove(n));
+    if (inbox && w && w.day !== inbox.id) sbtn(s, "📥 Move to " + inbox.name, () => moveInto(n, inbox.id, "to " + inbox.name));
+    const inInbox = !!(inbox && w && w.day === inbox.id);
+    if (w && w.day && (isTask || inInbox)) {                      // tasks anywhere; in the Inbox every kind of item can go under a heading
+      if (w.pid !== w.day) { const par = (bullets[w.day] || []).find((b) => b.id === w.pid); const sec = inInbox && par && isHead(par); sbtn(s, sec ? "⇤ Out of section" : "⇤ Out of group", () => moveInto(n, w.day, sec ? "out of its section" : "out of its group")); }
+      if (moveTargets(n, w).length) sbtn(s, inInbox ? "⇥ Move under…" : "⇥ Move to group…", () => openMoveToGroup(n));
+    }
+    if (inbox && w && w.day === inbox.id) sbtn(s, "⇄ Change type…", () => openType(n));          // only in the Inbox: days list tasks and groups only
+    sbtn(s, "🗑 Delete", () => openDelete(n), "danger");
+    sbtn(s, "Close", closeSheet, "cancel");
+  });
+}
+function groupWhere(bid) { for (const k in bullets) if (bullets[k].some((x) => x.id === bid)) return { pid: k, day: k }; return null; }
+// Moving a group moves its bullet, and the tasks inside it go along with it.
+function openGroupMenu(b) {
+  const w = groupWhere(b.id), tk = key(today());
+  openSheet((s) => {
+    const info = nest[b.id], cnt = info ? info.todos.length : 0;
+    head(s, shown(b.name) || "(untitled)", `A group. Its ${cnt} task${cnt === 1 ? "" : "s"} move with it.`);
+    sbtn(s, "› Open", () => zoomInto(b));
+    if (plainEditable(b)) sbtn(s, "✎ Rename…", () => openEdit(b));
+    sbtn(s, "⇡ Move group to top", () => groupToTop(b));
+    if (w && w.day !== tk) sbtn(s, "↦ Move group to today", () => moveGroup(b, tk));
+    sbtn(s, "→ Move group to another day…", () => openMoveGroup(b));
+    if (inbox && w && w.day === inbox.id) sbtn(s, "⇄ Change type…", () => openType(b));
+    if (!cnt) sbtn(s, "🗑 Delete group", () => openDelete(b), "danger");
+    sbtn(s, "Close", closeSheet, "cancel");
+  });
+}
+const TYPES = [["todo", "☐ Task"], ["bullets", "• Bullet"], ["numbered", "1. Numbered"], ["h1", "H Heading 1"], ["h2", "H Heading 2"], ["h3", "H Heading 3"]];
+function openType(n) {
+  const cur = typeOf(n);
+  openSheet((s) => {
+    head(s, "Change type", shown(n.name));
+    for (const [v, label] of TYPES) { const b = sbtn(s, (v === cur ? "✓ " : "") + label, () => setType(n, v)); if (v === cur) b.disabled = true; }
+    sbtn(s, "Cancel", closeSheet, "cancel");
+  });
+}
+async function setType(n, v) {
+  closeSheet();
+  const w = whereIs(n.id), old = typeOf(n), label = (TYPES.find((x) => x[0] === v) || [0, v])[1].replace(/^\S+\s/, "").toLowerCase();
+  try {
+    await call("POST", `/nodes/${n.id}`, { layoutMode: v });
+    n.data = { ...(n.data || {}), layoutMode: v };
+    err(""); await reloadDays([w && w.day]);
+    const gone = !zoom.length && old === "todo" && v !== "todo" && !(inbox && w && w.day === inbox.id);       // a day lists tasks and groups only
+    pushUndo(`“${shortText(n)}” is now a ${label}${gone ? ". It stays in WorkFlowy but isn't listed here" : ""}`, async () => { await call("POST", `/nodes/${n.id}`, { layoutMode: old }); n.data = { ...(n.data || {}), layoutMode: old }; await reloadDays([w && w.day]); });
+  } catch (e) { err(e.message); }
+}
+// move a task to the end of another list: a group on the same list, or back to the top level of it
+async function moveInto(n, dest, what) {
+  closeSheet();
+  const from = whereIs(n.id); if (!from) return;
+  const days = [from.day, inbox && dest === inbox.id ? dest : null];                         // the Inbox is its own list
+  try {
+    await call("POST", `/nodes/${n.id}/move`, { parent_id: dest, position: "bottom" });
+    err(""); await reloadDays(days);
+    pushUndo(`Moved “${shortText(n)}” ${what}`, async () => { await call("POST", `/nodes/${n.id}/move`, { parent_id: from.pid, position: "bottom" }); await reloadDays(days); });
+  } catch (e) { err(e.message); }
+}
+// where an item may go on its own list: tasks into any bullet or heading; in the Inbox other items go under headings
+function moveTargets(n, w) {
+  const task = typeOf(n) === "todo", inInbox = !!(inbox && w.day === inbox.id);
+  if (!task && !inInbox) return [];
+  return (bullets[w.day] || []).filter((b) => b.id !== n.id && b.id !== w.pid && (task || isHead(b)));
+}
+function openMoveToGroup(n) {
+  const w = whereIs(n.id); if (!w || !w.day) return;
+  openSheet((s) => {
+    head(s, inbox && w.day === inbox.id ? "Move under…" : "Move to group…", shown(n.name));
+    for (const b of moveTargets(n, w)) sbtn(s, "▸ " + (shown(b.name) || "(untitled)"), () => moveInto(n, b.id, `to “${shortText(b)}”`));
+    sbtn(s, "Cancel", closeSheet, "cancel");
+  });
+}
+function openAddGroup() {
+  const parent = view === "inbox" ? inbox.id : sel;
+  openSheet((s) => {
+    head(s, "Add group", "Added at the end of " + (view === "inbox" ? inbox.name : dayText(sel)) + ". A group is a bullet or heading you can put tasks under.");
+    const css = "width:100%;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);margin-top:8px;";
+    const inp = document.createElement("input"); inp.type = "text"; inp.placeholder = "Group name"; inp.style.cssText = css; inp.setAttribute("aria-label", "Group name"); s.appendChild(inp);
+    const ty = document.createElement("select"); ty.style.cssText = css; ty.setAttribute("aria-label", "Group type");
+    for (const [v, l] of [["bullets", "Bullet"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]]) { const o = document.createElement("option"); o.value = v; o.textContent = l; ty.appendChild(o); }
+    s.appendChild(ty);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Add group";
+    g.onclick = async () => {
+      const name = inp.value.replace(/\s+/g, " ").trim(); if (!name) { inp.focus(); return; }
+      const body = { parent_id: parent, name, position: "bottom" }; if (ty.value !== "bullets") body.layoutMode = ty.value;
+      closeSheet();
+      try {
+        const res = await call("POST", "/nodes", body);
+        const id = res && (res.item_id || res.id || (res.node && res.node.id));
+        if (id) { mine.add(id); saveMine(); }
+        err(""); await reloadDays([parent]);
+        const hint = mode === "group" ? "" : ". Set Tasks under bullets to Group to see it";
+        if (id) pushUndo(`Added group “${name.length > 28 ? name.slice(0, 27) + "…" : name}”${hint}`, async () => { await call("DELETE", `/nodes/${id}`); mine.delete(id); saveMine(); removeNode(id); await reloadDays([parent]); });
+        else toast("Group added" + hint);
+      } catch (e) { err(e.message); }
+    };
+    row.append(c, g); s.appendChild(row);
+    inp.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); g.onclick(); } };
+    setTimeout(() => inp.focus(), 50);
+  });
+}
+async function groupToTop(b) {
+  closeSheet();
+  const w = groupWhere(b.id); if (!w) return;
+  try {
+    const d = await call("GET", `/nodes?parent_id=${w.pid}`);                              // the order right now, so Undo can put it back
+    const ids = ((d && d.nodes) || []).slice().sort((x, y) => x.priority - y.priority).map((x) => x.id);
+    if (ids[0] === b.id) { toast("Already at the top"); return; }
+    await call("POST", `/nodes/${b.id}/move`, { parent_id: w.pid, position: "top" });
+    err(""); await reloadDays([w.day]);
+    pushUndo(`Moved group “${shortText(b)}” to the top`, async () => { for (const id of ids) await call("POST", `/nodes/${id}/move`, { parent_id: w.pid, position: "bottom" }); await reloadDays([w.day]); });
+  } catch (e) { err(e.message); }
+}
+function openMoveGroup(b) {
+  openSheet((s) => {
+    head(s, "Move group to…", shown(b.name));
+    const t0 = today();
+    for (const [label, d] of [["Today", t0], ["Tomorrow", addDays(t0, 1)], ["Next Monday", addDays(mondayOf(t0), 7)]]) sbtn(s, `${label} · ${dayText(key(d))}`, () => moveGroup(b, key(d)));
+    const di = document.createElement("input"); di.type = "date"; di.value = sel; s.appendChild(di);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Move to this date"; g.onclick = () => { if (di.value) moveGroup(b, di.value); };
+    row.append(c, g); s.appendChild(row);
+  });
+}
+async function moveGroup(b, dest) {
+  closeSheet();
+  const w = groupWhere(b.id), from = w ? w.pid : sel;
+  if (from === dest) { toast("Already on that day"); return; }
+  try {
+    await call("POST", `/nodes/${b.id}/move`, { parent_id: dest, position: "bottom" });
+    err(""); await reloadDays([dest, from]);
+    pushUndo(`Moved group “${shortText(b)}” to ${dayText(dest)}`, async () => { await call("POST", `/nodes/${b.id}/move`, { parent_id: from, position: "bottom" }); await reloadDays([dest, from]); });
+  } catch (e) { err(e.message); }
+}
+function openEdit(n) {
+  openSheet((s) => {
+    head(s, typeOf(n) === "todo" ? "Edit task" : "Edit");
+    const was = visibleText(n.name), multi = was.includes("\n");            // the visible words; any tags (a date, a link) are kept by applyEdit
+    const ta = document.createElement("textarea"); ta.value = was; s.appendChild(ta);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Save";
+    g.onclick = async () => {
+      const v = multi ? ta.value.trim() : ta.value.replace(/\s*\n\s*/g, " ").trim();
+      if (!v || v === was) { closeSheet(); return; }
+      g.disabled = true;
+      try {
+        const old = n.name, next = applyEdit(old, v); await call("POST", `/nodes/${n.id}`, { name: next }); n.name = next; err(""); closeSheet(); draw();
+        pushUndo(`Edited “${shortText(n)}”`, async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; });
+      }
+      catch (e) { err(e.message); closeSheet(); }
+    };
+    row.append(c, g); s.appendChild(row);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 50);
+  });
+}
+function openMove(n) {
+  openSheet((s) => {
+    head(s, "Move to…", shown(n.name));
+    const t0 = today();
+    const opts = [["Today", t0], ["Tomorrow", addDays(t0, 1)]];
+    const nm = addDays(mondayOf(t0), 7); opts.push(["Next Monday", nm]);
+    for (const [label, d] of opts) sbtn(s, `${label} · ${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`, () => moveTo(n, key(d)));
+    const di = document.createElement("input"); di.type = "date"; di.value = sel; s.appendChild(di);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Move to this date";
+    g.onclick = () => { if (di.value) moveTo(n, di.value); };
+    row.append(c, g); s.appendChild(row);
+  });
+}
+async function moveTo(n, dest) {
+  closeSheet();
+  const from = whereIs(n.id), was = from ? from.pid : sel;
+  if (from && from.pid === dest) { toast("Already on that day"); return; }
+  try {
+    await call("POST", `/nodes/${n.id}/move`, { parent_id: dest, position: "bottom" });
+    removeNode(n.id);
+    if (dest in cache) cache[dest].push(n);
+    if (dest in allOf) allOf[dest].push(n);
+    err(""); draw();
+    const days = [dest, from && from.day];
+    pushUndo(`Moved “${shortText(n)}” to ${dayText(dest)}`, async () => { await call("POST", `/nodes/${n.id}/move`, { parent_id: was, position: "bottom" }); await reloadDays(days); });
+    if (!(dest in cache)) reloadDays([dest]);
+  } catch (e) { err(e.message); }
+}
+// set, change or remove an @time reminder: it is kept in the task's text, the same way the desktop board does
+function openReminder(n) {
+  openSheet((s) => {
+    const cur = timeOf(plain(n.name)), w = whereIs(n.id), tk = key(today());
+    head(s, cur ? "Change reminder" : "Set a reminder", shown(n.name));
+    const set = async (hhmm) => {
+      closeSheet();
+      const old = n.name, base = plain(old).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
+      const name = hhmm ? `${base} @${hhmm}`.trim() : base;
+      try {
+        await call("POST", `/nodes/${n.id}`, { name }); n.name = name; err(""); draw();
+        pushUndo(hhmm ? `Reminder set for ${fmtTime(+hhmm.slice(0, 2), +hhmm.slice(3))}` : "Reminder removed", async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; });
+      } catch (e) { err(e.message); }
+    };
+    if (w && w.day === tk) for (const [label, mins] of [["In 30 minutes", 30], ["In 1 hour", 60]]) sbtn(s, label, () => { const d = new Date(Date.now() + mins * 60000); set(`${pad(d.getHours())}:${pad(d.getMinutes())}`); });
+    else if (w && w.day && !ISO_DAY.test(w.day)) { const p = document.createElement("div"); p.className = "sub"; p.textContent = "This task isn't on a day yet. The reminder goes off on the day you move it to."; s.appendChild(p); }
+    else if (w && w.day) { const p = document.createElement("div"); p.className = "sub"; p.textContent = "The reminder goes off at that time on " + dayText(w.day) + "."; s.appendChild(p); }
+    const ti = document.createElement("input"); ti.type = "time"; ti.value = cur ? `${pad(cur.h)}:${pad(cur.mi)}` : "09:00"; s.appendChild(ti);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Set"; g.onclick = () => { if (ti.value) set(ti.value); };
+    row.append(c, g); s.appendChild(row);
+    if (cur) sbtn(s, "Remove reminder", () => set(""), "danger");
+  });
+}
+function openDelete(n) {
+  openSheet((s) => {
+    const isTask = typeOf(n) === "todo";
+    head(s, isTask ? "Delete this task?" : "Delete this?", shown(n.name) + (isTask ? "" : " (anything indented under it is deleted too)"));
+    sbtn(s, "Delete", async () => {
+      closeSheet();
+      try { await call("DELETE", `/nodes/${n.id}`); removeNode(n.id); err(""); draw(); toast("Deleted"); }
+      catch (e) { err(e.message); }
+    }, "danger");
+    sbtn(s, "Cancel", closeSheet, "cancel");
+  });
+}
+// A WorkFlowy link ends in the node's short id (12 characters); a full id may also be pasted.
+function parseNodeLink(text) {
+  const t = String(text || "").trim();
+  const full = t.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if (full) return full[0].toLowerCase();
+  const all = [...t.matchAll(/(?:^|[^0-9a-f])([0-9a-f]{12})(?![0-9a-f])/gi)];
+  return all.length ? all[all.length - 1][1].toLowerCase() : "";
+}
+function openSettings() {
+  openSheet((s) => {
+    head(s, "Settings", sync ? "Shared with your other devices." : "Saved in this browser.");
+    const row = (title, sub, control) => {
+      const r = document.createElement("label"); r.className = "srow";
+      const t = document.createElement("span"); t.textContent = title;
+      if (sub) { const m = document.createElement("small"); m.textContent = sub; t.appendChild(m); }
+      r.append(t, control); s.appendChild(r);
+    };
+    const check = (val, fn) => { const c = document.createElement("input"); c.type = "checkbox"; c.checked = val; c.onchange = () => fn(c.checked); return c; };
+    const pick = (opts, val, fn) => { const c = document.createElement("select"); for (const [v, l] of opts) { const o = document.createElement("option"); o.value = v; o.textContent = l; c.appendChild(o); } c.value = val; c.onchange = () => fn(c.value); return c; };
+    row("Tasks under bullets", "Group them, list them flat, or hide them", pick([["group", "Group"], ["flatten", "Flatten"], ["off", "Off"]], mode, async (v) => {
+      mode = v; store.set("m.nested", mode); draw();
+      if (mode !== "off") { await loadNest(sel, true); draw(); loadWeek(true); }
+    }));
+    row("Show Past due", "The last 14 days", check(showLate, (v) => { showLate = v; store.set("m.showLate", v ? "1" : "0"); if (!v && view === "late") view = "day"; draw(); if (v) loadWeek(true); }));
+    row("Show Upcoming", "The next 14 days", check(showSoon, (v) => { showSoon = v; store.set("m.showSoon", v ? "1" : "0"); if (!v && view === "soon") view = "day"; draw(); if (v) loadWeek(true); }));
+    row("Show completed tasks", "", check(showDone, (v) => { showDone = v; store.set("m.showDone", v ? "1" : "0"); draw(); }));
+    // Inbox: a WorkFlowy node (an Inbox or quick-capture bullet) whose open tasks you can see and sort into days
+    const ir = document.createElement("div"); ir.className = "srow"; ir.style.flexWrap = "wrap";
+    const it = document.createElement("span"); it.innerHTML = "Inbox<small></small>"; ir.appendChild(it);
+    const msg = document.createElement("div"); msg.className = "sub"; msg.style.flexBasis = "100%"; msg.style.margin = "0";
+    if (inbox) {
+      it.querySelector("small").textContent = inbox.name;
+      msg.textContent = "Id: " + inbox.id.slice(-12) + " (the id in the node's WorkFlowy link)";
+      const cp = document.createElement("button"); cp.type = "button"; cp.textContent = "Copy id"; cp.className = "sbtn"; cp.style.cssText = "width:auto;border:1px solid var(--border);border-radius:8px;padding:8px 12px;";
+      cp.onclick = async () => { try { await navigator.clipboard.writeText(inbox.id); toast("Full id copied"); } catch (e) { msg.textContent = "Full id: " + inbox.id; } };
+      ir.appendChild(cp);
+      const rm =document.createElement("button"); rm.type = "button"; rm.textContent = "Remove"; rm.className = "sbtn danger"; rm.style.cssText = "width:auto;border:1px solid var(--border);border-radius:8px;padding:8px 12px;";
+      rm.onclick = () => { inbox = null; inboxGone = true; store.set("m.inbox", "null"); if (view === "inbox") view = "day"; closeSheet(); draw(); toast("Inbox removed"); };
+      ir.appendChild(rm);
+    } else {
+      it.querySelector("small").textContent = "Paste the node's link from WorkFlowy";
+      const li = document.createElement("input"); li.type = "text"; li.placeholder = "Paste a WorkFlowy node link here"; li.style.cssText = "flex-basis:100%;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);";
+      li.setAttribute("autocapitalize", "off"); li.setAttribute("autocorrect", "off");
+      const ab = document.createElement("button"); ab.type = "button"; ab.textContent = "Add Inbox"; ab.className = "sbtn"; ab.style.cssText = "flex-basis:100%;text-align:center;color:var(--accent);font-weight:600;";
+      ab.onclick = async () => {
+        const id0 = parseNodeLink(li.value);
+        if (!id0) { msg.textContent = "Paste the node's link (it ends in 12 letters and numbers, like https://workflowy.com/#/<12 characters>) or its id."; return; }
+        ab.disabled = true; msg.textContent = id0.length === 12 ? "Looking the node up (the first time this reads your outline, which can take a moment)…" : "Checking…";
+        try {
+          let id = id0, found = "";
+          if (id0.length === 12) { const r = await getJson("/resolve?short=" + id0); id = r.id; found = r.name || ""; }
+          const data = await call("GET", `/nodes?parent_id=${id}`);
+          if (data === null) throw new Error("WorkFlowy doesn't know that id.");
+          if (!found) { try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = (nd && nd.name) || ""; } catch (e) { /* falls back to Inbox */ } }
+          inbox = { id, name: shown(found).replace(/\s+/g, " ").trim().slice(0, 30) || "Inbox" }; store.set("m.inbox", JSON.stringify(inbox));
+          closeSheet(); draw(); loadInbox().then(draw).catch(() => {}); toast("Inbox added");
+        } catch (e) { msg.textContent = e.message; ab.disabled = false; }
+      };
+      ir.append(li, ab);
+    }
+    ir.appendChild(msg); s.appendChild(ir);
+    row("Week length", "Days across the top", pick([["7", "7 days (Mon–Sun)"], ["7s", "7 days (Sun–Sat)"], ["5", "5 days (Mon–Fri)"]], weekType, (v) => {
+      weekType = v; span = v === "5" ? 5 : 7; store.set("m.span", v);
+      weekStart = startOf(keyToDate(sel)); draw(); loadWeek();
+    }));
+    // Share settings across devices: this switch stays on each device; the choices above are what get shared
+    const sr = document.createElement("label"); sr.className = "srow";
+    const st = document.createElement("span"); st.innerHTML = "Share settings across my devices<small></small>";
+    st.querySelector("small").textContent = "Week length, Past due, Upcoming, completed tasks, tasks under bullets and Inbox. Collapsed groups stay on each device.";
+    const sc = document.createElement("input"); sc.type = "checkbox"; sc.checked = sync;
+    sr.append(st, sc); s.appendChild(sr);
+    const sm = document.createElement("div"); sm.className = "sub"; sm.style.margin = "0 0 8px"; s.appendChild(sm);
+    sc.onchange = async () => {
+      if (!sc.checked) { sync = false; store.set("m.sync", "0"); head2(); return; }
+      sm.textContent = "Checking the server…";
+      const j = await fetchShared();
+      if (!j) { sc.checked = false; sm.textContent = "Couldn't reach the server."; return; }
+      if (!j.enabled) { sc.checked = false; sm.textContent = "Sharing is turned off on this server (MOBILE_SYNC=off)."; return; }
+      const turnOn = async (useServer) => {
+        sync = true; store.set("m.sync", "1");
+        if (useServer) { applyShared(j.settings); syncAt = j.updated || ""; store.set("m.syncAt", syncAt); draw(); loadWeek(true); openSettings(); }
+        else { await pushShared(true); if (fromSheet) openSettings(); else { sm.textContent = "On. This device's settings are now shared."; head2(); } }
+      };
+      let fromSheet = false;
+      if (j.settings) {
+        openSheet((p) => {
+          head(p, "Shared settings found", "Another device already saved settings on the server.");
+          sbtn(p, "Use the shared settings on this device", () => turnOn(true));
+          sbtn(p, "Replace them with this device's settings", () => { fromSheet = true; turnOn(false); });
+          sbtn(p, "Cancel", () => { openSettings(); }, "cancel");
+        });
+      } else turnOn(false);
+    };
+    const head2 = () => { const h = s.querySelector(".sub"); if (h) h.textContent = sync ? "Shared with your other devices." : "Saved in this browser."; };
+    sbtn(s, "Done", closeSheet, "cancel");
+  });
+}
+function openUnlock() {
+  openSheet((s) => {
+    if (!(window.crypto && crypto.subtle)) { head(s, "Encryption", "Unlocking needs a secure address (https, or localhost). Open the board through its https address."); sbtn(s, "Close", closeSheet, "cancel"); return; }
+    head(s, "Unlock encryption", "Read-only: encrypted text is shown, not edited. The passphrase stays in this page's memory only; locking or closing the page forgets it.");
+    const inp = document.createElement("input"); inp.type = "password"; inp.placeholder = "Passphrase"; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Passphrase");
+    inp.style.cssText = "width:100%;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);margin-top:8px;";
+    s.appendChild(inp);
+    const msg = document.createElement("div"); msg.className = "sub"; msg.style.margin = "8px 0 0"; s.appendChild(msg);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Unlock";
+    g.onclick = async () => {
+      const p0 = inp.value; if (!p0) { inp.focus(); return; }
+      g.disabled = true; msg.textContent = "Checking…";
+      try {
+        const toks = findTokens();
+        if (toks.length) decCache.set(toks[0], await decryptToken(toks[0], p0));          // proves the passphrase on real text
+        pass = p0; passOk = toks.length > 0; failedTok.clear(); closeSheet(); draw();
+        toast(toks.length ? "Unlocked" : "Unlocked. The passphrase is checked when encrypted text appears");
+      } catch (e) { msg.textContent = "That passphrase doesn't open the encrypted text on this page."; g.disabled = false; inp.select(); }
+    };
+    inp.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); g.onclick(); } };
+    row.append(c, g); s.appendChild(row);
+    setTimeout(() => inp.focus(), 50);
+  });
+}
+function openMainMenu() {
+  openSheet((s) => {
+    head(s, "Week Board", "Phone view");
+    if (view === "day" || view === "inbox") sbtn(s, "＋ Add group…", openAddGroup);
+    sbtn(s, "⚙ Settings", openSettings);
+    sbtn(s, pass === null ? "🔓 Unlock encryption…" : "🔒 Lock encryption", pass === null ? openUnlock : () => { closeSheet(); lockCrypto("Locked"); });
+    if (undoStack.length) sbtn(s, `↶ Undo: ${undoStack[undoStack.length - 1].label}`, () => { closeSheet(); doUndo(); });
+    sbtn(s, "🖥 Open the desktop page", () => { store.set("m.desktop", "1"); location.href = "/?desktop=1"; });
+    sbtn(s, "Sign out", async () => { try { await fetch("/logout", { method: "POST" }); } catch (e) { /* leave anyway */ } location.href = "/login"; });
+    sbtn(s, "Close", closeSheet, "cancel");
+  });
+}
+
+/* ---------- adding (with date words: "Call dentist fri", "Report 11/5", "Pay rent in 3 days") ---------- */
+const MONTH_NUM = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
+  january: 1, february: 2, march: 3, april: 4, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+const WEEKDAY_NUM = { sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2, wed: 3, weds: 3, wednesday: 3,
+  thu: 4, thur: 4, thurs: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6 };
+function nextMonday(base) { return addDays(base, ((8 - base.getDay()) % 7) || 7); }
+function realDate(y, m, d) { const x = new Date(y, m - 1, d); return x.getFullYear() === y && x.getMonth() === m - 1 && x.getDate() === d ? x : null; }
+function upcoming(m, d, base) { const a = realDate(base.getFullYear(), m, d); if (a && a >= base) return a; return realDate(base.getFullYear() + 1, m, d); }
+const MONTH_RE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const DATE_RULES = [
+  [/\s(today)$/i, () => 0],
+  [/\s(?:tomorrow|tmrw|tmr)$/i, () => 1],
+  [/\sin\s+(\d{1,3})\s+(day|days|week|weeks)$/i, (m, base) => addDays(base, Number(m[1]) * (/^w/i.test(m[2]) ? 7 : 1))],
+  [/\snext\s+week$/i, (m, base) => nextMonday(base)],
+  [/\s(next\s+)?(sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)$/i, (m, base) => {
+    const wd = WEEKDAY_NUM[m[2].toLowerCase()];
+    if (m[1]) return addDays(nextMonday(base), (wd + 6) % 7);
+    return addDays(base, ((wd - base.getDay() + 7) % 7) || 7);
+  }],
+  [/\s(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?$/, (m, base) => {
+    const mo = Number(m[1]), d = Number(m[2]);
+    if (m[3]) return realDate(m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]), mo, d);
+    return upcoming(mo, d, base);
+  }],
+  [new RegExp("\\s" + MONTH_RE + "\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?$", "i"), (m, base) => {
+    const mo = MONTH_NUM[m[1].toLowerCase()], d = Number(m[2]);
+    return m[3] ? realDate(Number(m[3]), mo, d) : upcoming(mo, d, base);
+  }],
+  [new RegExp("\\s(\\d{1,2})(?:st|nd|rd|th)?\\s+" + MONTH_RE + "(?:,?\\s+(\\d{4}))?$", "i"), (m, base) => {
+    const mo = MONTH_NUM[m[2].toLowerCase()], d = Number(m[1]);
+    return m[3] ? realDate(Number(m[3]), mo, d) : upcoming(mo, d, base);
+  }],
+];
+function parseDateWords(text, base) {
+  const t = " " + text.trim();
+  for (const [re, f] of DATE_RULES) {
+    const m = t.match(re); if (!m) continue;
+    let d = f(m, base); if (typeof d === "number") d = addDays(base, d);
+    if (!d) continue;
+    const name = t.slice(1, m.index).replace(/\s+(on|by|due)$/i, "").trim();
+    if (!name) return null;
+    return { name, k: key(d) };
+  }
+  return null;
+}
+let literal = false;                                                 // "add it here, as typed"
+$("addin").addEventListener("input", () => {
+  literal = false;
+  const p = parseDateWords($("addin").value, today()), h = $("addhint");
+  h.hidden = !p; if (p) h.textContent = `→ ${dayText(p.k)} · tap to add it ${view === "inbox" ? "to " + inbox.name : "here"} as typed instead`;
+});
+$("addhint").onclick = () => { literal = true; $("addhint").textContent = view === "inbox" ? "Will be added to " + inbox.name + " exactly as typed" : "Will be added to this day exactly as typed"; $("addin").focus(); };
+$("addbar").onsubmit = async (e) => {
+  e.preventDefault();
+  const inp = $("addin"), base = view === "inbox" ? inbox.id : sel; let name = inp.value.trim(), target = base; if (!name) return;
+  if (!literal) { const p = parseDateWords(name, today()); if (p) { name = p.name; target = p.k; } }
+  inp.disabled = true;
+  try {
+    const res = await call("POST", "/nodes", { parent_id: target, name, layoutMode: "todo", position: "bottom" });
+    const id = res && (res.item_id || res.id || (res.node && res.node.id));
+    const node = { id: id || "tmp" + Date.now(), name, note: "", priority: 1e9, completedAt: null, data: { layoutMode: "todo" } };
+    if (target in cache) cache[target].push(node);
+    if (target in allOf) allOf[target].push(node);
+    inp.value = ""; literal = false; $("addhint").hidden = true; err(""); draw();
+    const l = $("list"); if (target === base) l.scrollTop = l.scrollHeight;
+    const label = target === base ? `Added “${shortText(node)}”${view === "inbox" ? " to " + inbox.name : ""}` : `Added “${shortText(node)}” to ${ISO_DAY.test(target) ? dayText(target) : "another list"}`;
+    if (id) pushUndo(label, async () => { await call("DELETE", `/nodes/${id}`); removeNode(id); });
+    else toast(label);
+    loadDay(target).then(draw).catch(() => {});
+  } catch (x) { err(x.message); }
+  inp.disabled = false; inp.focus();
+};
+
+/* ---------- navigation ---------- */
+$("prevW").onclick = () => { zoom = []; view = "day"; weekStart = addDays(weekStart, -7); sel = key(weekStart); draw(); loadWeek(); };
+$("nextW").onclick = () => { zoom = []; view = "day"; weekStart = addDays(weekStart, 7); sel = key(weekStart); draw(); loadWeek(); };
+$("today").onclick = () => { zoom = []; view = "day"; weekStart = startOf(today()); sel = key(today()); draw(); loadWeek(); };
+$("reload").onclick = () => { loadWeek(true); };
+$("menu").onclick = openMainMenu;
+$("showDone").onchange = (e) => { showDone = e.target.checked; store.set("m.showDone", showDone ? "1" : "0"); draw(); };
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible" && !$("sheet").style.display.includes("block") && document.activeElement !== $("addin")) {
+    if (sync && await pullShared()) draw();                    // settings changed on another device
+    loadWeek();
+  }
+});
+
+// swipe the list left or right to change the day
+let sx = 0, sy = 0, st = 0;
+$("list").addEventListener("touchstart", (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now(); }, { passive: true });
+$("list").addEventListener("touchend", (e) => {
+  if (view !== "day") return;
+  const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+  if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2) return;
+  const wk = weekKeys(), i = wk.indexOf(sel) + (dx < 0 ? 1 : -1);
+  if (i >= 0 && i < wk.length) { sel = wk[i]; draw(); loadNest(sel).then(draw); }
+  else { weekStart = addDays(weekStart, dx < 0 ? 7 : -7); sel = key(addDays(weekStart, dx < 0 ? 0 : span - 1)); draw(); loadWeek(); }
+}, { passive: true });
+
+draw();
+// when settings are shared, take the server's copy first (waiting at most a moment) so the first load already uses it
+(sync ? Promise.race([pullShared(), new Promise((r) => setTimeout(r, 2500))]).catch(() => {}) : Promise.resolve()).then(() => { draw(); loadWeek(); });
+</script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.2.1
+// Version 1.3.0
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.2.1";
+const VERSION = "1.3.0";
 
 const http = require("http");
 const fs = require("fs");
@@ -76,6 +76,8 @@ if (REMOTE) {
   process.exit(1);
 }
 // local: always this computer. vps: this machine (Caddy talks to it locally). fly: all interfaces (Fly's proxy needs that).
+// ASSUME_HTTPS=1: for a proxy on this same computer that doesn't send X-Forwarded-Proto (for example `tailscale serve`). Only honoured while the board listens on this computer alone.
+const ASSUME_HTTPS = process.env.ASSUME_HTTPS === "1" && REMOTE && isLoopback(process.env.HOST || "127.0.0.1");
 const HOST = REMOTE ? (process.env.HOST || (MODE === "fly" ? "0.0.0.0" : "127.0.0.1")) : "127.0.0.1";
 
 // Only the node endpoints the board needs. The browser never gets the full export: search runs here (see below).
@@ -476,6 +478,8 @@ function hostAllowed(req) {
 // Writes (POST/DELETE) must come from this site's own page, so another website can't make requests for you.
 function originAllowed(req) {
   const origin = req.headers.origin;
+  // A browser sends "Origin: null" for a form posted from a page whose Referrer-Policy is no-referrer (the sign-in form). The browser-set Sec-Fetch-Site still tells us it was this site.
+  if (origin === "null") return req.headers["sec-fetch-site"] === "same-origin";
   if (origin) {
     try { const h = new URL(origin).host.toLowerCase(); return REMOTE ? h === PUBLIC.host.toLowerCase() : isLoopback(h.replace(/:\d+$/, "")); }
     catch (e) { return false; }
@@ -566,14 +570,16 @@ async function guard(req, res, url) {
   }
   const writes = !["GET", "HEAD", "OPTIONS"].includes(req.method);
   if (writes && !originAllowed(req)) {
+    const seen = `origin ${req.headers.origin || "(none)"}, sec-fetch-site ${req.headers["sec-fetch-site"] || "(none)"}, host ${req.headers.host || "(none)"}`;
+    console.error(`Blocked a ${req.method} to ${url.pathname}: ${seen}; this board expects ${REMOTE ? PUBLIC.host : "localhost"}`);
     res.writeHead(403, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "cross-site request blocked" }));
+    res.end(JSON.stringify({ error: `cross-site request blocked (${seen}; expected ${REMOTE ? PUBLIC.host : "localhost"})` }));
     return false;
   }
   if (!REMOTE) return true;
 
   const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
-  if (proto !== "https") {                                  // the proxy must be speaking HTTPS to the browser
+  if (proto !== "https" && !ASSUME_HTTPS) {                 // the proxy must be speaking HTTPS to the browser
     if (!writes) { res.writeHead(308, { Location: PUBLIC.origin + req.url }); res.end(); }
     else { res.writeHead(400, { "Content-Type": "text/plain" }); res.end("HTTPS required"); }
     return false;
@@ -586,8 +592,9 @@ async function guard(req, res, url) {
     res.end();
     return false;
   }
+  if (APP_ASSETS.has(url.pathname)) return true;          // the manifest and icons are fetched without the sign-in cookie
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test"].includes(url.pathname) || addonPaths.has(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/m/settings"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -620,7 +627,51 @@ function readBody(req, limit) {
    Each folder in addons/ with a manifest.json is an optional add-on (see addons/README.md). Add-ons are trusted code:
    they run inside this server with your WorkFlowy key. Install only ones you trust. Without an addons/ folder the board is
    exactly the plain board. */
-const CORE_PATHS = new Set(["/", "/index.html", "/search", "/item", "/done", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test"]);
+const APP_ASSETS = new Set(["/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png"]);
+const APP_MANIFEST = {
+  name: "Workflowy Week Board", short_name: "Week Board", description: "Your WorkFlowy tasks by day",
+  start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
+  icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
+};
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings"]);
+/* ---------- Phone page settings shared between devices ----------
+   Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
+   (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
+   MOBILE_SYNC=off disables it for everyone. */
+const MOBILE_SYNC = String(process.env.MOBILE_SYNC || "").toLowerCase() !== "off";
+const MOBILE_SETTINGS_FILE = process.env.MOBILE_SETTINGS_FILE || path.join(__dirname, "mobile-settings.json");
+function cleanMobileSettings(x) {
+  if (!x || typeof x !== "object" || Array.isArray(x)) throw new Error("settings must be an object");
+  const out = {};
+  if (x.nested !== undefined) { if (!["group", "flatten", "off"].includes(x.nested)) throw new Error("bad nested"); out.nested = x.nested; }
+  if (x.span !== undefined) { if (!["5", "7", "7s"].includes(x.span)) throw new Error("bad span"); out.span = x.span; }
+  for (const k of ["showLate", "showSoon", "showDone"]) if (x[k] !== undefined) { if (typeof x[k] !== "boolean") throw new Error("bad " + k); out[k] = x[k]; }
+  if (x.inbox !== undefined) {
+    if (x.inbox === null) out.inbox = null;
+    else if (x.inbox && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(x.inbox.id))) out.inbox = { id: String(x.inbox.id).toLowerCase(), name: String(x.inbox.name || "Inbox").slice(0, 30) };
+    else throw new Error("bad inbox");
+  }
+  return out;
+}
+async function serveMobileSettings(req, res) {
+  if (!MOBILE_SYNC) return sendJson(res, req.method === "GET" ? 200 : 403, { enabled: false, error: req.method === "GET" ? undefined : "Settings sharing is turned off on this server (MOBILE_SYNC=off)." });
+  let saved = null;
+  try { saved = JSON.parse(fs.readFileSync(MOBILE_SETTINGS_FILE, "utf8")); } catch (e) { /* none saved yet */ }
+  if (req.method === "GET") return sendJson(res, 200, { enabled: true, settings: saved ? saved.settings || null : null, updated: saved ? saved.updated || null : null });
+  let body;
+  try { body = JSON.parse((await readBody(req, 16 * 1024)).toString() || "{}"); }
+  catch (e) { return sendJson(res, 400, { error: "bad request" }); }
+  let settings;
+  try { settings = cleanMobileSettings(body.settings); } catch (e) { return sendJson(res, 400, { error: e.message }); }
+  const merged = { ...((saved && saved.settings) || {}), ...settings };
+  const doc = { settings: merged, updated: new Date().toISOString() };
+  try {
+    const tmp = MOBILE_SETTINGS_FILE + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(doc, null, 2));
+    fs.renameSync(tmp, MOBILE_SETTINGS_FILE);
+  } catch (e) { console.error("Could not save the phone settings:", e.message); return sendJson(res, 500, { error: "The server could not write " + path.basename(MOBILE_SETTINGS_FILE) + " (is the board folder writable?)" }); }
+  return sendJson(res, 200, { enabled: true, settings: merged, updated: doc.updated });
+}
 const addons = [];                    // { id, name, version, description, status, error, docs }
 const addonRoutes = new Map();        // "METHOD /path" -> handler
 const addonPaths = new Set();         // paths the login guard should treat as data
@@ -852,6 +903,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/done") return serveDone(url, res);
   if (req.method === "GET" && url.pathname === "/reminders") return serveReminders(url, res);
   if (req.method === "POST" && url.pathname === "/reminders/test") return serveReminderTest(res);
+  if (url.pathname === "/m/settings" && (req.method === "GET" || req.method === "POST")) return serveMobileSettings(req, res);
   if (req.method === "GET" && url.pathname === "/addons") return sendJson(res, 200, { addons });
   const addonHandler = addonRoutes.get(`${req.method} ${url.pathname}`);
   if (addonHandler) return addonHandler(req, res, url);
@@ -896,6 +948,22 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(502, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: `upstream failed: ${e.message}${cause ? " (" + cause + ")" : ""}` }));
     }
+  }
+
+  if (APP_ASSETS.has(url.pathname)) {
+    const type = url.pathname.endsWith(".png") ? "image/png" : "application/manifest+json";
+    try {
+      const body = url.pathname === "/manifest.webmanifest" ? JSON.stringify(APP_MANIFEST) : fs.readFileSync(path.join(__dirname, url.pathname.slice(1)));
+      res.writeHead(200, { "Content-Type": type, "Cache-Control": "public, max-age=86400" });
+      return res.end(body);
+    } catch (e) { res.writeHead(404); return res.end("not found"); }
+  }
+  if (url.pathname === "/m" || url.pathname === "/m/" || url.pathname === "/mobile.html") {
+    try {
+      const page = fs.readFileSync(path.join(__dirname, "mobile.html"), "utf8").replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b).replace(/<script>/g, `<script nonce="${res.nonce}">`);
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      return res.end(page);
+    } catch (e) { res.writeHead(404); return res.end("The phone page (mobile.html) is not installed."); }
   }
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
