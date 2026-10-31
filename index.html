@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.3.0">
+<meta name="version" content="1.3.2">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -263,6 +263,17 @@
   .pop button { display: flex; width: 100%; text-align: left; border: none; background: none; padding: 7px 8px; border-radius: 6px; font-size: 14px; }
   .pop button:hover { background: rgba(127,127,127,.14); }
   .pop button small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .pl .zmc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
+  .pl:hover .zmc, .pl:focus-within .zmc { opacity: 1; }
+  .pl .zmc:hover { color: var(--accent); }
+  .kcol .pl .b.zb { cursor: zoom-in; }
+  .kcol .pl .b.zb:hover { color: var(--accent); transform: scale(1.5); }
+  .kcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; font-size: 12px; margin: 0 0 6px; flex: none; }
+  .kcrumb button { border: none; background: none; color: var(--accent); cursor: pointer; padding: 1px 3px; font: inherit; border-radius: 4px; }
+  .kcrumb button:hover { background: rgba(127,127,127,.18); }
+  .kcrumb .cur { font-weight: 700; padding: 1px 3px; }
+  .kcrumb .kcsep { opacity: .5; }
+  .kcrumb .kcb1 { font-size: 15px; line-height: 1; }
   .pl .addc, .pl .indc, .pl .outc, .pl .delc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
   .pl .addc:hover, .pl .indc:hover, .pl .outc:hover { color: var(--accent); }
   .pl .delc:hover { color: #c0392b; }
@@ -382,6 +393,115 @@
   .notesadd input.away { border-color: var(--accent); }
   .notesadd input:focus { outline: none; border-style: solid; border-color: var(--accent); }
   .reports { position: relative; }
+  #kanban { flex: 1; min-width: 0; display: none; flex-direction: column; gap: 8px; overflow: hidden; }
+  body.kb #kanban { display: flex; }
+  body.kb #board, body.kb #plan, body.kb #side { display: none !important; }
+  #kbBtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .kbbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: none; }
+  .kbbar h2 { margin: 0; font-size: 16px; flex: 1; }
+  .kbbar button { padding: 4px 10px; font-size: 13px; }
+  .kbbar label { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  #kbCols { flex: 1; min-height: 0; display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; align-items: flex-start; padding-bottom: 6px; }
+  .kcol { flex: none; width: 272px; max-height: 100%; display: flex; flex-direction: column; background: var(--col); border-radius: 10px; padding: 8px; box-sizing: border-box; }
+  body.kb #refresh { display: none; }
+  .kcol { position: relative; }
+  .kcol.over { outline: 2px solid var(--accent); }
+  .kgrip { position: absolute; top: 0; right: -6px; width: 10px; height: 100%; cursor: col-resize; z-index: 3; touch-action: none; }
+  .kgrip::after { content: ""; position: absolute; top: 12px; bottom: 12px; left: 4px; width: 2px; border-radius: 2px; background: var(--accent); opacity: 0; transition: opacity .12s; }
+  .kgrip:hover::after, .kcol.sizing .kgrip::after { opacity: .7; }
+  .kcol.sizing, .kcol.sizing * { user-select: none; }
+  .kcol .kh { display: flex; align-items: center; gap: 6px; font-weight: 700; flex: none; }
+  .kcol .kh .kt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .kcol .kh .kn { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .kcol .kh button { border: none; background: none; color: var(--text); cursor: pointer; font-size: 14px; padding: 0 4px; }
+  .kcol .ksub { font-size: 12px; color: var(--muted); margin: 2px 0 6px 24px; flex: none; }
+  .kcol .ksub.err { color: #c0392b; }
+  .kcol .kcards { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+  .kcard { background: var(--card); border-radius: 6px; padding: 7px 8px; box-shadow: 0 1px 1px rgba(0,0,0,.12); font-size: 14px; cursor: pointer; display: flex; gap: 8px; align-items: flex-start; }
+  .kcard.done .kct { text-decoration: line-through; color: var(--muted); }
+  .kcard.hd .kct { font-weight: 700; }
+  .kcard.dragging { opacity: .4; }
+  .kcard .kct { flex: 1; min-width: 0; word-break: break-word; }
+  .kcard .kic { flex: none; color: var(--muted); font-size: 12px; }
+  .kcard input[type=checkbox] { flex: none; margin: 2px 0 0; }
+  .kcol.wide { width: 360px; }
+  .kcol .pl { padding-right: 2px; }
+  .kcol .kcards .pl .t { cursor: text; }
+  .kcard .kopen { flex: none; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 2px; opacity: 0; }
+  .kcard:hover .kopen { opacity: 1; }
+  .kcal { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+  .kcn { display: flex; gap: 4px; align-items: center; margin: 0 0 6px; flex: none; }
+  .kcn button { padding: 2px 8px; font-size: 13px; }
+  .kdw { position: relative; display: inline-flex; margin-left: auto; }
+  .kdi { position: absolute; right: 0; top: 100%; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; pointer-events: none; }
+  .kvs { display: inline-flex; flex: none; border: 1px solid var(--line, rgba(127,127,127,.3)); border-radius: 6px; overflow: hidden; }
+  .kcol .kh .kvs button { padding: 0 5px; font-size: 13px; line-height: 20px; opacity: .55; border-radius: 0; }
+  .kcol .kh .kvs button:hover { opacity: 1; }
+  .kcol .kh .kvs button.on { opacity: 1; background: var(--accent); color: #fff; }
+  .kadd .ktype { flex: none; min-width: 30px; height: 28px; border: 1px solid var(--line, rgba(127,127,127,.35)); border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 13px; cursor: pointer; opacity: .8; }
+  .kadd .ktype:hover { opacity: 1; }
+  .kcs { display: flex; gap: 3px; flex: none; }
+  .kcd { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 2px 0 3px; border: none; border-radius: 6px; background: var(--card); color: var(--text); cursor: pointer; font-size: 11px; line-height: 1.2; }
+  .kcd small { font-size: 9px; height: 11px; color: var(--muted); letter-spacing: .04em; }
+  .kcd b { font-size: 15px; font-weight: 600; }
+  .kcd i { font-style: normal; height: 10px; font-size: 12px; line-height: 10px; }
+  .kcd.today b { color: var(--accent); }
+  .kcd.sel { background: rgba(127,127,127,.3); }
+  .kch { font-weight: 700; margin: 8px 0 4px; flex: none; }
+  .klane { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+  .klsel { font: inherit; font-weight: 600; padding: 5px 8px; margin: 2px 0 6px; border-radius: 6px; border: 1px solid var(--line, #ccc); background: transparent; color: inherit; flex: none; max-width: 100%; }
+  .kdrops { display: none; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; flex: none; }
+  body.kbdrag .kdrops { display: flex; }
+  .kdrop { padding: 6px 10px; border: 2px dashed var(--line, #aaa); border-radius: 8px; font-size: 13px; }
+  .kdrop.cur { opacity: .55; }
+  .kdrop.over { border-style: solid; background: rgba(120,160,255,.18); }
+  .kctg { border: none; background: none; color: inherit; cursor: pointer; padding: 0; width: 16px; text-align: center; font-size: 13px; opacity: .7; flex: none; display: inline-block; }
+  .kctg.ph { cursor: default; }
+  .kcard { --cc: transparent; --ct: transparent; }
+  .kcard[data-color] { border-left: 4px solid var(--cc); background-image: linear-gradient(var(--ct), var(--ct)); }
+  .kcard[data-color="red"], .kpsw[data-color="red"] { --cc: #e5484d; --ct: rgba(229,72,77,.13); }
+  .kcard[data-color="orange"], .kpsw[data-color="orange"] { --cc: #f76b15; --ct: rgba(247,107,21,.13); }
+  .kcard[data-color="yellow"], .kpsw[data-color="yellow"] { --cc: #e5a900; --ct: rgba(229,169,0,.15); }
+  .kcard[data-color="green"], .kpsw[data-color="green"] { --cc: #30a46c; --ct: rgba(48,164,108,.13); }
+  .kcard[data-color="blue"], .kpsw[data-color="blue"] { --cc: #3e63dd; --ct: rgba(62,99,221,.13); }
+  .kcard[data-color="purple"], .kpsw[data-color="purple"] { --cc: #8e4ec6; --ct: rgba(142,78,198,.14); }
+  .kcolb { display: none; border: none; background: none; color: var(--muted); cursor: pointer; padding: 0 3px; font-size: 12px; flex: none; opacity: .7; }
+  .kcard:hover .kcolb { display: inline-block; }
+  .kcolb:hover { opacity: 1; color: var(--accent); }
+  .kpal { position: fixed; z-index: 60; display: flex; gap: 6px; padding: 7px 8px; background: var(--card, #fff); border: 1px solid var(--border, rgba(127,127,127,.35)); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+  .kpal[hidden] { display: none; }
+  .kpsw { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; background: var(--cc); cursor: pointer; padding: 0; }
+  .kpsw:hover { transform: scale(1.15); }
+  .kpsw.on { border-color: var(--text, #222); }
+  .kpsw.none { background: transparent; border: 1px solid var(--border, #aaa); color: var(--muted); font-size: 11px; line-height: 1; }
+  .kcard.mini { font-size: 13px; padding: 5px 7px; box-shadow: none; border: 1px solid var(--line, rgba(127,127,127,.25)); }
+  .kcard.mini[data-color] { border-left: 4px solid var(--cc); }
+  .kcard.dropin { outline: 2px dashed var(--accent); outline-offset: 1px; }
+  .kact { display: none; gap: 2px; flex: none; }
+  .kcard:hover .kact { display: inline-flex; }
+  .kact button { border: none; background: none; color: inherit; cursor: pointer; padding: 0 4px; opacity: .6; font-size: 14px; line-height: 1; }
+  .kact button:hover { opacity: 1; }
+  .kcb { width: 13px; flex: none; text-align: center; opacity: .55; }
+  .kcc { font-size: 11px; opacity: .6; margin-left: 4px; flex: none; }
+  .kkids { display: flex; flex-direction: column; gap: 4px; margin: -2px 0 6px 14px; padding-left: 6px; border-left: 2px solid var(--line, #ddd); }
+  .kcol .kh .kfb { font-size: 13px; opacity: .6; padding: 0 3px; }
+  .kcol .kh .kfb:hover { opacity: 1; }
+  .kadd { display: flex; gap: 4px; margin-top: 6px; flex: none; }
+  .kadd input[type=text] { flex: 1; min-width: 0; padding: 6px 8px; border: 1px dashed var(--border); border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: 13px; }
+  .kadd input[type=text]:focus { outline: none; border-style: solid; border-color: var(--accent); }
+  .kadd select { font: inherit; font-size: 12px; max-width: 74px; }
+  .kcol.shut { width: 44px; padding: 8px 4px; align-items: center; cursor: pointer; align-self: stretch; }
+  .kcol.shut .kvt { writing-mode: vertical-rl; font-weight: 700; margin-top: 8px; overflow: hidden; max-height: 70%; text-overflow: ellipsis; }
+  .kcol.shut .kvn { margin-top: auto; writing-mode: vertical-rl; font-size: 12px; color: var(--muted); }
+  .kempty { color: var(--muted); padding: 16px; }
+  #kbList .srow { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; }
+  #kbList .srow .sn { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  #kbList .srow small { color: var(--muted); }
+  #kbList .srow button { padding: 2px 8px; font-size: 12px; }
+  #kbList:empty::before { content: "None yet. Add one below."; font-size: 13px; color: var(--muted); padding: 8px 10px; border: 1px dashed var(--border); border-radius: 8px; display: block; margin-bottom: 6px; }
+  #kbMsg { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #kbMsg:empty { display: none; }
+  #kbMsg.err { color: #c0392b; }
   #inboxBtn .cnt { margin-left: 4px; font-size: 11px; background: rgba(127,127,127,.22); border-radius: 8px; padding: 0 5px; }
   #inboxBtn.unset { opacity: .75; }
   #inboxBtn.over { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -448,6 +568,9 @@
   .dr .dtime { flex: none; width: 64px; font-size: 12px; color: var(--muted); padding-top: 2px; }
   .dr .dmid { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .dr .dname { word-break: break-word; }
+  .dr .ebadge { flex: none; font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 0 6px; margin-left: 6px; white-space: nowrap; }
+  .dr .dname.elink { cursor: pointer; }
+  .dr .dname.elink:hover { color: var(--accent); text-decoration: underline; }
   .dr .dpath { font-size: 11px; color: var(--muted); word-break: break-word; }
   .dr a { flex: none; color: var(--muted); text-decoration: none; padding: 0 4px; }
   .dr a:hover { color: var(--accent); }
@@ -490,7 +613,7 @@
     <button id="searchBtn" title="Search your whole outline (Ctrl+K)">&#128269; Search nodes</button>
   </div>
   <div class="settings">
-    <button id="settingsBtn" aria-haspopup="dialog" aria-expanded="false" title="Board and Plan day settings">&#9881; Settings</button>
+    <button id="settingsBtn" aria-haspopup="dialog" aria-expanded="false" title="Panes and Plan day settings">&#9881; Settings</button>
   </div>
   <!--@addons:button-->
   <button id="refresh" type="button" title="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)">&#8635;</button>
@@ -500,6 +623,18 @@
 <div id="main">
   <div id="board"></div>
   <div id="plan" hidden></div>
+  <div id="kanban">
+    <div class="kbbar">
+      <button id="kbBack" type="button" title="Back to the week board (Esc)">&larr; Week board</button>
+      <h2>Panes</h2>
+      <label><input type="checkbox" id="kbHide"> Hide done</label>
+      <button id="kbCollapse" type="button" title="Fold every column into a narrow strip">Fold columns</button>
+      <button id="kbExpand" type="button" title="Open every folded column">Unfold columns</button>
+      <button id="kbSetup" type="button" title="Choose which nodes are columns">Columns&hellip;</button>
+      <button id="kbRefresh" type="button" title="Reload everything in the panes from WorkFlowy">&#8635;</button>
+    </div>
+    <div id="kbCols"></div>
+  </div>
   <aside id="side">
     <div class="weeknav" id="weeknav">
       <button id="prev">&larr;</button>
@@ -524,6 +659,7 @@
             <button id="reportsBtn" aria-haspopup="true" aria-expanded="false" title="Reports">Reports &#9662;</button>
             <div class="pop fixed" id="reportsPop" role="menu" hidden>
               <label id="repDone" role="menuitem" tabindex="0"><span>&#10003; Completed tasks<small>What you finished, by the day you completed it</small></span></label>
+              <label id="repEnc" role="menuitem" tabindex="0"><span>&#128274; Encrypted items<small>Every item with encrypted text, and where it is</small></span></label>
             </div>
           </span>
         </span>
@@ -534,10 +670,11 @@
 <footer id="foot">
   <div class="tools">
     <button id="planBtn" aria-pressed="false" title="Focus on one day: see what's planned and what you could bring in">&#128197; Plan day</button>
+    <button id="kbBtn" aria-pressed="false" title="Your chosen nodes as side-by-side panes (B)" style="display:inline-flex;align-items:center;gap:6px"><svg class="pic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l4.5 2v12L3 18zM7.5 8l4.5-2v12l-4.5 2zM12 6l4.5 2v12L12 18zM16.5 8L21 6v12l-4.5 2z"/></svg> Panes</button>
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.0</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.2</span></div>
   </div>
 </footer>
 
@@ -550,6 +687,7 @@
       <nav class="set-nav" role="tablist" aria-label="Settings sections">
         <button type="button" role="tab" data-sec="board" class="on">Week board</button>
         <button type="button" role="tab" data-sec="plan">Plan day</button>
+        <button type="button" role="tab" data-sec="kanban">Panes</button>
         <button type="button" role="tab" data-sec="remind">Reminders</button>
         <!--@addons:tab-->
       </nav>
@@ -602,6 +740,31 @@
           <button id="srcAdd" type="button">Add source</button>
         </div>
         <div id="srcMsg" role="status"></div>
+      </div>
+      </div>
+      <div class="set-pane setpane" data-sec="kanban" hidden>
+      <div class="srcs">
+        <div class="sh">Pane columns<small>The Panes view (the Panes button, or the B key) shows each node below as a column, with its children as cards. Saved in this browser.</small></div>
+        <div class="sub">Your columns</div>
+        <div id="kbList"></div>
+        <div class="srcadd">
+          <div class="sub">Add a column</div>
+          <label for="kbName">Name <em>(optional)</em></label>
+          <input id="kbName" type="text" placeholder="e.g. In Process" maxlength="40" autocomplete="off">
+          <label for="kbLink">WorkFlowy link or node id <em>(copy the address from your browser)</em></label>
+          <input id="kbLink" type="text" placeholder="Paste a WorkFlowy node link here" autocomplete="off" spellcheck="false">
+          <button id="kbAdd" type="button">Add column</button>
+        </div>
+        <div class="setrow"><span>Calendar column<small>WorkFlowy's own calendar days: a strip of days and that day's items, editable in place</small></span><button type="button" id="kbAddCal">Add a calendar</button></div>
+        <label class="sel"><span>Use a Plan day source<small>Add one you already have as a column</small></span>
+          <select id="kbPick"><option value="">Choose&hellip;</option></select></label>
+        <div class="srcadd">
+          <div class="sub">Add several at once</div>
+          <label for="kbPanes">A WorkFlowy link that has panes <em>(the address with ?panes=… in it)</em></label>
+          <input id="kbPanes" type="text" placeholder="Paste a WorkFlowy link with panes" autocomplete="off" spellcheck="false">
+          <button id="kbAddPanes" type="button">Add its nodes</button>
+        </div>
+        <div id="kbMsg" role="status"></div>
       </div>
       </div>
       <!--@addons:pane-->
@@ -657,6 +820,19 @@
     </div>
     <div class="sm-results" id="doneBody"></div>
     <div class="sm-foot"><span id="doneInfo"></span><span><button id="doneRefresh" class="mini" title="Download a fresh copy of your outline (allowed once a minute)">Refresh index</button> <button id="doneCopy" class="mini">Copy as text</button></span></div>
+  </div>
+</div>
+
+<div class="pop fixed" id="kbMenu" role="menu" hidden></div>
+
+<div class="modal" id="encModal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="Encrypted items">
+    <div class="sm-head">
+      <h3 id="encTitle">Encrypted items</h3>
+      <button id="encClose" title="Close (Esc)">&#10005;</button>
+    </div>
+    <div class="sm-results" id="encBody"></div>
+    <div class="sm-foot"><span id="encInfo"></span><span><button id="encRefresh" class="mini" title="Download a fresh copy of your outline (allowed once a minute)">Refresh index</button> <button id="encCopy" class="mini">Copy as text</button></span></div>
   </div>
 </div>
 
@@ -1923,7 +2099,7 @@ const escapeMarkup = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").repla
 
 // The stored text to save after the visible words were changed from what visibleText(raw) gave to `next`.
 // Plain text is sent as typed. Formatted text keeps its tags: only the words that changed are replaced.
-function applyEdit(raw, next) {
+function applyEditCore(raw, next) {
   const toks = tokenize(raw);
   const old = toks.map((t) => t.text).join("");
   if (old === next) return raw;
@@ -1947,6 +2123,23 @@ function applyEdit(raw, next) {
   }
   if (!inserted) out += insert;
   return visibleText(out) === next ? out : escapeMarkup(next);   // safety net: never save something that reads differently
+}
+// Dates (a <time> tag) are kept whole: the words around them are edited separately, so an edit before and after a date never pulls words into it.
+function applyEdit(raw, next) {
+  const spans = [...String(raw || "").matchAll(/<time\b[^>]*>[^<]*<\/time>/gi)];
+  if (!spans.length) return applyEditCore(raw, next);
+  const parts = []; let at = 0;
+  for (const m of spans) { parts.push({ raw: raw.slice(at, m.index) }, { raw: m[0], atom: true }); at = m.index + m[0].length; }
+  parts.push({ raw: raw.slice(at) });
+  let pos = 0; const pieces = [];
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (p.atom) { const w = visibleText(p.raw), j = next.indexOf(w, pos); if (!w || j < 0) return applyEditCore(raw, next); pieces.push(next.slice(pos, j)); pos = j + w.length; }
+  }
+  pieces.push(next.slice(pos));
+  let out = "", k = 0;
+  for (const p of parts) { if (p.atom) out += p.raw; else out += applyEditCore(p.raw, pieces[k++]); }
+  return visibleText(out) === next ? out : applyEditCore(raw, next);
 }
 
 // Replaces the line's text with editing boxes (title, and its note). Enter saves, Esc cancels, clicking away saves.
@@ -2626,7 +2819,7 @@ function closeItem(quiet) {
   document.getElementById("itemPane").hidden = true;
   document.getElementById("listPane").hidden = false;
   const fromBoard = itemFromBoard; itemFromBoard = false;
-  if (fromBoard) { searchModal.hidden = true; loadWeek(true); if (typeof refreshInboxCount === "function") refreshInboxCount(); return; }          // re-read the board: the item may have changed
+  if (fromBoard) { searchModal.hidden = true; loadWeek(true); if (typeof refreshInboxCount === "function") refreshInboxCount(); if (typeof kbRefreshIfOpen === "function") kbRefreshIfOpen(); return; }          // re-read the board: the item may have changed
   if (!quiet) searchInput.focus();
   loadPage();                                 // Daily page may have been affected (e.g. an item under it was edited)
 }
@@ -2634,7 +2827,7 @@ function updateViewBar() {
   const bar = document.getElementById("viewBar");
   bar.innerHTML = "";
   const back = document.createElement("button");
-  back.textContent = itemFromBoard ? "← Board" : "← Results"; back.title = itemFromBoard ? "Back to the board (Esc)" : "Back to the search results (Esc)"; back.onclick = () => closeItem();
+  back.textContent = itemFromBoard ? "← Panes" : "← Results"; back.title = itemFromBoard ? "Back to the panes (Esc)" : "Back to the search results (Esc)"; back.onclick = () => closeItem();
   const path = document.createElement("span");
   path.textContent = itemPath.map(maskTokens).concat(shownName(itemNodes[0].name) || "(empty)").join(" › ");
   const link = document.createElement("a");
@@ -3307,6 +3500,746 @@ document.getElementById("doneCopy").onclick = async (e) => {
   setTimeout(() => { btn.textContent = old; }, 1800);
 };
 
+/* ---------- Encrypted items report: every item whose name or note holds encrypted text ---------- */
+const encModal = document.getElementById("encModal"), encBody = document.getElementById("encBody");
+let encHits = [], encIndexTime = 0;
+function encGroups() {
+  const groups = [];
+  for (const h of encHits) {
+    const k = (h.path || []).join(" › ") || "(top level)";
+    let g = groups[groups.length - 1];
+    if (!g || g.k !== k) { g = { k, hits: [] }; groups.push(g); }
+    g.hits.push(h);
+  }
+  return groups;
+}
+function renderEnc(note, data) {
+  encBody.innerHTML = "";
+  if (!encHits.length) { const d = document.createElement("div"); d.className = "hint"; d.textContent = note || "No items with encrypted text were found."; encBody.appendChild(d); }
+  for (const g of encGroups()) {
+    const h = document.createElement("div"); h.className = "dgrp"; h.textContent = `${g.k} · ${g.hits.length}`; encBody.appendChild(h);
+    for (const hit of g.hits) {
+      const row = document.createElement("div"); row.className = "dr";
+      const mid = document.createElement("span"); mid.className = "dmid";
+      const name = document.createElement("span"); name.className = "dname elink"; name.textContent = hit.name || "(empty)"; name.title = "Open this item here";
+      name.onclick = () => { closeEnc(); openItem(hit.id, true); };
+      mid.appendChild(name);
+      if (hit.inNote) { const nn = document.createElement("span"); nn.className = "dpath"; nn.textContent = "Note: " + hit.note; mid.appendChild(nn); }
+      const kind = document.createElement("span"); kind.className = "ebadge";
+      kind.textContent = (hit.inName && hit.inNote ? "name + note" : hit.inNote ? "note" : "name") + (hit.tokens > 1 ? ` · ${hit.tokens}` : "");
+      kind.title = hit.tokens + " encrypted value" + (hit.tokens === 1 ? "" : "s");
+      const a = document.createElement("a"); a.href = "https://workflowy.com/#/" + hit.id.slice(-12); a.target = "_blank"; a.rel = "noopener"; a.textContent = "↗"; a.title = "Open in WorkFlowy";
+      row.append(mid, kind, a); encBody.appendChild(row);
+    }
+  }
+  const tk = data && data.tokens ? ` · ${data.tokens} encrypted value${data.tokens === 1 ? "" : "s"}` : "";
+  document.getElementById("encInfo").textContent = `${data ? data.total : encHits.length} item${(data ? data.total : encHits.length) === 1 ? "" : "s"}${tk}` + (encIndexTime ? " · index " + ago(encIndexTime).replace("updated ", "") : "") + (note ? " · " + note : "");
+  document.getElementById("encCopy").disabled = !encHits.length;
+}
+async function loadEnc(refresh) {
+  encBody.innerHTML = '<div class="hint">Loading…</div>';
+  try {
+    const data = await api("/encrypted?refresh=" + (refresh ? 1 : 0));
+    encHits = data.hits || []; encIndexTime = data.indexTime;
+    renderEnc((data.throttled && refresh ? "refresh limited to once a minute; showing the last copy" : "") || (data.total > encHits.length ? `showing the first ${encHits.length} of ${data.total}` : ""), data);
+  } catch (e) { encHits = []; renderEnc(e.message); }
+}
+function openEnc() { encModal.hidden = false; loadEnc(false); }
+function closeEnc() { encModal.hidden = true; }
+const repEnc = document.getElementById("repEnc");
+repEnc.onclick = () => { setReportsOpen(false); openEnc(); };
+repEnc.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); repEnc.click(); } });
+document.getElementById("encClose").onclick = closeEnc;
+encModal.addEventListener("click", (e) => { if (e.target === encModal) closeEnc(); });
+document.getElementById("encRefresh").onclick = async (e) => { e.currentTarget.disabled = true; await loadEnc(true); e.currentTarget.disabled = false; };
+document.getElementById("encCopy").onclick = async (e) => {
+  const lines = [`Encrypted items (${encHits.length})`];
+  for (const g of encGroups()) { lines.push("", `${g.k} (${g.hits.length})`); for (const h of g.hits) lines.push("- " + (h.name || "(empty)") + (h.inNote ? "  [note: " + h.note + "]" : "")); }
+  const text = lines.join("\n"), btn = e.currentTarget, old = btn.textContent;
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copied ✓"; }
+  catch (err) { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); btn.textContent = "Copied ✓"; } catch (e2) { btn.textContent = "Copy failed"; } ta.remove(); }
+  setTimeout(() => { btn.textContent = old; }, 1800);
+};
+
+/* ---------- Board view: your chosen nodes as columns (cards or outline), plus WorkFlowy calendar columns ---------- */
+const kbColsEl = document.getElementById("kbCols"), kbBtn = document.getElementById("kbBtn"), kbMenu = document.getElementById("kbMenu");
+const KB_NODE_ID = /^[A-Za-z0-9_-]{8,40}$/, KB_CAL_ID = /^@cal[a-z0-9]{1,8}$/;
+function kbLoadCols() {
+  try {
+    return JSON.parse(localStorage.getItem("kbCols") || "[]").filter((x) => x && typeof x.id === "string" && typeof x.name === "string" && (x.kind === "calendar" ? KB_CAL_ID.test(x.id) : KB_NODE_ID.test(x.id)))
+      .map((x) => (x.kind === "calendar" ? { id: x.id, name: x.name, kind: "calendar" } : { id: x.id, name: x.name })).slice(0, 30);
+  } catch (e) { return []; }
+}
+let kbCols = kbLoadCols();
+let kbShut = new Set(); try { kbShut = new Set(JSON.parse(localStorage.getItem("kbShut") || "[]")); } catch (e) {}
+let kbViews = {}; try { kbViews = JSON.parse(localStorage.getItem("kbViews") || "{}") || {}; } catch (e) {}
+let kbWidths = {}; try { kbWidths = JSON.parse(localStorage.getItem("kbWidths") || "{}") || {}; } catch (e) {}
+const kbSaveWidths = () => { try { localStorage.setItem("kbWidths", JSON.stringify(kbWidths)); } catch (e) {} };
+const KB_MIN_W = 200, KB_MAX_W = 1000;
+// Outline zoom: click a bullet to make that line the top of the column; the path back is shown above the lines (this browser only)
+let kbZoom = {}; try { kbZoom = JSON.parse(localStorage.getItem("kbZoom") || "{}") || {}; } catch (e) {}
+const kbSaveZoom = () => { try { localStorage.setItem("kbZoom", JSON.stringify(kbZoom)); } catch (e) {} };
+const kbZoomPath = (col) => (Array.isArray(kbZoom[col.id]) ? kbZoom[col.id] : []);
+const kbZoomTop = (col) => { const p = kbZoomPath(col); return p.length ? p[p.length - 1] : null; };
+function kbSetZoom(col, path) {
+  if (path.length) kbZoom[col.id] = path; else delete kbZoom[col.id];
+  kbSaveZoom(); kbAddingFor = null;
+  const st = kbData[col.id] || (kbData[col.id] = {}); st.tree = null; kbRender();
+  kbLoadOne(col).then(kbRender);
+}
+// Card colours: kept by the server (WorkFlowy has no colour for a bullet), so every browser shows the same ones
+let kbColors = {}, kbColorsOn = null;
+const KB_PALETTE = ["red", "orange", "yellow", "green", "blue", "purple"];
+async function kbLoadColors() { try { const r = await api("/colors"); kbColors = (r && r.colors) || {}; kbColorsOn = true; } catch (e) { kbColorsOn = false; } }
+async function kbSetColor(id, color) {
+  const before = kbColors[id] || null;
+  if (color) kbColors[id] = color; else delete kbColors[id];
+  kbRender();
+  try {
+    const res = await fetch("/colors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ set: { [id]: color } }) });
+    const d = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((d && d.error) || (res.status === 404 ? "Card colours need the newer server.js on the server (and a restart)." : `Saving the colour failed (${res.status})`));
+    kbColors = d.colors || kbColors;
+  } catch (e) { if (before) kbColors[id] = before; else delete kbColors[id]; kbRender(); showError(e.message); }
+}
+let kbPalEl = null;
+function kbOpenPalette(btn, id) {
+  if (!kbPalEl) {
+    kbPalEl = document.createElement("div"); kbPalEl.className = "kpal"; kbPalEl.hidden = true; document.body.appendChild(kbPalEl);
+    document.addEventListener("click", (e) => { if (!kbPalEl.hidden && !kbPalEl.contains(e.target)) kbPalEl.hidden = true; });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !kbPalEl.hidden) { kbPalEl.hidden = true; e.stopPropagation(); } }, true);
+  }
+  kbPalEl.textContent = "";
+  for (const c of KB_PALETTE) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "kpsw"; b.dataset.color = c; b.title = c[0].toUpperCase() + c.slice(1); b.setAttribute("aria-label", b.title);
+    if (kbColors[id] === c) b.classList.add("on"); b.onclick = (ev) => { ev.stopPropagation(); kbPalEl.hidden = true; kbSetColor(id, c); }; kbPalEl.appendChild(b);
+  }
+  const x = document.createElement("button"); x.type = "button"; x.className = "kpsw none"; x.textContent = "✕"; x.title = "No colour"; x.setAttribute("aria-label", "No colour");
+  x.onclick = (ev) => { ev.stopPropagation(); kbPalEl.hidden = true; kbSetColor(id, null); }; kbPalEl.appendChild(x);
+  kbPalEl.hidden = false;
+  const r = btn.getBoundingClientRect(), w = kbPalEl.offsetWidth, h = kbPalEl.offsetHeight;
+  kbPalEl.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  kbPalEl.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+}
+let kbCalDays = {}; try { kbCalDays = JSON.parse(localStorage.getItem("kbCalDays") || "{}") || {}; } catch (e) {}
+const kbCalN = (col) => ([3, 5, 7].includes(kbCalDays[col.id]) ? kbCalDays[col.id] : 7);
+let kbHideDone = false; try { kbHideDone = localStorage.getItem("kbHideDone") === "1"; } catch (e) {}
+const kbSaveCols = () => { try { localStorage.setItem("kbCols", JSON.stringify(kbCols)); } catch (e) {} };
+const kbSaveShut = () => { try { localStorage.setItem("kbShut", JSON.stringify([...kbShut])); } catch (e) {} };
+const kbSaveViews = () => { try { localStorage.setItem("kbViews", JSON.stringify(kbViews)); } catch (e) {} };
+// Outline lines are folded unless you opened them: this holds the ones you opened (this browser only)
+let kbOpenSet = new Set(); try { kbOpenSet = new Set(JSON.parse(localStorage.getItem("kbOpenLines") || "[]")); } catch (e) {}
+const kbSaveOpen = () => { try { localStorage.setItem("kbOpenLines", JSON.stringify([...kbOpenSet].slice(-5000))); } catch (e) {} };
+function kbSetOpen(id, on) { if (on) kbOpenSet.add(id); else kbOpenSet.delete(id); kbSaveOpen(); }
+function kbAllParents(tree, out) { for (const n of tree || []) { if ((n.children || []).length) { out.push(n.id); kbAllParents(n.children, out); } } return out; }
+function kbSetAll(col, on) {
+  const cs = col.kind === "calendar" ? kbCal[col.id] : kbData[col.id];
+  const roots = kbView(col) === "kanban" ? kbLaneCards(col, kbSelLane(col)) : (cs && cs.tree) || [];
+  for (const id of kbAllParents(roots, [])) { if (on) kbOpenSet.add(id); else kbOpenSet.delete(id); }
+  kbAddingFor = null; kbSaveOpen(); kbRender();
+}
+const kbView = (col) => (col.kind === "calendar" ? "calendar" : kbViews[col.id] === "outline" ? "outline" : kbViews[col.id] === "kanban" ? "kanban" : "cards");
+// Kanban view: the column node's children are the titles (lanes); one title at a time is shown, chosen from a drop-down
+let kbLane = {}; try { kbLane = JSON.parse(localStorage.getItem("kbLane") || "{}") || {}; } catch (e) {}
+const kbSaveLane = () => { try { localStorage.setItem("kbLane", JSON.stringify(kbLane)); } catch (e) {} };
+function kbSelLane(col) {
+  const titles = (kbData[col.id] || {}).cards || [];
+  return titles.find((t) => t.id === kbLane[col.id]) || titles[0] || null;
+}
+const kbLaneCards = (col, lane) => (lane && ((kbData[col.id] || {}).lanes || {})[lane.id]) || [];
+const kbData = {};                       // column id -> { cards, tree, error, loaded }
+const kbCal = {};                        // calendar column id -> { start, sel, days: { key: { count } }, tree }
+let kbToken = 0, kbDirty = false, kbAddingFor = null;
+const kbIsOpen = () => document.body.classList.contains("kb");
+const kbType = (n) => (n.data && n.data.layoutMode) || "bullets";
+const kbHidden = (n) => kbHideDone && kbType(n) === "todo" && !!n.completedAt;
+function kbCalState(col) {
+  if (!kbCal[col.id]) { const t = todayDate(); kbCal[col.id] = { start: t, sel: key(t), days: {}, tree: [] }; }
+  return kbCal[col.id];
+}
+async function kbLoadCal(col, onlyDay) {
+  const cs = kbCalState(col), keys = [...Array(kbCalN(col))].map((_, i) => key(addDays(cs.start, i)));
+  if (!onlyDay) await Promise.all(keys.map(async (k) => { const d = await gate(() => call("GET", `/nodes?parent_id=${k}`)); cs.days[k] = { count: d && d.nodes ? d.nodes.length : 0 }; }));
+  const sel = cs.sel, tree = await fetchTree(sel, 8);
+  if (cs.sel === sel) cs.tree = tree;
+}
+// One title of a Kanban column. Its cards come live from WorkFlowy (always current); what is inside each card comes from the
+// server's copy of the outline, and a card that copy doesn't know yet (added in WorkFlowy a moment ago) is read directly.
+async function kbLoadLane(col, t, fresh) {
+  const st = kbData[col.id], byTime = (a, b) => a.priority - b.priority;
+  const live = await gate(() => call("GET", `/nodes?parent_id=${t.id}`));
+  const cards = ((live && live.nodes) || []).slice().sort(byTime), known = new Map();
+  try { const r = await gate(() => api("/item?id=" + encodeURIComponent(t.id) + (fresh ? "&refresh=1" : ""))); for (const c of (r.item && r.item.children) || []) known.set(c.id, c); } catch (e) { /* the live cards are still shown */ }
+  const unknown = [];
+  for (const c of cards) { const k = known.get(c.id); if (k) c.children = k.children || []; else unknown.push(c); }
+  await Promise.all(unknown.slice(0, 30).map(async (c) => { try { const r = await gate(() => call("GET", `/nodes?parent_id=${c.id}`)); c.children = ((r && r.nodes) || []).slice().sort(byTime); } catch (e) { c.children = []; } }));
+  st.lanes[t.id] = cards;
+}
+async function kbLoadOne(col, fresh) {
+  const st = kbData[col.id] || (kbData[col.id] = {});
+  try {
+    if (col.kind === "calendar") await kbLoadCal(col);
+    else {
+      const d = await call("GET", `/nodes?parent_id=${col.id}`);
+      if (d === null) throw new Error("WorkFlowy doesn't know this node any more. Remove the column and add it again.");
+      st.cards = (d.nodes || []).slice().sort((a, b) => a.priority - b.priority);
+      if (kbView(col) === "kanban") { st.lanes = st.lanes || {}; await Promise.all(st.cards.slice(0, 40).map((t) => kbLoadLane(col, t, fresh))); }
+      if (kbView(col) === "outline") {
+        const z = kbZoomTop(col); let top = z ? z.id : col.id;
+        try { const r = await api("/item?id=" + encodeURIComponent(top)); st.tree = (r.item && r.item.children) || []; }
+        catch (e) {
+          if (!z) throw e;
+          try { const r = await call("GET", `/nodes?parent_id=${top}`); if (r === null) throw e; st.tree = ((r && r.nodes) || []).slice().sort((a, b) => a.priority - b.priority); }   // a line the server's copy doesn't know yet
+          catch (x) { delete kbZoom[col.id]; kbSaveZoom(); const r = await api("/item?id=" + encodeURIComponent(col.id)); st.tree = (r.item && r.item.children) || []; }   // the zoomed line is gone: back to the top
+        }
+      }
+    }
+    st.error = "";
+  } catch (e) { st.cards = st.cards || []; st.error = e.message; }
+  st.loaded = true;
+}
+async function kbLoadAll(force, fresh) {
+  const t = ++kbToken;
+  if (force || kbColorsOn === null) kbLoadColors().then(() => { if (t === kbToken) kbRenderKeep(); });
+  const queue = kbCols.filter((c) => force || !(kbData[c.id] && kbData[c.id].loaded));
+  kbRender();
+  const worker = async () => { while (queue.length) { await kbLoadOne(queue.shift(), fresh); if (t === kbToken) kbRenderKeep(); } };
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+  if (t === kbToken) kbRenderKeep();
+}
+// redraw, but never wipe an add box that has text in it
+function kbRenderKeep() {
+  const a = document.activeElement, isAdd = !!(a && a.classList && a.classList.contains("kaddin"));
+  if (isAdd && a.value) return;
+  const had = isAdd ? { col: a.dataset.col, parent: a.dataset.parent } : null;
+  kbRender();
+  if (had) { const x = kbColsEl.querySelector(`.kaddin[data-col="${had.col}"][data-parent="${had.parent}"]`); if (x) x.focus(); }
+}
+function kbRefreshIfOpen() { if (kbIsOpen()) kbLoadAll(true); }
+function kbCount(col) {
+  const cards = kbView(col) === "kanban" ? kbLaneCards(col, kbSelLane(col)) : ((kbData[col.id] || {}).cards || []);
+  const tasks = cards.filter((c) => kbType(c) === "todo");
+  return { n: cards.length, done: tasks.filter((c) => c.completedAt).length, tasks: tasks.length };
+}
+function kbRender() {
+  if (!kbIsOpen()) return;
+  if (deferRedraw("kbRender", kbRender)) return;           // never wipe a line that is being edited
+  const keepX = kbColsEl.scrollLeft; kbColsEl.textContent = "";
+  document.getElementById("kbHide").checked = kbHideDone;
+  if (!kbCols.length) {
+    const d = document.createElement("div"); d.className = "kempty";
+    d.append("No columns yet. Add the nodes you want to see side by side, each by its WorkFlowy link, or a calendar column. ");
+    const b = document.createElement("button"); b.type = "button"; b.textContent = "Choose columns…"; b.onclick = kbOpenSetup; d.appendChild(b);
+    kbColsEl.appendChild(d); return;
+  }
+  kbCols.forEach((col, i) => kbColsEl.appendChild(kbColEl(col, i)));
+  kbColsEl.scrollLeft = keepX;
+}
+function kbToggle(id) { if (kbShut.has(id)) kbShut.delete(id); else kbShut.add(id); kbSaveShut(); kbRender(); }
+function kbColEl(col, idx) {
+  const st = kbData[col.id] || {}, c = kbCount(col), shut = kbShut.has(col.id), view = kbView(col), cal = col.kind === "calendar";
+  const el = document.createElement("div"); el.className = "kcol" + (shut ? " shut" : "") + (view === "outline" || view === "calendar" ? " wide" : ""); el.dataset.id = col.id;
+  el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove("over"); });
+  el.addEventListener("drop", (e) => { e.preventDefault(); el.classList.remove("over"); kbDrop(e, col); });
+  if (shut) {
+    el.title = "Click to open this column";
+    const a = document.createElement("button"); a.type = "button"; a.textContent = "▸"; a.setAttribute("aria-label", "Open column"); a.style.cssText = "border:none;background:none;color:var(--text);cursor:pointer;font-size:14px;";
+    const t = document.createElement("div"); t.className = "kvt"; t.textContent = col.name;
+    const n = document.createElement("div"); n.className = "kvn";
+    n.textContent = cal ? "calendar" : st.loaded ? `${c.n} card${c.n === 1 ? "" : "s"}` : "…";
+    el.append(a, t, n); el.onclick = () => kbToggle(col.id);
+    return el;
+  }
+  if (kbWidths[col.id]) el.style.width = Math.max(KB_MIN_W, Math.min(KB_MAX_W, kbWidths[col.id])) + "px";
+  const grip = document.createElement("div"); grip.className = "kgrip"; grip.title = "Drag to change the column width (double-click: reset)";
+  grip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return; e.preventDefault(); e.stopPropagation();
+    const x0 = e.clientX, w0 = el.getBoundingClientRect().width; grip.setPointerCapture(e.pointerId); el.classList.add("sizing");
+    const mv = (m) => { el.style.width = Math.max(KB_MIN_W, Math.min(KB_MAX_W, Math.round(w0 + m.clientX - x0))) + "px"; };
+    const up = () => { grip.removeEventListener("pointermove", mv); grip.removeEventListener("pointerup", up); grip.removeEventListener("pointercancel", up); el.classList.remove("sizing"); kbWidths[col.id] = Math.round(el.getBoundingClientRect().width); kbSaveWidths(); };
+    grip.addEventListener("pointermove", mv); grip.addEventListener("pointerup", up); grip.addEventListener("pointercancel", up);
+  });
+  grip.addEventListener("dblclick", () => { delete kbWidths[col.id]; kbSaveWidths(); el.style.width = ""; });
+  grip.addEventListener("click", (e) => e.stopPropagation());
+  el.appendChild(grip);
+  const h = document.createElement("div"); h.className = "kh";
+  const tg = document.createElement("button"); tg.type = "button"; tg.textContent = "▾"; tg.title = "Collapse this column"; tg.onclick = () => kbToggle(col.id);
+  const t = document.createElement("span"); t.className = "kt"; t.textContent = col.name;
+  const n = document.createElement("span"); n.className = "kn"; n.textContent = cal ? "" : st.loaded ? String(c.n) : "…";
+  const mb = document.createElement("button"); mb.type = "button"; mb.textContent = "⋯"; mb.title = "Column options"; mb.onclick = (ev) => { ev.stopPropagation(); kbOpenMenu(mb, col, idx); };
+  h.append(tg, t, n);
+  if (!cal) {
+    const vs = document.createElement("span"); vs.className = "kvs"; vs.setAttribute("role", "group"); vs.setAttribute("aria-label", "View");
+    for (const [v, g, name] of [["cards", "▦", "Cards"], ["outline", "☰", "Outline"], ["kanban", "▥", "Kanban"]]) {
+      const b = document.createElement("button"); b.type = "button"; b.dataset.v = v; b.textContent = g; b.title = name + " view"; b.setAttribute("aria-label", name + " view"); b.setAttribute("aria-pressed", v === view ? "true" : "false");
+      if (v === view) b.classList.add("on"); b.onclick = (ev) => { ev.stopPropagation(); if (v !== view) kbSetView(col, v); }; vs.appendChild(b);
+    }
+    h.appendChild(vs);
+  }
+  if (view !== "cards") for (const [label, title, on] of [["⊞", "Expand all lines", true], ["⊟", "Collapse all lines", false]]) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "kfb"; b.textContent = label; b.title = title; b.setAttribute("aria-label", title); b.onclick = (ev) => { ev.stopPropagation(); kbSetAll(col, on); }; h.appendChild(b);
+  }
+  h.appendChild(mb); el.appendChild(h);
+  const sub = document.createElement("div"); sub.className = "ksub" + (st.error ? " err" : "");
+  if (view === "kanban" || cal) sub.textContent = st.error || (!cal && !st.loaded ? "Loading…" : "");          // the drop-down / calendar already say the rest
+  else sub.textContent = st.error || (st.loaded ? `${c.n} card${c.n === 1 ? "" : "s"}` + (c.tasks ? ` · ${c.done} of ${c.tasks} tasks done` : "") : "Loading…");
+  if (sub.textContent) el.appendChild(sub);
+  if (cal) { el.appendChild(kbCalBody(col)); return el; }
+  if (view === "kanban") { el.appendChild(kbLaneEl(col, st)); return el; }
+  const zt = view === "outline" ? kbZoomTop(col) : null;
+  if (zt) el.appendChild(kbCrumb(col));
+  const ctx = kbCtx(col, zt ? zt.id : col.id);
+  const list = document.createElement("div"); list.className = "kcards";
+  if (view === "outline") { if (st.tree) kbWalk(list, st.tree, 0, null, null, ctx); }
+  else for (const card of st.cards || []) { if (kbHidden(card)) continue; list.appendChild(kbCardEl(card, col, ctx)); }
+  el.appendChild(list);
+  el.appendChild(kbAddRow(ctx, zt ? zt.id : col.id, 0));
+  return el;
+}
+// where you are when zoomed into a line: ⌂ Column › Parent › This line (each earlier step takes you back to it)
+function kbCrumb(col) {
+  const path = kbZoomPath(col), bar = document.createElement("div"); bar.className = "kcrumb";
+  const back = document.createElement("button"); back.type = "button"; back.textContent = "‹"; back.title = "Up one level"; back.className = "kcb1";
+  back.onclick = () => kbSetZoom(col, path.slice(0, -1)); bar.appendChild(back);
+  const step = (label, to, cur, title) => {
+    const b = document.createElement(cur ? "span" : "button"); if (!cur) b.type = "button"; b.className = "kcs1" + (cur ? " cur" : ""); b.textContent = label; if (title) b.title = title;
+    if (!cur) b.onclick = () => kbSetZoom(col, path.slice(0, to)); bar.appendChild(b);
+  };
+  if (path.length > 1) { const home = document.createElement("button"); home.type = "button"; home.className = "kchome"; home.textContent = "⌂"; home.title = "Back to the top of “" + col.name + "”"; home.onclick = () => kbSetZoom(col, []); bar.appendChild(home); }
+  path.forEach((p, i) => { if (i) { const sep = document.createElement("span"); sep.className = "kcsep"; sep.textContent = "›"; bar.appendChild(sep); } step(p.name || "(empty)", i + 1, i === path.length - 1, shownVisible(p.name || "")); });
+  return bar;
+}
+function kbLaneEl(col, st) {
+  const box = document.createElement("div"); box.className = "klane";
+  const titles = st.cards || [];
+  if (!titles.length) { const e = document.createElement("div"); e.className = "kempty"; e.textContent = st.loaded ? "This node has no children to use as titles. Add some in WorkFlowy (for example To do, Doing, Done)." : ""; box.appendChild(e); return box; }
+  const lane = kbSelLane(col), nm = (t) => shownVisible(t.name) || "(empty)";
+  const sel = document.createElement("select"); sel.className = "klsel"; sel.setAttribute("aria-label", "Which title to show");
+  for (const t of titles) { const o = document.createElement("option"); o.value = t.id; o.textContent = `${nm(t)} (${kbLaneCards(col, t).length})`; if (lane && t.id === lane.id) o.selected = true; sel.appendChild(o); }
+  sel.onchange = () => {
+    kbLane[col.id] = sel.value; kbSaveLane(); kbAddingFor = null; kbRender();
+    const t = titles.find((x) => x.id === sel.value); if (t) kbLoadLane(col, t, false).then(kbRender).catch((e) => showError(e.message));       // read this title again from WorkFlowy
+  };
+  box.appendChild(sel);
+  // while a card is being dragged, every title is a drop target
+  const drops = document.createElement("div"); drops.className = "kdrops";
+  for (const t of titles) {
+    const d = document.createElement("div"); d.className = "kdrop" + (lane && t.id === lane.id ? " cur" : ""); d.textContent = `${nm(t)} (${kbLaneCards(col, t).length})`;
+    d.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); d.classList.add("over"); });
+    d.addEventListener("dragleave", () => d.classList.remove("over"));
+    d.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); d.classList.remove("over"); document.body.classList.remove("kbdrag"); kbDrop(e, col, t.id, `“${nm(t)}”`); });
+    drops.appendChild(d);
+  }
+  box.appendChild(drops);
+  const ctx = kbCtx(col, lane.id), list = document.createElement("div"); list.className = "kcards";
+  kbLaneCardsEl(list, kbLaneCards(col, lane), { id: lane.id, name: nm(lane) }, 0, ctx, col);
+  box.appendChild(list); box.appendChild(kbAddRow(ctx, lane.id, 0));
+  return box;
+}
+// The cards of a title, and (when opened) the lines inside each card as smaller cards, to any depth.
+// Every card can be dragged, and every card accepts a drop: what is dropped on it becomes its child.
+function kbFindNode(list, id) { for (const n of list || []) { if (n.id === id) return n; const f = kbFindNode(n.children, id); if (f) return f; } return null; }
+function kbLaneCardsEl(list, cards, parent, level, ctx, col) {
+  for (const card of cards) {
+    if (kbHidden(card)) continue;
+    const el = kbCardEl(card, parent, ctx), kids = (card.children || []).filter((x) => !kbHidden(x));
+    const open = (kids.length && kbOpenSet.has(card.id)) || kbAddingFor === card.id;
+    if (level) el.classList.add("mini");
+    if (!kids.length) { const sp = document.createElement("span"); sp.className = "kctg ph"; sp.setAttribute("aria-hidden", "true"); el.insertBefore(sp, el.firstChild); }   // keeps the text lined up with cards that have an arrow
+    else {
+      const tg = document.createElement("button"); tg.type = "button"; tg.className = "kctg"; tg.textContent = open ? "▾" : "▸"; tg.title = open ? "Collapse" : `Expand (${countBelow(card)} line${countBelow(card) === 1 ? "" : "s"} inside)`;
+      tg.onclick = (ev) => { ev.stopPropagation(); kbSetOpen(card.id, !open); if (kbAddingFor === card.id) kbAddingFor = null; kbRender(); };
+      el.insertBefore(tg, el.firstChild);
+      if (!open) { const c = document.createElement("span"); c.className = "kcc"; c.textContent = String(countBelow(card)); c.title = "Lines inside"; el.insertBefore(c, el.querySelector(".kopen")); }
+    }
+    if (!el.querySelector('input[type="checkbox"]')) { const b = document.createElement("span"); b.className = "kcb"; b.textContent = kbType(card) === "numbered" ? "" : "•"; b.setAttribute("aria-hidden", "true"); el.insertBefore(b, el.querySelector(".kct")); }   // same width as a check box, so every line's text starts at the same place
+    const act = document.createElement("span"); act.className = "kact";
+    const plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.title = "Add a line inside this card";
+    plus.onclick = (ev) => { ev.stopPropagation(); kbAddingFor = kbAddingFor === card.id ? null : card.id; kbRender(); const x = kbColsEl.querySelector(`.kaddin[data-parent="${card.id}"]`); if (x) x.focus(); };
+    const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.title = "Delete this card";
+    minus.onclick = async (ev) => {
+      ev.stopPropagation(); const below = countBelow(card);
+      if (!confirm(`Delete this card permanently?\n\n"${shownName(card.name) || "(empty)"}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} inside will be deleted too.` : ""))) return;
+      minus.disabled = true; try { await call("DELETE", `/nodes/${card.id}`); await ctx.reload(); } catch (e) { showError(e.message); minus.disabled = false; }
+    };
+    act.append(plus, minus); el.insertBefore(act, el.querySelector(".kopen"));
+    // dropping on a card makes the dropped card or line a child of it
+    el.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); el.classList.add("dropin"); });
+    el.addEventListener("dragleave", (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove("dropin"); });
+    el.addEventListener("drop", (e) => {
+      e.preventDefault(); e.stopPropagation(); el.classList.remove("dropin"); document.body.classList.remove("kbdrag");
+      let it; try { it = JSON.parse(e.dataTransfer.getData("text/plain") || "{}"); } catch (x) { return; }
+      if (!it || !it.id || it.id === card.id) return;
+      const mine = kbFindNode(kbLaneCards(col, kbSelLane(col)), it.id);
+      if (mine && kbFindNode([mine], card.id)) { showError("A card can't be moved into itself."); return; }
+      kbSetOpen(card.id, true); kbDrop(e, col, card.id, `“${(shownVisible(card.name) || "card").slice(0, 40)}”`);
+    });
+    list.appendChild(el);
+    if (open) {
+      const sub = document.createElement("div"); sub.className = "kkids";
+      kbLaneCardsEl(sub, card.children || [], { id: card.id, name: shownVisible(card.name) || "card" }, level + 1, ctx, col);
+      if (kbAddingFor === card.id) sub.appendChild(kbAddRow(ctx, card.id, 1));
+      list.appendChild(sub);
+    }
+  }
+}
+// what an editing line needs to know: where it is, and how to read the data again after a change
+function kbCtx(col, rootId) {
+  return { col, rootId, reload: async () => { kbDirty = true; await kbLoadOne(col); kbRender(); } };
+}
+/* ----- cards ----- */
+function kbCardEl(n, col, ctx) {
+  const ty = kbType(n), el = document.createElement("div");
+  el.className = "kcard" + (n.completedAt ? " done" : "") + (/^h[1-3]$/.test(ty) ? " hd" : ""); el.draggable = true; el.dataset.id = n.id;
+  if (ty === "todo") {
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.setAttribute("aria-label", "Done");
+    cb.onclick = (ev) => ev.stopPropagation();
+    cb.onchange = async () => {
+      const done = cb.checked; cb.disabled = true;
+      try {
+        await call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`); n.completedAt = done ? Math.floor(Date.now() / 1000) : null; kbDirty = true;
+        pushUndo(`${done ? "Completed" : "Reopened"} “${(shownVisible(n.name) || "card").slice(0, 40)}”`, async () => { await call("POST", `/nodes/${n.id}/${done ? "uncomplete" : "complete"}`); n.completedAt = done ? null : Math.floor(Date.now() / 1000); kbRender(); });
+      } catch (e) { showError(e.message); cb.checked = !done; }
+      kbRender();
+    };
+    el.appendChild(cb);
+  }
+  const t = document.createElement("span"); t.className = "kct"; t.textContent = shownVisible(n.name) || "(empty)"; t.title = "Click to edit here";
+  el.appendChild(t);
+  if (n.note && plain(n.note).trim()) { const i = document.createElement("span"); i.className = "kic"; i.textContent = "≡"; i.title = "Has a note"; el.appendChild(i); }
+  if (kbColors[n.id]) el.dataset.color = kbColors[n.id];
+  if (kbColorsOn !== false) { const cb2 = document.createElement("button"); cb2.type = "button"; cb2.className = "kcolb"; cb2.textContent = "●"; cb2.title = "Colour this card"; cb2.setAttribute("aria-label", "Colour this card"); cb2.onclick = (ev) => { ev.stopPropagation(); kbOpenPalette(cb2, n.id); }; el.appendChild(cb2); }
+  const op = document.createElement("button"); op.type = "button"; op.className = "kopen"; op.textContent = "⤢"; op.title = "Open in the item window";
+  op.onclick = (ev) => { ev.stopPropagation(); openItem(n.id, true); };
+  el.appendChild(op);
+  // click edits the card where it is (formatting and dates are kept); Ctrl/Cmd+click opens the item window
+  el.addEventListener("click", (ev) => {
+    if (ev.target.closest("input,button,.pl-edit")) return;
+    if (ev.ctrlKey || ev.metaKey) { openItem(n.id, true); return; }
+    if (String(window.getSelection && window.getSelection()) !== "") return;
+    if (el.querySelector(".pl-edit")) return;
+    el.draggable = false;
+    startEdit(n, t, () => ctx.reload(), () => { el.draggable = true; }, { type: true });
+  });
+  el.addEventListener("dragstart", (e) => { if (el.querySelector(".pl-edit")) { e.preventDefault(); return; } e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: col.id, name: (shownVisible(n.name) || "card").slice(0, 40) })); el.classList.add("dragging"); setTimeout(() => document.body.classList.add("kbdrag"), 0); });
+  el.addEventListener("dragend", () => { el.classList.remove("dragging"); document.body.classList.remove("kbdrag"); });
+  return el;
+}
+/* ----- adding a line (to a column, or under a line of an outline) ----- */
+function kbAddRow(ctx, parentId, level) {
+  const row = document.createElement("div"); row.className = "kadd"; row.style.paddingLeft = level ? (level * 16 + 4) + "px" : "";
+  const inp = document.createElement("input"); inp.type = "text"; inp.className = "kaddin"; inp.dataset.col = ctx.col.id; inp.dataset.parent = parentId;
+  inp.placeholder = level ? "Add under this line… (Enter adds, Esc closes)" : "+ Add a card"; inp.setAttribute("aria-label", "Add a line to " + ctx.col.name);
+  const kinds = [["bullets", "•", "Bullet"], ["todo", "☐", "Task"], ["numbered", "1.", "Numbered line"]];
+  let ki = 0; try { const last = localStorage.getItem("kbAddType"), x = kinds.findIndex((k) => k[0] === last); if (x >= 0) ki = x; } catch (e) {}
+  const sel = document.createElement("button"); sel.type = "button"; sel.className = "ktype";
+  const paint = () => { sel.textContent = kinds[ki][1]; sel.title = `New line type: ${kinds[ki][2]} (click to change)`; sel.setAttribute("aria-label", sel.title); };
+  Object.defineProperty(sel, "value", { get: () => kinds[ki][0] });
+  sel.onclick = () => { ki = (ki + 1) % kinds.length; try { localStorage.setItem("kbAddType", kinds[ki][0]); } catch (e) {} paint(); inp.focus(); };
+  paint();
+  inp.addEventListener("keydown", async (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); if (level) { kbAddingFor = null; kbRender(); } else inp.blur(); return; }
+    if (e.key !== "Enter" || e.isComposing || !inp.value.trim()) return;
+    const name = inp.value.trim(), kind = sel.value; inp.value = ""; inp.disabled = true;
+    try {
+      const req = { parent_id: parentId, name, position: "bottom" }; if (kind !== "bullets") req.layoutMode = kind;
+      const res = await call("POST", "/nodes", req); const id = res && res.item_id;
+      if (level) kbSetOpen(parentId, true);          // a line you add under stays visible
+      await ctx.reload();
+      const again = kbColsEl.querySelector(`.kaddin[data-col="${ctx.col.id}"][data-parent="${parentId}"]`); if (again) again.focus();
+      if (id) pushUndo(`Added “${name.slice(0, 40)}”`, async () => { await call("DELETE", `/nodes/${id}`); await ctx.reload(); });
+    } catch (x) { showError(x.message); inp.disabled = false; inp.value = name; }
+  });
+  row.append(inp, sel);
+  return row;
+}
+/* ----- outline: lines you can edit where they are (the same behaviour as the Daily page) ----- */
+function kbWalk(cont, all, level, parent, grandId, ctx) {
+  const vis = all.filter((x) => !kbHidden(x));
+  vis.forEach((n, i) => {
+    const kids = n.children || [], hasKids = kids.some((x) => !kbHidden(x));
+    const closed = hasKids && !kbOpenSet.has(n.id) && kbAddingFor !== n.id;
+    cont.appendChild(kbLine(n, level, i > 0 ? vis[i - 1] : null, parent && grandId ? { parent, grandId } : null, hasKids ? (closed ? "closed" : "open") : "", ctx));
+    if (hasKids && !closed) kbWalk(cont, kids, level + 1, n, parent ? parent.id : ctx.rootId, ctx);
+    if (kbAddingFor === n.id) cont.appendChild(kbAddRow(ctx, n.id, level + 1));
+  });
+}
+async function kbOutdent(n, parent, grandId, ctx) {        // as the Daily page: the line goes right below its parent
+  const kids = async (id) => (((await call("GET", `/nodes?parent_id=${id}`)) || {}).nodes || []).slice().sort((a, b) => a.priority - b.priority);
+  const grandKids = await kids(grandId), pi = grandKids.findIndex((x) => x.id === parent.id);
+  const after = (pi < 0 ? [] : grandKids.slice(pi + 1)).filter((x) => x.id !== n.id);
+  const oldKids = await kids(parent.id), ni = oldKids.findIndex((x) => x.id === n.id), stayed = ni < 0 ? [] : oldKids.slice(ni + 1);
+  if (after.length > 25 && !confirm(`To place this line right below its parent, ${after.length} lines that follow the parent have to be re-ordered. Continue?`)) return;
+  await call("POST", `/nodes/${n.id}/move`, { parent_id: grandId, position: "bottom" });
+  for (const x of after) await call("POST", `/nodes/${x.id}/move`, { parent_id: grandId, position: "bottom" });
+  pushUndo(`Outdented “${shortName(n)}”`, async () => {
+    await call("POST", `/nodes/${n.id}/move`, { parent_id: parent.id, position: "bottom" });
+    for (const x of stayed) await call("POST", `/nodes/${x.id}/move`, { parent_id: parent.id, position: "bottom" });
+    await ctx.reload();
+  });
+  await ctx.reload();
+}
+function kbLine(n, level, prev, out, fold, ctx) {
+  const mode = kbType(n), row = document.createElement("div"), zoomable = ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline";
+  row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : ""); row.style.paddingLeft = level * 16 + "px"; row.dataset.id = n.id;
+  const tg = document.createElement(fold ? "button" : "span"); tg.className = "tg";
+  if (fold) { tg.textContent = fold === "open" ? "▾" : "▸"; tg.title = fold === "open" ? "Collapse" : "Expand"; tg.addEventListener("click", () => { kbSetOpen(n.id, fold !== "open"); if (kbAddingFor === n.id) kbAddingFor = null; kbRender(); }); }
+  row.appendChild(tg);
+  if (mode === "todo") {
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt;
+    cb.addEventListener("change", async () => {
+      try { await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`); n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); }
+      catch (e) { showError(e.message); cb.checked = !cb.checked; }
+    });
+    row.appendChild(cb);
+  } else {
+    const b = document.createElement("span");
+    if (mode === "numbered") { n._num = (prev && kbType(prev) === "numbered" && prev._num ? prev._num : 0) + 1; b.className = "b nb"; b.textContent = n._num + "."; }
+    else { b.className = "b"; b.textContent = "•"; }
+    if (zoomable) { b.classList.add("zb"); b.title = "Click to zoom into this line"; b.addEventListener("click", () => kbSetZoom(ctx.col, [...kbZoomPath(ctx.col), { id: n.id, name: shownVisible(n.name).slice(0, 80) }])); }
+    row.appendChild(b);
+  }
+  const t = document.createElement("span"); t.className = "t"; t.textContent = shownVisible(n.name) || "(empty)";
+  if (fold === "closed") { const pc = document.createElement("span"); const hidden = countBelow(n); pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`; t.appendChild(pc); }
+  if (n.note && n.note.trim()) { const pn = document.createElement("small"); pn.className = "pn"; pn.textContent = visibleText(n.note).split("\n")[0]; t.appendChild(pn); }
+  t.title = "Click to edit here";
+  t.addEventListener("click", () => {
+    if (String(window.getSelection && window.getSelection()) !== "") return;
+    startEdit(n, t, () => ctx.reload(), null, { type: true });
+  });
+  row.appendChild(t);
+  if (out) {
+    const od = document.createElement("button"); od.className = "outc"; od.textContent = "<"; od.title = "Outdent: move out one level, below its parent";
+    od.addEventListener("click", async () => { od.disabled = true; try { await kbOutdent(n, out.parent, out.grandId, ctx); } catch (e) { showError(e.message); od.disabled = false; await ctx.reload().catch(() => {}); } });
+    row.appendChild(od);
+  }
+  if (prev) {
+    const ind = document.createElement("button"); ind.className = "indc"; ind.textContent = ">"; ind.title = "Indent under the line above";
+    ind.addEventListener("click", async () => { ind.disabled = true; try { await call("POST", `/nodes/${n.id}/move`, { parent_id: prev.id, position: "bottom" }); kbSetOpen(prev.id, true); await ctx.reload(); } catch (e) { showError(e.message); ind.disabled = false; } });
+    row.appendChild(ind);
+  }
+  if (zoomable && mode === "todo") {        // a task shows a check box, not a bullet, so it gets a zoom button instead
+    const zm = document.createElement("button"); zm.className = "zmc"; zm.textContent = "⌖"; zm.title = "Zoom into this line";
+    zm.addEventListener("click", () => kbSetZoom(ctx.col, [...kbZoomPath(ctx.col), { id: n.id, name: shownVisible(n.name).slice(0, 80) }])); row.appendChild(zm);
+  }
+  const plus = document.createElement("button"); plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one";
+  plus.addEventListener("click", () => { kbAddingFor = kbAddingFor === n.id ? null : n.id; kbRender(); const x = kbColsEl.querySelector(`.kaddin[data-parent="${n.id}"]`); if (x) x.focus(); });
+  row.appendChild(plus);
+  const minus = document.createElement("button"); minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
+  minus.addEventListener("click", async () => {
+    const below = countBelow(n), label = shownName(n.name) || "(empty)";
+    if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
+    minus.disabled = true;
+    try { await call("DELETE", `/nodes/${n.id}`); await ctx.reload(); } catch (e) { showError(e.message); minus.disabled = false; }
+  });
+  row.appendChild(minus);
+  return row;
+}
+/* ----- calendar column: WorkFlowy's own days ----- */
+function kbCalBody(col) {
+  const cs = kbCalState(col), nd = kbCalN(col), body = document.createElement("div"); body.className = "kcal";
+  const reloadCal = async (onlyDay) => { kbDirty = true; await kbLoadCal(col, onlyDay); kbRender(); };
+  const nav = document.createElement("div"); nav.className = "kcn";
+  const mk = (label, title, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.onclick = fn; return b; };
+  const di = document.createElement("input"); di.type = "date"; di.value = cs.sel; di.className = "kdi"; di.setAttribute("aria-label", "Jump to a date"); di.tabIndex = -1;
+  di.onchange = () => { if (ISO_DAY.test(di.value)) { cs.sel = di.value; cs.start = keyToDate(di.value); kbLoadCal(col).then(kbRender); } };
+  const pick = document.createElement("span"); pick.className = "kdw";
+  const pb = mk("📅", "Jump to a date", () => { try { di.showPicker(); } catch (e) { di.focus(); di.click(); } });
+  pick.append(pb, di);
+  nav.append(mk("‹", `Previous ${nd} days`, () => { cs.start = addDays(cs.start, -nd); cs.sel = key(cs.start); kbLoadCal(col).then(kbRender); }),
+    mk("Today", "Back to today", () => { const t = todayDate(); cs.start = t; cs.sel = key(t); kbLoadCal(col).then(kbRender); }),
+    mk("›", `Next ${nd} days`, () => { cs.start = addDays(cs.start, nd); cs.sel = key(cs.start); kbLoadCal(col).then(kbRender); }), pick);
+  body.appendChild(nav);
+  const strip = document.createElement("div"), tk = key(todayDate()); strip.className = "kcs";
+  for (let i = 0; i < nd; i++) {
+    const d = addDays(cs.start, i), k = key(d), has = (cs.days[k] || {}).count > 0;
+    const b = document.createElement("button"); b.type = "button"; b.className = "kcd" + (k === cs.sel ? " sel" : "") + (k === tk ? " today" : ""); b.dataset.day = k;
+    const mon = document.createElement("small"); mon.textContent = i === 0 || d.getDate() === 1 ? d.toLocaleDateString(undefined, { month: "short" }).toUpperCase() : "";
+    const wd = document.createElement("span"); wd.textContent = d.toLocaleDateString(undefined, { weekday: "short" });
+    const nu = document.createElement("b"); nu.textContent = d.getDate();
+    const dot = document.createElement("i"); dot.textContent = has ? "•" : "";
+    b.append(mon, wd, nu, dot);
+    b.onclick = () => { cs.sel = k; cs.tree = []; kbRender(); kbLoadCal(col, true).then(kbRender); };
+    strip.appendChild(b);
+  }
+  body.appendChild(strip);
+  const hd = document.createElement("div"); hd.className = "kch";
+  hd.textContent = (cs.sel === tk ? "Today, " : "") + keyToDate(cs.sel).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  body.appendChild(hd);
+  const ctx = { col, rootId: cs.sel, reload: () => reloadCal(false) };
+  const list = document.createElement("div"); list.className = "kcards";
+  kbWalk(list, cs.tree || [], 0, null, null, ctx);
+  body.appendChild(list);
+  body.appendChild(kbAddRow(ctx, cs.sel, 0));
+  return body;
+}
+async function kbDrop(e, col, laneId, laneLabel) {
+  document.body.classList.remove("kbdrag");
+  let it; try { it = JSON.parse(e.dataTransfer.getData("text/plain") || "{}"); } catch (x) { return; }
+  const isK = kbView(col) === "kanban", kl = isK ? kbSelLane(col) : null;
+  const dest = laneId || (col.kind === "calendar" ? kbCalState(col).sel : isK ? (kl ? kl.id : col.id) : col.id);
+  const reloadAll = async () => { const set = new Set([col]); const f = kbCols.find((c) => c.id === it.from); if (f) set.add(f); kbCols.forEach((c) => { if (kbView(c) === "kanban") set.add(c); }); await Promise.all([...set].map((c) => kbLoadOne(c))); kbRender(); };
+  if (!it || typeof it.id !== "string" || !it.id || it.from === dest) return;
+  const from = kbCols.find((c) => c.id === it.from), name = it.name || "card", where = col.kind === "calendar" ? dayLabel(dest) : laneLabel || (isK && kl ? `“${shownVisible(kl.name) || col.name}”` : `“${col.name}”`);
+  try {
+    await call("POST", `/nodes/${it.id}/move`, { parent_id: dest, position: "bottom" }); kbDirty = true;
+    await reloadAll();
+    pushUndo(`Moved “${name}” to ${where}`, async () => {
+      await call("POST", `/nodes/${it.id}/move`, { parent_id: it.from, position: "bottom" });
+      await reloadAll();
+    });
+  } catch (x) { showError(x.message); }
+}
+function kbOpenMenu(btn, col, idx) {
+  kbMenu.textContent = "";
+  const add = (label, fn, dis) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.disabled = !!dis; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
+  if (col.kind !== "calendar") {
+    add("Open in the item window", () => openItem(col.id, true));
+    const a = document.createElement("a"); a.href = "https://workflowy.com/#/" + col.id.slice(-12); a.target = "_blank"; a.rel = "noopener"; a.textContent = "Open in WorkFlowy ↗"; a.style.cssText = "display:block;padding:7px 8px;font-size:14px;color:inherit;text-decoration:none;"; a.onclick = () => { kbMenu.hidden = true; }; kbMenu.appendChild(a);
+  }
+  if (col.kind === "calendar") for (const n of [3, 5, 7]) add((kbCalN(col) === n ? "✓ " : "") + `📅 Show ${n} days`, () => kbSetCalDays(col, n));
+  if (kbView(col) !== "cards") { add("⊞ Expand all lines", () => kbSetAll(col, true)); add("⊟ Collapse all lines", () => kbSetAll(col, false)); }
+  add("◀ Move left", () => kbMoveCol(idx, -1), idx === 0);
+  add("Move right ▶", () => kbMoveCol(idx, 1), idx === kbCols.length - 1);
+  add("Remove from the panes", () => { kbCols = kbCols.filter((c) => c.id !== col.id); kbSaveCols(); delete kbZoom[col.id]; kbSaveZoom(); delete kbWidths[col.id]; kbSaveWidths(); delete kbCalDays[col.id]; try { localStorage.setItem("kbCalDays", JSON.stringify(kbCalDays)); } catch (e) {} delete kbData[col.id]; delete kbCal[col.id]; kbRender(); kbRenderSettings(); });
+  kbMenu.hidden = false;
+  const r = btn.getBoundingClientRect(), w = kbMenu.offsetWidth, h = kbMenu.offsetHeight;
+  kbMenu.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  kbMenu.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+}
+function kbSetCalDays(col, n) {
+  kbCalDays[col.id] = n; try { localStorage.setItem("kbCalDays", JSON.stringify(kbCalDays)); } catch (e) {}
+  const cs = kbCalState(col), a = cs.start, ks = [...Array(n)].map((_, i) => key(addDays(a, i)));
+  if (!ks.includes(cs.sel)) { cs.sel = ks[0]; cs.tree = []; }
+  kbLoadCal(col).then(kbRender); kbRender();
+}
+function kbSetView(col, v) { kbViews[col.id] = v; kbSaveViews(); const d = kbData[col.id]; if ((v === "outline" && !(d && d.tree)) || (v === "kanban" && !(d && d.lanes))) kbLoadOne(col).then(kbRender); kbRender(); }
+document.addEventListener("click", (e) => { if (!kbMenu.hidden && !kbMenu.contains(e.target)) kbMenu.hidden = true; });
+function kbMoveCol(i, d) { const j = i + d; if (j < 0 || j >= kbCols.length) return; [kbCols[i], kbCols[j]] = [kbCols[j], kbCols[i]]; kbSaveCols(); kbRender(); kbRenderSettings(); }
+function kbOpen() {
+  if (kbIsOpen()) return;
+  document.body.classList.add("kb"); kbBtn.classList.add("on"); kbBtn.setAttribute("aria-pressed", "true"); kbDirty = false;
+  if (!kbCols.length) kbRender(); else kbLoadAll(true);
+}
+function kbClose(quiet) {
+  if (!kbIsOpen()) return;
+  document.body.classList.remove("kb"); kbBtn.classList.remove("on"); kbBtn.setAttribute("aria-pressed", "false"); kbMenu.hidden = true;
+  if (kbDirty && !quiet) { if (planMode) loadPlan(true); else loadWeek(true); }
+  kbDirty = false;
+}
+function kbOpenSetup() { setSettingsOpen(true); showSettingsSection("kanban"); kbRenderSettings(); document.getElementById("kbLink").focus(); }
+kbBtn.onclick = () => { if (kbIsOpen()) kbClose(); else if (!kbCols.length) { kbOpen(); kbOpenSetup(); } else kbOpen(); };
+document.getElementById("planBtn").addEventListener("click", () => kbClose(true));
+document.getElementById("kbBack").onclick = () => kbClose();
+document.getElementById("kbRefresh").onclick = () => kbLoadAll(true, true);
+document.getElementById("kbSetup").onclick = kbOpenSetup;
+document.getElementById("kbCollapse").onclick = () => { kbCols.forEach((c) => kbShut.add(c.id)); kbSaveShut(); kbRender(); };
+document.getElementById("kbExpand").onclick = () => { kbCols.forEach((c) => kbShut.delete(c.id)); kbSaveShut(); kbRender(); };
+document.getElementById("kbHide").onchange = (e) => { kbHideDone = e.target.checked; try { localStorage.setItem("kbHideDone", kbHideDone ? "1" : "0"); } catch (x) {} kbRender(); };
+// B opens or closes the Board view when you are not typing; Esc goes back (checked first, so a window that is open closes first)
+document.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() !== "b" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const a = document.activeElement;
+  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  if (document.querySelector(".modal:not([hidden])")) return;
+  e.preventDefault(); kbBtn.click();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !kbIsOpen()) return;
+  if (document.querySelector(".modal:not([hidden]), .pl-edit") || !reportsPop.hidden || !kbMenu.hidden) return;
+  const a = document.activeElement; if (a && a.classList && a.classList.contains("kaddin")) return;
+  kbClose();
+}, true);
+
+// Settings > Board: the list of columns
+const kbList = document.getElementById("kbList"), kbMsgEl = document.getElementById("kbMsg"), kbPick = document.getElementById("kbPick");
+function kbMsg(text, bad) { kbMsgEl.textContent = text; kbMsgEl.classList.toggle("err", !!bad); }
+function kbRenderSettings() {
+  kbList.textContent = "";
+  kbCols.forEach((c, i) => {
+    const row = document.createElement("div"); row.className = "srow";
+    const n = document.createElement("span"); n.className = "sn"; n.textContent = c.name;
+    const id = document.createElement("small"); id.textContent = c.kind === "calendar" ? "calendar" : c.id.slice(-12); id.title = c.kind === "calendar" ? "WorkFlowy's own calendar days" : "Node id " + c.id;
+    const mk = (label, title, fn, dis) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.disabled = !!dis; b.onclick = fn; return b; };
+    row.append(n, id, mk("↑", "Move left", () => kbMoveCol(i, -1), i === 0), mk("↓", "Move right", () => kbMoveCol(i, 1), i === kbCols.length - 1),
+      mk("Remove", "Remove " + c.name, () => { kbCols = kbCols.filter((x) => x.id !== c.id); kbSaveCols(); delete kbData[c.id]; delete kbCal[c.id]; kbRenderSettings(); kbRender(); }));
+    kbList.appendChild(row);
+  });
+}
+async function kbResolve(text) {
+  const id0 = parseNodeLink(text);
+  if (!id0) throw new Error("Paste the node's link (it ends in 12 letters and numbers) or its id.");
+  let id = id0, found = "";
+  if (id0.length === 12) { const r = await api("/resolve?short=" + id0); id = r.id; found = r.name; }
+  const data = await call("GET", `/nodes?parent_id=${id}`);
+  if (data === null) throw new Error("WorkFlowy doesn't know that id.");
+  if (!found) { try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = shownName((nd && nd.name) || ""); } catch (e) { /* falls back to a plain name */ } }
+  return { id, name: (found || "Column").slice(0, 40) };
+}
+function kbAddCol(id, name) {
+  if (kbCols.some((c) => c.id === id)) return false;
+  if (kbCols.length >= 30) throw new Error("Up to 30 columns.");
+  kbCols.push({ id, name: name || "Column" }); kbSaveCols(); kbRenderSettings(); if (kbIsOpen()) kbLoadAll(false);
+  return true;
+}
+document.getElementById("kbAddCal").onclick = () => {
+  try {
+    if (kbCols.length >= 30) throw new Error("Up to 30 columns.");
+    kbCols.push({ id: "@cal" + Date.now().toString(36).slice(-6), name: "Calendar", kind: "calendar" }); kbSaveCols(); kbRenderSettings();
+    if (kbIsOpen()) kbLoadAll(false); kbMsg("Added a calendar column.");
+  } catch (e) { kbMsg(e.message, true); }
+};
+document.getElementById("kbAdd").onclick = async (e) => {
+  const btn = e.currentTarget, nameEl = document.getElementById("kbName"), linkEl = document.getElementById("kbLink");
+  kbMsg(""); btn.disabled = true; kbMsg("Looking the node up (the first time this reads your outline, which can take a moment)…");
+  try {
+    const r = await kbResolve(linkEl.value), name = nameEl.value.trim().replace(/\s+/g, " ") || r.name;
+    if (!kbAddCol(r.id, name)) throw new Error("That node is already a column.");
+    nameEl.value = ""; linkEl.value = ""; kbMsg(`Added “${name}”.`);
+  } catch (x) { kbMsg(x.message, true); }
+  btn.disabled = false;
+};
+document.getElementById("kbLink").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); document.getElementById("kbAdd").click(); } });
+function kbFillPick() {
+  const keep = kbPick.value; kbPick.innerHTML = "";
+  const o0 = document.createElement("option"); o0.value = ""; o0.textContent = planSources.length ? "Choose…" : "No Plan day sources yet"; kbPick.appendChild(o0);
+  for (const x of planSources) { const o = document.createElement("option"); o.value = x.id; o.textContent = x.name; kbPick.appendChild(o); }
+  kbPick.value = keep;
+}
+kbPick.addEventListener("mousedown", kbFillPick); kbPick.addEventListener("focus", kbFillPick);
+kbPick.onchange = () => {
+  const x = planSources.find((y) => y.id === kbPick.value); kbPick.value = "";
+  if (!x) return;
+  try { kbMsg(kbAddCol(x.id, x.name) ? `Added “${x.name}”.` : "That node is already a column."); } catch (e) { kbMsg(e.message, true); }
+};
+// the panes in a WorkFlowy link: ?panes=v2.<base64 of a list>; each pane that is zoomed into a node gives one column
+function kbParsePanes(text) {
+  const t = String(text || ""), m = t.match(/[?&]panes=v2\.([A-Za-z0-9_-]+)/), hash = t.match(/#\/(?:[^?#]*\/)?([0-9a-f]{12})(?![0-9a-f])/i);
+  let panes = [];
+  if (m) { try { let b = m[1].replace(/-/g, "+").replace(/_/g, "/"); b += "=".repeat((4 - (b.length % 4)) % 4); panes = JSON.parse(decodeURIComponent(escape(atob(b)))); } catch (e) { panes = []; } }
+  const ids = [];
+  if (!Array.isArray(panes)) panes = [];
+  panes.forEach((p, i) => {
+    const path = Array.isArray(p) && Array.isArray(p[2]) ? p[2].filter((x) => typeof x === "string") : [], last = path[path.length - 1];
+    if (last) ids.push(last); else if (i === 0 && hash) ids.push(hash[1]);
+  });
+  if (!m && hash) ids.push(hash[1]);
+  return [...new Set(ids.map((x) => x.toLowerCase()))].filter((x) => /^[0-9a-f]{12}$/.test(x));
+}
+document.getElementById("kbAddPanes").onclick = async (e) => {
+  const btn = e.currentTarget, el = document.getElementById("kbPanes"), ids = kbParsePanes(el.value);
+  if (!ids.length) { kbMsg("I couldn't find any nodes in that link. Paste the whole address, including ?panes=…", true); return; }
+  btn.disabled = true; let added = 0, skipped = 0; const bad = [];
+  for (let i = 0; i < ids.length; i++) {
+    kbMsg(`Looking up ${i + 1} of ${ids.length}…`);
+    try { const r = await kbResolve(ids[i]); if (kbAddCol(r.id, r.name)) added++; else skipped++; } catch (x) { bad.push(ids[i] + ": " + x.message); }
+  }
+  el.value = ""; btn.disabled = false;
+  kbMsg(`Found ${ids.length} node${ids.length === 1 ? "" : "s"}: added ${added}` + (skipped ? `, ${skipped} already there` : "") + (bad.length ? `. Couldn't add ${bad.join("; ")}` : "."), bad.length > 0);
+};
+kbRenderSettings();
+
 /* ---------- Plan day: one day in focus, with what you could bring in ---------- */
 let planMode = false;
 let planDay = key(todayDate());
@@ -3691,6 +4624,7 @@ document.addEventListener("keydown", (e) => {
   if (!reportsPop.hidden) { setReportsOpen(false); reportsBtn.focus(); return; }
   if (!rollModal.hidden) closeRoll();
   else if (!doneModal.hidden) closeDone();
+  else if (!encModal.hidden) closeEnc();
 });
 
 /* ---------- The Daily page and its add box are one panel ---------- */

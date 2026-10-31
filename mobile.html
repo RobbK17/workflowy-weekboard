@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.3.0">
+<meta name="version" content="1.3.2">
 <meta name="notes-name" content="WB-Notes">
 <meta name="theme-color" content="#2f6fed">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -257,7 +257,7 @@ function tokenize(raw) {
 const visibleText = (raw) => tokenize(raw).map((t) => t.text).join("");
 const escapeMarkup = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function applyEdit(raw, next) {
+function applyEditCore(raw, next) {
   const toks = tokenize(raw);
   const old = toks.map((t) => t.text).join("");
   if (old === next) return raw;
@@ -281,6 +281,23 @@ function applyEdit(raw, next) {
   }
   if (!inserted) out += insert;
   return visibleText(out) === next ? out : escapeMarkup(next);   // safety net: never save something that reads differently
+}
+// Dates (a <time> tag) are kept whole: the words around them are edited separately, so an edit before and after a date never pulls words into it.
+function applyEdit(raw, next) {
+  const spans = [...String(raw || "").matchAll(/<time\b[^>]*>[^<]*<\/time>/gi)];
+  if (!spans.length) return applyEditCore(raw, next);
+  const parts = []; let at = 0;
+  for (const m of spans) { parts.push({ raw: raw.slice(at, m.index) }, { raw: m[0], atom: true }); at = m.index + m[0].length; }
+  parts.push({ raw: raw.slice(at) });
+  let pos = 0; const pieces = [];
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (p.atom) { const w = visibleText(p.raw), j = next.indexOf(w, pos); if (!w || j < 0) return applyEditCore(raw, next); pieces.push(next.slice(pos, j)); pos = j + w.length; }
+  }
+  pieces.push(next.slice(pos));
+  let out = "", k = 0;
+  for (const p of parts) { if (p.atom) out += p.raw; else out += applyEditCore(p.raw, pieces[k++]); }
+  return visibleText(out) === next ? out : applyEditCore(raw, next);
 }
 
 

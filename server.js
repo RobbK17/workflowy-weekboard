@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.3.0
+// Version 1.3.2
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.3.0";
+const VERSION = "1.3.2";
 
 const http = require("http");
 const fs = require("fs");
@@ -320,6 +320,35 @@ function doneList(from, to) {
   };
 }
 
+// Items whose name or note holds text from the Encryption add-on. Only the lock symbol leaves the server, never the encrypted text.
+const ENC_LIMIT = 2000;
+const ENC_RE = /wbenc1\.[A-Za-z0-9_-]{59,}/g;
+function encryptedList() {
+  const found = [];
+  for (const n of idx.byId.values()) {
+    const a = String(n.name || "").match(ENC_RE) || [], b = String(n.note || "").match(ENC_RE) || [];
+    if (!a.length && !b.length) continue;
+    found.push({ n, inName: a.length > 0, inNote: b.length > 0, tokens: a.length + b.length, path: pathNames(n).map(maskTokens) });
+  }
+  found.sort((x, y) => x.path.join(" › ").localeCompare(y.path.join(" › ")) || (x.n.priority - y.n.priority));
+  const snip = (t) => { const x = maskTokens(stripHtml(t)).replace(/\s+/g, " ").trim(); return x.length > 120 ? x.slice(0, 119) + "…" : x; };
+  return {
+    total: found.length, tokens: found.reduce((a, f) => a + f.tokens, 0),
+    hits: found.slice(0, ENC_LIMIT).map(({ n, inName, inNote, tokens, path }) => ({
+      id: n.id, name: snip(n.name), note: inNote ? snip(n.note) : "", path, inName, inNote, tokens,
+      todo: n.layoutMode === "todo", done: !!n.completedAt, layoutMode: n.layoutMode,
+    })),
+  };
+}
+async function serveEncrypted(url, res) {
+  try {
+    const { throttled } = await ensureIndex(url.searchParams.get("refresh") === "1");
+    sendJson(res, 200, { ...encryptedList(), limit: ENC_LIMIT, count: idx.byId.size, indexTime: idx.at, throttled });
+  } catch (e) {
+    sendJson(res, e.status && e.status >= 400 ? e.status : 502, { error: e.message });
+  }
+}
+
 async function serveDone(url, res) {
   const p = url.searchParams;
   const from = Number(p.get("from")), to = Number(p.get("to"));
@@ -594,7 +623,7 @@ async function guard(req, res, url) {
   }
   if (APP_ASSETS.has(url.pathname)) return true;          // the manifest and icons are fetched without the sign-in cookie
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/m/settings"].includes(url.pathname) || addonPaths.has(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -633,7 +662,7 @@ const APP_MANIFEST = {
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
   icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
 };
-const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings"]);
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors"]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
    (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
@@ -671,6 +700,35 @@ async function serveMobileSettings(req, res) {
     fs.renameSync(tmp, MOBILE_SETTINGS_FILE);
   } catch (e) { console.error("Could not save the phone settings:", e.message); return sendJson(res, 500, { error: "The server could not write " + path.basename(MOBILE_SETTINGS_FILE) + " (is the board folder writable?)" }); }
   return sendJson(res, 200, { enabled: true, settings: merged, updated: doc.updated });
+}
+/* ---------- Card colours (the Board's coloured cards) ----------
+   WorkFlowy's API has no colour for a bullet, so the colours live in a small file next to this server (card-colors.json)
+   and every browser that opens the board shows the same ones. GET /colors -> { colors: { nodeId: "red" } };
+   POST /colors { set: { nodeId: "red" | null } } changes some (null removes). */
+const COLORS_FILE = process.env.CARD_COLORS_FILE || path.join(__dirname, "card-colors.json");
+const CARD_COLORS = ["red", "orange", "yellow", "green", "blue", "purple"];
+const COLORS_MAX = 5000;
+function readColors() { try { const d = JSON.parse(fs.readFileSync(COLORS_FILE, "utf8")); return d && typeof d.colors === "object" && d.colors ? d : { colors: {} }; } catch (e) { return { colors: {} }; } }
+async function serveColors(req, res) {
+  const saved = readColors();
+  if (req.method === "GET") return sendJson(res, 200, { colors: saved.colors, updated: saved.updated || null, palette: CARD_COLORS });
+  let body;
+  try { body = JSON.parse((await readBody(req, 64 * 1024)).toString() || "{}"); }
+  catch (e) { return sendJson(res, 400, { error: "bad request" }); }
+  const set = body && body.set;
+  if (!set || typeof set !== "object" || Array.isArray(set)) return sendJson(res, 400, { error: "expected { set: { id: colour|null } }" });
+  const colors = { ...saved.colors };
+  for (const [id, c] of Object.entries(set)) {
+    if (typeof id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return sendJson(res, 400, { error: "bad id" });
+    if (c === null) delete colors[id];
+    else if (CARD_COLORS.includes(c)) colors[id] = c;
+    else return sendJson(res, 400, { error: "unknown colour" });
+  }
+  if (Object.keys(colors).length > COLORS_MAX) return sendJson(res, 400, { error: `too many coloured cards (the limit is ${COLORS_MAX})` });
+  const doc = { colors, updated: new Date().toISOString() };
+  try { const tmp = COLORS_FILE + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(doc, null, 1)); fs.renameSync(tmp, COLORS_FILE); }
+  catch (e) { console.error("Could not save the card colours:", e.message); return sendJson(res, 500, { error: "The server could not write " + path.basename(COLORS_FILE) + " (is the board folder writable?)" }); }
+  return sendJson(res, 200, { colors, updated: doc.updated, palette: CARD_COLORS });
 }
 const addons = [];                    // { id, name, version, description, status, error, docs }
 const addonRoutes = new Map();        // "METHOD /path" -> handler
@@ -901,9 +959,11 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/item") return serveItem(url, res);
   if (req.method === "GET" && url.pathname === "/resolve") return serveResolve(url, res);
   if (req.method === "GET" && url.pathname === "/done") return serveDone(url, res);
+  if (req.method === "GET" && url.pathname === "/encrypted") return serveEncrypted(url, res);
   if (req.method === "GET" && url.pathname === "/reminders") return serveReminders(url, res);
   if (req.method === "POST" && url.pathname === "/reminders/test") return serveReminderTest(res);
   if (url.pathname === "/m/settings" && (req.method === "GET" || req.method === "POST")) return serveMobileSettings(req, res);
+  if (url.pathname === "/colors" && (req.method === "GET" || req.method === "POST")) return serveColors(req, res);
   if (req.method === "GET" && url.pathname === "/addons") return sendJson(res, 200, { addons });
   const addonHandler = addonRoutes.get(`${req.method} ${url.pathname}`);
   if (addonHandler) return addonHandler(req, res, url);

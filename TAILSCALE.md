@@ -2,7 +2,7 @@
 
 This guide puts the Week Board on your own devices over **Tailscale** (a free private network), so you can open it from an Android phone or tablet, or an iPhone, without putting it on the public internet. It was written for a board running on a Mac; the steps are the same on Linux, and Windows differs only in how you set environment variables (see the README).
 
-**Needs board version 1.3.0 or newer** (`server.js`, `index.html`, `mobile.html` and the three `icon-*.png` files, all in the same folder).
+**Needs board version 1.3.1 or newer** (`server.js`, `index.html`, `mobile.html` and the three `icon-*.png` files, all in the same folder).
 
 ## How it works
 
@@ -15,7 +15,7 @@ This guide puts the Week Board on your own devices over **Tailscale** (a free pr
 
 ## What you need
 
-- The board folder on your computer, with the 1.3.0 files listed above.
+- The board folder on your computer, with the 1.3.2 files listed above.
 - Node 18 or newer (the same as for the board itself).
 - A free Tailscale account.
 - Your WorkFlowy API key (<https://workflowy.com/api-key>).
@@ -59,7 +59,7 @@ DEPLOY_MODE=vps WORKFLOWY_API_KEY=your_key BOARD_PASSWORD=choose-a-long-password
 
 - `PUBLIC_URL` must start with `https://`, have **no port** and **no path**, and match exactly what you type in the browser.
 - `ASSUME_HTTPS=1` tells the board that the proxy on this same computer is already speaking HTTPS (Tailscale Serve doesn't say so itself). It is ignored unless the board is listening on this computer only, which is the default.
-- Leave this Terminal window open. The board should print `Workflowy Week Board v1.3.0 running at https://…`.
+- Leave this Terminal window open. The board should print `Workflowy Week Board v1.3.2 running at https://…`.
 
 ## 5. Start Tailscale Serve
 
@@ -140,7 +140,7 @@ The Mac app doesn't add the command to your path. Use `/Applications/Tailscale.a
 ### "Refused to connect" on the tablet or phone
 Nothing is answering at the address. Check, in order:
 
-1. **Is the board running?** Look at its Terminal window. It should print `Workflowy Week Board v1.3.0 running at https://…`. If it printed an error and stopped, the message says what's missing. The usual ones are a `BOARD_PASSWORD` under 12 characters, a `PUBLIC_URL` that doesn't start with `https://`, or an old `server.js`.
+1. **Is the board running?** Look at its Terminal window. It should print `Workflowy Week Board v1.3.2 running at https://…`. If it printed an error and stopped, the message says what's missing. The usual ones are a `BOARD_PASSWORD` under 12 characters, a `PUBLIC_URL` that doesn't start with `https://`, or an old `server.js`.
 2. **Is Tailscale forwarding to it?** Run `tailscale serve status`. It should show your `https://….ts.net` address pointing at `http://127.0.0.1:3000`. If it shows nothing, run `tailscale serve --bg 3000` again. The port must match the board's.
 3. **Does the board answer on the computer?** Run `curl -i http://127.0.0.1:3000/healthz`. It should answer `ok`. If not, the board isn't running or is on another port.
 4. **Does the address work on the computer itself?** If it fails there too, the problem is on the computer (steps 1 to 3). If it works there, the problem is on the phone or tablet (below).
