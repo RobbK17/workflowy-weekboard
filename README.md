@@ -4,7 +4,12 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.3.3**
+**Version 1.3.4**
+
+### What's new in 1.3.4
+
+- **Past day alerts.** A day on the board that has gone by and still has open tasks can be marked. In **Settings > Week board**, **Past day alerts** turns this on or off (on by default). When it is on, **Alert with count** shows a red **⚠ N open** at the top of the day, and **Highlight left edge** draws a red edge down the day's column. Use either or both. Past due itself works as before: it is only the days before the first day shown.
+- **Home fixes.** Home's Outline view now works even when the server hasn't been restarted with the newest `server.js`, and the Home column no longer disappears when the page is reloaded.
 
 ### What's new in 1.3.3
 

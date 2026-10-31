@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.3.3">
+<meta name="version" content="1.3.4">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -141,6 +141,12 @@
   .col.today { background: var(--today); }
   .col.late { background: var(--late); }
   .col.soon { background: var(--soon); }
+  .subopt { margin-left: 24px; }
+  .subopt[hidden] { display: none; }
+  .col.pastopen { box-shadow: inset 3px 0 0 #d9534f; }
+  .col.pastcount h2 span { color: #c0392b; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .col.pastcount h2 span { color: #ff8a80; } }
+  :root[data-theme="dark"] .col.pastcount h2 span { color: #ff8a80; }
   .col.over { outline: 2px dashed var(--accent); }
   .col h2 { font-size: 13px; margin: 2px 4px 8px; display: flex; justify-content: space-between; }
   .col h2 span { color: var(--muted); font-weight: 400; }
@@ -674,7 +680,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.3</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.4</span></div>
   </div>
 </footer>
 
@@ -701,6 +707,9 @@
       <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
       <label class="sel"><span>Past due range<small>How far back Past due looks (and Plan day's Bring in, up to 4 weeks)</small></span>
         <select id="optRange"><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option><option value="all">All</option></select></label>
+      <label><input type="checkbox" id="optPast"><span>Past day alerts<small>Mark a day that has gone by and still has open tasks</small></span></label>
+      <label class="subopt"><input type="checkbox" id="optPastCount"><span>Alert with count<small>A red “⚠ 3 open” at the top of the day</small></span></label>
+      <label class="subopt"><input type="checkbox" id="optPastEdge"><span>Highlight left edge<small>A red edge down the side of the day's column</small></span></label>
       <label><input type="checkbox" id="optSoon"><span>Upcoming<small>Tasks in the 14 days after the days shown</small></span></label>
       <label class="sel"><span>Nested<small>Tasks indented under a plain bullet. Group: one card per bullet. Flatten: each task its own card.</small></span>
         <select id="optNested"><option value="off">Off</option><option value="group">Group</option><option value="flatten">Flatten</option></select></label>
@@ -876,7 +885,7 @@ const nestQueued = new Set();
 function getPref(k) { try { return localStorage.getItem(k) === "1"; } catch (e) { return false; } }
 function setPref(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} }
 function loadNestedMode() { try { const v = localStorage.getItem("nested"); return v === "group" || v === "flatten" ? v : "off"; } catch (e) { return "off"; } }
-const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true) };
+const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true) };
 
 // Past due range: "1".."4" weeks back, or "all". Default is 2 weeks.
 let lateRange = loadLateRange();
@@ -1207,17 +1216,16 @@ function render() {
   for (const d of days) {
     const k = key(d);
     const col = document.createElement("div");
-    col.className = "col" + (k === todayKey ? " today" : "");
-    col.dataset.key = k;
-
     const ents = entries(k, false);
     const hasAny = (cache[k] || []).length > 0 || ents.length > 0;
-    const open = openCount(k);
+    const open = openCount(k), stale = prefs.pastAlert && k < todayKey && open > 0;          // a day that has gone by and still has open tasks
+    col.className = "col" + (k === todayKey ? " today" : "") + (stale && prefs.pastEdge ? " pastopen" : "") + (stale && prefs.pastCount ? " pastcount" : "");
+    col.dataset.key = k;
 
     // Header (day title + add box) stays fixed; only the task list below it scrolls.
     const head = document.createElement("div");
     head.className = "colhead";
-    head.innerHTML = `<h2>${DAY_NAMES[d.getDay()]} ${d.getDate()}<span>${open} open</span></h2>`;
+    head.innerHTML = `<h2>${DAY_NAMES[d.getDay()]} ${d.getDate()}<span${stale && prefs.pastCount ? ` title="This day has passed and still has ${open} open task${open === 1 ? "" : "s"}"` : ""}>${stale && prefs.pastCount ? "⚠ " : ""}${open} open</span></h2>`;
     const list = document.createElement("div");
     list.className = "tasks";
     if (!ents.length) {
@@ -2619,6 +2627,14 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
     if (pref === "hideDone" || pref === "showSubs") { render(); if (pref === "hideDone") renderPage(); } else loadWeek();   // these are instant; the others need to fetch days
   };
 }
+
+for (const [id, pref] of [["optPast", "pastAlert"], ["optPastCount", "pastCount"], ["optPastEdge", "pastEdge"]]) {
+  const el = document.getElementById(id);
+  el.checked = prefs[pref];
+  el.onchange = () => { prefs[pref] = el.checked; try { localStorage.setItem(pref, el.checked ? "1" : "0"); } catch (e) {} syncPastOpts(); render(); };
+}
+function syncPastOpts() { document.querySelectorAll(".subopt").forEach((l) => { l.hidden = !prefs.pastAlert; }); }
+syncPastOpts();
 
 // Settings window: sections on the left (Week board, Plan day), their options on the right. Esc, the ✕ or a click outside closes it.
 const settingsBtn = document.getElementById("settingsBtn");
