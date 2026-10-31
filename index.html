@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.3.2">
+<meta name="version" content="1.3.3">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -674,7 +674,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.2</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.3</span></div>
   </div>
 </footer>
 
@@ -751,13 +751,16 @@
           <div class="sub">Add a column</div>
           <label for="kbName">Name <em>(optional)</em></label>
           <input id="kbName" type="text" placeholder="e.g. In Process" maxlength="40" autocomplete="off">
-          <label for="kbLink">WorkFlowy link or node id <em>(copy the address from your browser)</em></label>
+          <label for="kbLink">WorkFlowy link, node id or shortcut name <em>(a link, or a name such as home)</em></label>
           <input id="kbLink" type="text" placeholder="Paste a WorkFlowy node link here" autocomplete="off" spellcheck="false">
           <button id="kbAdd" type="button">Add column</button>
         </div>
+        <div class="setrow"><span>Top level (Home)<small>Everything at the very top of your outline, as one column</small></span><button type="button" id="kbAddTop">Add Home</button></div>
         <div class="setrow"><span>Calendar column<small>WorkFlowy's own calendar days: a strip of days and that day's items, editable in place</small></span><button type="button" id="kbAddCal">Add a calendar</button></div>
         <label class="sel"><span>Use a Plan day source<small>Add one you already have as a column</small></span>
           <select id="kbPick"><option value="">Choose&hellip;</option></select></label>
+        <label class="sel"><span>Use a WorkFlowy shortcut<small>Home, Inbox or any shortcut you set up in WorkFlowy</small></span>
+          <select id="kbShort"><option value="">Choose&hellip;</option></select></label>
         <div class="srcadd">
           <div class="sub">Add several at once</div>
           <label for="kbPanes">A WorkFlowy link that has panes <em>(the address with ?panes=… in it)</em></label>
@@ -3566,7 +3569,7 @@ const kbColsEl = document.getElementById("kbCols"), kbBtn = document.getElementB
 const KB_NODE_ID = /^[A-Za-z0-9_-]{8,40}$/, KB_CAL_ID = /^@cal[a-z0-9]{1,8}$/;
 function kbLoadCols() {
   try {
-    return JSON.parse(localStorage.getItem("kbCols") || "[]").filter((x) => x && typeof x.id === "string" && typeof x.name === "string" && (x.kind === "calendar" ? KB_CAL_ID.test(x.id) : KB_NODE_ID.test(x.id)))
+    return JSON.parse(localStorage.getItem("kbCols") || "[]").filter((x) => x && typeof x.id === "string" && typeof x.name === "string" && (x.kind === "calendar" ? KB_CAL_ID.test(x.id) : x.id === "None" || KB_NODE_ID.test(x.id)))     // "None" is Home, the top level
       .map((x) => (x.kind === "calendar" ? { id: x.id, name: x.name, kind: "calendar" } : { id: x.id, name: x.name })).slice(0, 30);
   } catch (e) { return []; }
 }
@@ -3574,6 +3577,24 @@ let kbCols = kbLoadCols();
 let kbShut = new Set(); try { kbShut = new Set(JSON.parse(localStorage.getItem("kbShut") || "[]")); } catch (e) {}
 let kbViews = {}; try { kbViews = JSON.parse(localStorage.getItem("kbViews") || "{}") || {}; } catch (e) {}
 let kbWidths = {}; try { kbWidths = JSON.parse(localStorage.getItem("kbWidths") || "{}") || {}; } catch (e) {}
+let kbGroup = {}; try { kbGroup = JSON.parse(localStorage.getItem("kbGroup") || "{}") || {}; } catch (e) {}
+const kbSaveGroup = () => { try { localStorage.setItem("kbGroup", JSON.stringify(kbGroup)); } catch (e) {} };
+const kbGroupOn = (col) => kbGroup[col.id] === undefined ? col.id === "None" : !!kbGroup[col.id];       // on by default for Home only
+let kbHeadShut = new Set(); try { kbHeadShut = new Set(JSON.parse(localStorage.getItem("kbHeadShut") || "[]")); } catch (e) {}
+const kbSaveHeadShut = () => { try { localStorage.setItem("kbHeadShut", JSON.stringify([...kbHeadShut])); } catch (e) {} };   // H1 groups you have closed (they start open)
+const kbVirt = new Set();                                                                              // lines drawn under a heading that are not really inside it
+// Display only: in the Outline view, each H1 heading shows the lines that follow it (up to the next H1) indented beneath it. Nothing in WorkFlowy changes.
+function kbGroupTree(col, tree) {
+  kbVirt.clear();
+  if (!tree || !kbGroupOn(col) || kbView(col) !== "outline") return tree;
+  const out = []; let head = null;
+  for (const n of tree) {
+    if (kbType(n) === "h1") { head = Object.assign({}, n, { _g: [] }); out.push(head); }
+    else if (head) { head._g.push(n); kbVirt.add(n.id); }
+    else out.push(n);
+  }
+  return out;
+}
 const kbSaveWidths = () => { try { localStorage.setItem("kbWidths", JSON.stringify(kbWidths)); } catch (e) {} };
 const KB_MIN_W = 200, KB_MAX_W = 1000;
 // Outline zoom: click a bullet to make that line the top of the column; the path back is shown above the lines (this browser only)
@@ -3631,11 +3652,13 @@ const kbSaveViews = () => { try { localStorage.setItem("kbViews", JSON.stringify
 let kbOpenSet = new Set(); try { kbOpenSet = new Set(JSON.parse(localStorage.getItem("kbOpenLines") || "[]")); } catch (e) {}
 const kbSaveOpen = () => { try { localStorage.setItem("kbOpenLines", JSON.stringify([...kbOpenSet].slice(-5000))); } catch (e) {} };
 function kbSetOpen(id, on) { if (on) kbOpenSet.add(id); else kbOpenSet.delete(id); kbSaveOpen(); }
-function kbAllParents(tree, out) { for (const n of tree || []) { if ((n.children || []).length) { out.push(n.id); kbAllParents(n.children, out); } } return out; }
+function kbAllParents(tree, out) { for (const n of tree || []) { const k = (n.children || []).concat(n._g || []); if (k.length) { out.push(n.id); kbAllParents(k, out); } } return out; }
 function kbSetAll(col, on) {
   const cs = col.kind === "calendar" ? kbCal[col.id] : kbData[col.id];
-  const roots = kbView(col) === "kanban" ? kbLaneCards(col, kbSelLane(col)) : (cs && cs.tree) || [];
+  const roots = kbView(col) === "kanban" ? kbLaneCards(col, kbSelLane(col)) : kbGroupTree(col, (cs && cs.tree) || []);
   for (const id of kbAllParents(roots, [])) { if (on) kbOpenSet.add(id); else kbOpenSet.delete(id); }
+  for (const n of roots) if (n._g) { if (on) kbHeadShut.delete(n.id); else kbHeadShut.add(n.id); }    // the H1 groups too
+  kbSaveHeadShut();
   kbAddingFor = null; kbSaveOpen(); kbRender();
 }
 const kbView = (col) => (col.kind === "calendar" ? "calendar" : kbViews[col.id] === "outline" ? "outline" : kbViews[col.id] === "kanban" ? "kanban" : "cards");
@@ -3665,16 +3688,21 @@ async function kbLoadCal(col, onlyDay) {
 }
 // One title of a Kanban column. Its cards come live from WorkFlowy (always current); what is inside each card comes from the
 // server's copy of the outline, and a card that copy doesn't know yet (added in WorkFlowy a moment ago) is read directly.
-async function kbLoadLane(col, t, fresh) {
-  const st = kbData[col.id], byTime = (a, b) => a.priority - b.priority;
-  const live = await gate(() => call("GET", `/nodes?parent_id=${t.id}`));
+async function kbLiveChildren(parentId, fresh) {
+  const byTime = (a, b) => a.priority - b.priority;
+  const live = await gate(() => call("GET", `/nodes?parent_id=${parentId}`));
+  if (live === null) throw new Error("WorkFlowy doesn't know this node any more. Remove the column and add it again.");
   const cards = ((live && live.nodes) || []).slice().sort(byTime), known = new Map();
-  try { const r = await gate(() => api("/item?id=" + encodeURIComponent(t.id) + (fresh ? "&refresh=1" : ""))); for (const c of (r.item && r.item.children) || []) known.set(c.id, c); } catch (e) { /* the live cards are still shown */ }
+  try { const r = await gate(() => api("/item?id=" + encodeURIComponent(parentId) + (fresh ? "&refresh=1" : ""))); for (const c of (r.item && r.item.children) || []) known.set(c.id, c); } catch (e) { /* the live cards are still shown */ }
   const unknown = [];
   for (const c of cards) { const k = known.get(c.id); if (k) c.children = k.children || []; else unknown.push(c); }
-  await Promise.all(unknown.slice(0, 30).map(async (c) => { try { const r = await gate(() => call("GET", `/nodes?parent_id=${c.id}`)); c.children = ((r && r.nodes) || []).slice().sort(byTime); } catch (e) { c.children = []; } }));
-  st.lanes[t.id] = cards;
+  await Promise.all(unknown.slice(0, 80).map(async (c) => {
+    try { const r = await gate(() => api("/item?id=" + encodeURIComponent(c.id))); c.children = (r.item && r.item.children) || []; }                              // everything inside it, if the server's copy has it
+    catch (e) { try { const r = await gate(() => call("GET", `/nodes?parent_id=${c.id}`)); c.children = ((r && r.nodes) || []).slice().sort(byTime); } catch (x) { c.children = []; } }   // otherwise one level, read live
+  }));
+  return cards;
 }
+async function kbLoadLane(col, t, fresh) { kbData[col.id].lanes[t.id] = await kbLiveChildren(t.id, fresh); }
 async function kbLoadOne(col, fresh) {
   const st = kbData[col.id] || (kbData[col.id] = {});
   try {
@@ -3686,7 +3714,8 @@ async function kbLoadOne(col, fresh) {
       if (kbView(col) === "kanban") { st.lanes = st.lanes || {}; await Promise.all(st.cards.slice(0, 40).map((t) => kbLoadLane(col, t, fresh))); }
       if (kbView(col) === "outline") {
         const z = kbZoomTop(col); let top = z ? z.id : col.id;
-        try { const r = await api("/item?id=" + encodeURIComponent(top)); st.tree = (r.item && r.item.children) || []; }
+        if (top === "None") st.tree = await kbLiveChildren("None", fresh);         // the top level: its items live, what is inside them from the server's copy
+        else try { const r = await api("/item?id=" + encodeURIComponent(top)); st.tree = (r.item && r.item.children) || []; }
         catch (e) {
           if (!z) throw e;
           try { const r = await call("GET", `/nodes?parent_id=${top}`); if (r === null) throw e; st.tree = ((r && r.nodes) || []).slice().sort((a, b) => a.priority - b.priority); }   // a line the server's copy doesn't know yet
@@ -3791,7 +3820,7 @@ function kbColEl(col, idx) {
   if (zt) el.appendChild(kbCrumb(col));
   const ctx = kbCtx(col, zt ? zt.id : col.id);
   const list = document.createElement("div"); list.className = "kcards";
-  if (view === "outline") { if (st.tree) kbWalk(list, st.tree, 0, null, null, ctx); }
+  if (view === "outline") { if (st.tree) kbWalk(list, kbGroupTree(col, st.tree), 0, null, null, ctx); }
   else for (const card of st.cards || []) { if (kbHidden(card)) continue; list.appendChild(kbCardEl(card, col, ctx)); }
   el.appendChild(list);
   el.appendChild(kbAddRow(ctx, zt ? zt.id : col.id, 0));
@@ -3958,9 +3987,10 @@ function kbAddRow(ctx, parentId, level) {
 function kbWalk(cont, all, level, parent, grandId, ctx) {
   const vis = all.filter((x) => !kbHidden(x));
   vis.forEach((n, i) => {
-    const kids = n.children || [], hasKids = kids.some((x) => !kbHidden(x));
-    const closed = hasKids && !kbOpenSet.has(n.id) && kbAddingFor !== n.id;
-    cont.appendChild(kbLine(n, level, i > 0 ? vis[i - 1] : null, parent && grandId ? { parent, grandId } : null, hasKids ? (closed ? "closed" : "open") : "", ctx));
+    const kids = (n.children || []).concat(n._g || []), hasKids = kids.some((x) => !kbHidden(x)), virt = kbVirt.has(n.id);
+    const closed = hasKids && (n._g ? kbHeadShut.has(n.id) : !kbOpenSet.has(n.id)) && kbAddingFor !== n.id;
+    const prev = i > 0 && (!virt || kbVirt.has(vis[i - 1].id)) ? vis[i - 1] : null;           // a line drawn under a heading can only be indented under another such line
+    cont.appendChild(kbLine(n, level, prev, !virt && parent && grandId ? { parent, grandId } : null, hasKids ? (closed ? "closed" : "open") : "", ctx));
     if (hasKids && !closed) kbWalk(cont, kids, level + 1, n, parent ? parent.id : ctx.rootId, ctx);
     if (kbAddingFor === n.id) cont.appendChild(kbAddRow(ctx, n.id, level + 1));
   });
@@ -3984,7 +4014,7 @@ function kbLine(n, level, prev, out, fold, ctx) {
   const mode = kbType(n), row = document.createElement("div"), zoomable = ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline";
   row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : ""); row.style.paddingLeft = level * 16 + "px"; row.dataset.id = n.id;
   const tg = document.createElement(fold ? "button" : "span"); tg.className = "tg";
-  if (fold) { tg.textContent = fold === "open" ? "▾" : "▸"; tg.title = fold === "open" ? "Collapse" : "Expand"; tg.addEventListener("click", () => { kbSetOpen(n.id, fold !== "open"); if (kbAddingFor === n.id) kbAddingFor = null; kbRender(); }); }
+  if (fold) { tg.textContent = fold === "open" ? "▾" : "▸"; tg.title = fold === "open" ? "Collapse" : "Expand"; tg.addEventListener("click", () => { if (n._g) { if (fold === "open") kbHeadShut.add(n.id); else kbHeadShut.delete(n.id); kbSaveHeadShut(); } else kbSetOpen(n.id, fold !== "open"); if (kbAddingFor === n.id) kbAddingFor = null; kbRender(); }); }
   row.appendChild(tg);
   if (mode === "todo") {
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt;
@@ -4001,7 +4031,7 @@ function kbLine(n, level, prev, out, fold, ctx) {
     row.appendChild(b);
   }
   const t = document.createElement("span"); t.className = "t"; t.textContent = shownVisible(n.name) || "(empty)";
-  if (fold === "closed") { const pc = document.createElement("span"); const hidden = countBelow(n); pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`; t.appendChild(pc); }
+  if (fold === "closed") { const pc = document.createElement("span"); const hidden = countBelow(n) + (n._g || []).reduce((a, x) => a + 1 + countBelow(x), 0); pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`; t.appendChild(pc); }
   if (n.note && n.note.trim()) { const pn = document.createElement("small"); pn.className = "pn"; pn.textContent = visibleText(n.note).split("\n")[0]; t.appendChild(pn); }
   t.title = "Click to edit here";
   t.addEventListener("click", () => {
@@ -4094,15 +4124,16 @@ async function kbDrop(e, col, laneId, laneLabel) {
 function kbOpenMenu(btn, col, idx) {
   kbMenu.textContent = "";
   const add = (label, fn, dis) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.disabled = !!dis; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
-  if (col.kind !== "calendar") {
+  if (col.kind !== "calendar" && col.id !== "None") {
     add("Open in the item window", () => openItem(col.id, true));
     const a = document.createElement("a"); a.href = "https://workflowy.com/#/" + col.id.slice(-12); a.target = "_blank"; a.rel = "noopener"; a.textContent = "Open in WorkFlowy ↗"; a.style.cssText = "display:block;padding:7px 8px;font-size:14px;color:inherit;text-decoration:none;"; a.onclick = () => { kbMenu.hidden = true; }; kbMenu.appendChild(a);
   }
   if (col.kind === "calendar") for (const n of [3, 5, 7]) add((kbCalN(col) === n ? "✓ " : "") + `📅 Show ${n} days`, () => kbSetCalDays(col, n));
+  if (kbView(col) === "outline") add((kbGroupOn(col) ? "✓ " : "") + "Group lines under H1 headings", () => { kbGroup[col.id] = !kbGroupOn(col); kbSaveGroup(); kbRender(); });
   if (kbView(col) !== "cards") { add("⊞ Expand all lines", () => kbSetAll(col, true)); add("⊟ Collapse all lines", () => kbSetAll(col, false)); }
   add("◀ Move left", () => kbMoveCol(idx, -1), idx === 0);
   add("Move right ▶", () => kbMoveCol(idx, 1), idx === kbCols.length - 1);
-  add("Remove from the panes", () => { kbCols = kbCols.filter((c) => c.id !== col.id); kbSaveCols(); delete kbZoom[col.id]; kbSaveZoom(); delete kbWidths[col.id]; kbSaveWidths(); delete kbCalDays[col.id]; try { localStorage.setItem("kbCalDays", JSON.stringify(kbCalDays)); } catch (e) {} delete kbData[col.id]; delete kbCal[col.id]; kbRender(); kbRenderSettings(); });
+  add("Remove from the panes", () => { kbCols = kbCols.filter((c) => c.id !== col.id); kbSaveCols(); delete kbZoom[col.id]; kbSaveZoom(); delete kbWidths[col.id]; kbSaveWidths(); delete kbGroup[col.id]; kbSaveGroup(); delete kbCalDays[col.id]; try { localStorage.setItem("kbCalDays", JSON.stringify(kbCalDays)); } catch (e) {} delete kbData[col.id]; delete kbCal[col.id]; kbRender(); kbRenderSettings(); });
   kbMenu.hidden = false;
   const r = btn.getBoundingClientRect(), w = kbMenu.offsetWidth, h = kbMenu.offsetHeight;
   kbMenu.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
@@ -4168,10 +4199,11 @@ function kbRenderSettings() {
   });
 }
 async function kbResolve(text) {
-  const id0 = parseNodeLink(text);
-  if (!id0) throw new Error("Paste the node's link (it ends in 12 letters and numbers) or its id.");
+  const id0 = parseNodeLink(text), word = String(text || "").trim();
+  if (!id0 && !/^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(word)) throw new Error("Paste the node's link (it ends in 12 letters and numbers), its id, or a shortcut name such as home.");
   let id = id0, found = "";
-  if (id0.length === 12) { const r = await api("/resolve?short=" + id0); id = r.id; found = r.name; }
+  if (!id0) { const r = await api("/resolve-target?key=" + encodeURIComponent(word)); id = r.id; found = r.name; }       // a shortcut such as home or inbox
+  else if (id0.length === 12) { const r = await api("/resolve?short=" + id0); id = r.id; found = r.name; }
   const data = await call("GET", `/nodes?parent_id=${id}`);
   if (data === null) throw new Error("WorkFlowy doesn't know that id.");
   if (!found) { try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = shownName((nd && nd.name) || ""); } catch (e) { /* falls back to a plain name */ } }
@@ -4183,6 +4215,9 @@ function kbAddCol(id, name) {
   kbCols.push({ id, name: name || "Column" }); kbSaveCols(); kbRenderSettings(); if (kbIsOpen()) kbLoadAll(false);
   return true;
 }
+document.getElementById("kbAddTop").onclick = () => {
+  try { kbMsg(kbAddCol("None", "Home") ? "Added “Home”: the top level of your outline." : "Home is already a column."); } catch (e) { kbMsg(e.message, true); }
+};
 document.getElementById("kbAddCal").onclick = () => {
   try {
     if (kbCols.length >= 30) throw new Error("Up to 30 columns.");
@@ -4212,6 +4247,22 @@ kbPick.onchange = () => {
   const x = planSources.find((y) => y.id === kbPick.value); kbPick.value = "";
   if (!x) return;
   try { kbMsg(kbAddCol(x.id, x.name) ? `Added “${x.name}”.` : "That node is already a column."); } catch (e) { kbMsg(e.message, true); }
+};
+// WorkFlowy shortcuts (home, inbox, ...): listed from the server, added by their real node id
+const kbShort = document.getElementById("kbShort"); let kbShortLoaded = false;
+async function kbFillShort() {
+  if (kbShortLoaded) return; kbShortLoaded = true;
+  try {
+    const r = await api("/targets"), list = (r.targets || []).filter((t) => t.type !== "calendar" && !["today", "tomorrow", "next_week", "calendar"].includes(t.key));
+    kbShort.innerHTML = ""; const o0 = document.createElement("option"); o0.value = ""; o0.textContent = list.length ? "Choose…" : "No shortcuts found"; kbShort.appendChild(o0);
+    for (const t of list) { const o = document.createElement("option"); o.value = t.key; o.textContent = t.name ? `${t.name} (${t.key})` : t.key; kbShort.appendChild(o); }
+  } catch (e) { kbShortLoaded = false; kbShort.innerHTML = '<option value="">Choose…</option>'; kbMsg("Couldn't read your shortcuts: " + e.message, true); }
+}
+kbShort.addEventListener("mousedown", kbFillShort); kbShort.addEventListener("focus", kbFillShort);
+kbShort.onchange = async () => {
+  const key = kbShort.value; kbShort.value = ""; if (!key) return;
+  kbMsg("Looking up “" + key + "”…");
+  try { const r = await kbResolve(key); kbMsg(kbAddCol(r.id, r.name) ? `Added “${r.name}”.` : "That node is already a column."); } catch (e) { kbMsg(e.message, true); }
 };
 // the panes in a WorkFlowy link: ?panes=v2.<base64 of a list>; each pane that is zoomed into a node gives one column
 function kbParsePanes(text) {

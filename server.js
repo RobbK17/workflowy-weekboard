@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.3.2
+// Version 1.3.3
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.3.2";
+const VERSION = "1.3.3";
 
 const http = require("http");
 const fs = require("fs");
@@ -117,10 +117,12 @@ function stripHtml(s) {
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 }
 
+// The top level of the outline has no parent node; it is kept under the key "None", the same word the WorkFlowy API uses for it.
+const TOP = "None";
 function addToKids(index, parentId, node) {
-  if (!parentId) return;
-  let list = index.kids.get(parentId);
-  if (!list) index.kids.set(parentId, (list = []));
+  const key = parentId || TOP;
+  let list = index.kids.get(key);
+  if (!list) index.kids.set(key, (list = []));
   list.push(node);
 }
 
@@ -378,10 +380,51 @@ async function serveResolve(url, res) {
   }
 }
 
+/* ---------- WorkFlowy shortcuts (keys such as home or inbox) ----------
+   WorkFlowy lets a key stand for a node (a shortcut you set up, or the system Inbox). The board stores real node ids, so these two
+   routes list the keys and turn one into the node's id and name. */
+async function wfGet(p) {
+  const r = await fetch(BASE + p, { headers: { Authorization: `Bearer ${KEY}` }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  let json = null; try { json = await r.json(); } catch (e) { /* not JSON */ }
+  return { status: r.status, ok: r.ok, json };
+}
+async function serveTargets(res) {
+  try {
+    const r = await wfGet("/targets");
+    if (!r.ok) return sendJson(res, r.status === 404 ? 404 : 502, { error: "WorkFlowy didn't return its shortcut list (" + r.status + ")" });
+    const arr = Array.isArray(r.json) ? r.json : (r.json && (r.json.targets || r.json.items)) || [];
+    const targets = arr.map((t) => ({ key: String((t && t.key) || ""), type: String((t && t.type) || ""), name: t && t.name != null ? stripHtml(String(t.name)) : null })).filter((t) => /^[A-Za-z0-9_-]{1,40}$/.test(t.key));
+    sendJson(res, 200, { targets });
+  } catch (e) { sendJson(res, 502, { error: fetchFailure(e) }); }
+}
+async function serveResolveTarget(url, res) {
+  const key = (url.searchParams.get("key") || "").trim();
+  if (!/^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(key)) return sendJson(res, 400, { error: "that isn't a shortcut name" });
+  try {
+    const nameOf = (n) => stripHtml(String((n && n.name) || "")).slice(0, 80);
+    // 1. ask for the node by its key
+    let r = await wfGet("/nodes/" + encodeURIComponent(key));
+    let node = r.ok && r.json ? (r.json.node || r.json) : null;
+    if (node && node.id && node.id !== key) return sendJson(res, 200, { id: node.id, name: nameOf(node) || key });
+    // 2. otherwise list what is under it: every child names its parent's real id
+    r = await wfGet("/nodes?parent_id=" + encodeURIComponent(key));
+    if (r.status === 404 || r.status === 400) return sendJson(res, 404, { error: `WorkFlowy has no shortcut called “${key}”. Check the names in Settings > Panes, or paste the node's link.` });
+    if (!r.ok) return sendJson(res, 502, { error: "WorkFlowy answered " + r.status });
+    const kids = (r.json && r.json.nodes) || [], pid = kids.length && kids[0].parent_id;
+    if (!pid) return sendJson(res, 409, { error: `“${key}” has nothing under it yet, so its id can't be read. Paste its link instead.` });
+    const p = await wfGet("/nodes/" + encodeURIComponent(pid));
+    const pn = p.ok && p.json ? (p.json.node || p.json) : null;
+    sendJson(res, 200, { id: pid, name: nameOf(pn) || key });
+  } catch (e) { sendJson(res, 502, { error: fetchFailure(e) }); }
+}
+
 async function serveItem(url, res) {
   const p = url.searchParams;
   try {
     const { throttled } = await ensureIndex(p.get("refresh") === "1");
+    if (p.get("id") === TOP) {                                       // the top level of the outline, as one item
+      return sendJson(res, 200, { item: { id: TOP, name: "Home", note: "", data: { layoutMode: "bullets" }, completedAt: null, children: sortedKids(TOP).map((c) => itemTree(c, ITEM_DEPTH - 1)) }, path: [], indexTime: idx.at, throttled });
+    }
     const n = idx.byId.get(p.get("id") || "");
     if (!n) return sendJson(res, 404, { error: "item not found" });
     sendJson(res, 200, { item: itemTree(n, ITEM_DEPTH), path: pathNames(n), indexTime: idx.at, throttled });
@@ -392,11 +435,11 @@ async function serveItem(url, res) {
 
 // ---- keep the copy in step with edits that pass through this server ----
 function removeFromKids(parentId, node) {
-  const list = parentId && idx.kids.get(parentId);
+  const list = idx.kids.get(parentId || TOP);
   if (list) { const i = list.indexOf(node); if (i !== -1) list.splice(i, 1); }
 }
 function edgePriority(parentId, position) {
-  const list = (parentId && idx.kids.get(parentId)) || [];
+  const list = idx.kids.get(parentId || TOP) || [];
   if (!list.length) return 100;
   const ps = list.map((c) => c.priority);
   return position === "top" ? Math.min(...ps) - 100 : Math.max(...ps) + 100;
@@ -623,7 +666,7 @@ async function guard(req, res, url) {
   }
   if (APP_ASSETS.has(url.pathname)) return true;          // the manifest and icons are fetched without the sign-in cookie
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors"].includes(url.pathname) || addonPaths.has(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -662,7 +705,7 @@ const APP_MANIFEST = {
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
   icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
 };
-const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors"]);
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors", "/targets", "/resolve-target"]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
    (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
@@ -958,6 +1001,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/search") return serveSearch(url, res);
   if (req.method === "GET" && url.pathname === "/item") return serveItem(url, res);
   if (req.method === "GET" && url.pathname === "/resolve") return serveResolve(url, res);
+  if (req.method === "GET" && url.pathname === "/targets") return serveTargets(res);
+  if (req.method === "GET" && url.pathname === "/resolve-target") return serveResolveTarget(url, res);
   if (req.method === "GET" && url.pathname === "/done") return serveDone(url, res);
   if (req.method === "GET" && url.pathname === "/encrypted") return serveEncrypted(url, res);
   if (req.method === "GET" && url.pathname === "/reminders") return serveReminders(url, res);
