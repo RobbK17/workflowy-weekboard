@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.3.4">
+<meta name="version" content="1.3.5">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -122,9 +122,9 @@
   .panel h3 span { color: var(--muted); font-weight: 400; margin-left: auto; }
   .panel h3 .mini { padding: 0 6px; font-size: 12px; }
   /* The Daily page header stays on one line: [title] [‹ date ›] [expand] [reload]. Only the date shrinks (with …) if space runs out. */
-  #pageHead { flex-wrap: nowrap; gap: 4px; overflow: hidden; white-space: nowrap; }
+  #pageHead { flex-wrap: nowrap; gap: 2px; overflow: hidden; white-space: nowrap; }
   #pageHead > * { flex: none; }
-  #pageHead .mini { padding: 0 5px; }
+  #pageHead .mini { padding: 0 3px; }
   #pageHead .mini.nav { font-size: 18px; line-height: 1; padding: 0 6px 2px; }
   #pageHead #pagePrev { margin-left: auto; }
   #pageHead #outTitle { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
@@ -137,7 +137,7 @@
   #board .col { flex: 1 1 0; min-width: 140px; }   /* days share the width evenly; they only scroll sideways when they would get narrower than this */
   #side .col { flex: 0 1 auto; width: 100%; max-height: 30vh; min-height: 70px; }
   .colhead { flex: none; padding-bottom: 4px; }
-  .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 4px; }
+  .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 14px; }   /* room above the first card for its hover buttons */
   .col.today { background: var(--today); }
   .col.late { background: var(--late); }
   .col.soon { background: var(--soon); }
@@ -154,8 +154,16 @@
   .card { display: flex; gap: 8px; align-items: flex-start; background: var(--card); border-radius: 6px;
           padding: 8px; margin-bottom: 6px; box-shadow: 0 1px 1px rgba(0,0,0,.12); cursor: grab; }
   .card.done .txt { text-decoration: line-through; color: var(--muted); }
+  .cd-live { display: block; width: 100%; box-sizing: border-box; border: none; background: transparent; color: inherit; font: inherit; line-height: inherit; padding: 0; margin: 0; resize: none; overflow: hidden; outline: none; border-radius: 3px; text-decoration: inherit; cursor: text; }
+  .cd-live:focus { background: rgba(127,127,127,.14); }
+  .clocked { cursor: pointer; border-radius: 3px; color: var(--muted); }
+  .clocked:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pe-live, .pe-nt, .cd-live, .cd-note { caret-color: var(--accent); }      /* an easy-to-see cursor, so a typed space at the end shows as the cursor moving */
+  .cd-live::placeholder { color: var(--muted); }
+  .cd-note { display: block; width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--muted); font: inherit; font-size: 12px; line-height: 1.35; padding: 0; margin: 2px 0 0; resize: none; overflow: hidden; outline: none; border-radius: 3px; }
+  .cd-note:focus { background: rgba(127,127,127,.14); }
   .card.dragging { opacity: .4; }
-  .card input[type=checkbox] { margin-top: 3px; }
+  .card input[type=checkbox] { font-size: inherit; margin-top: max(2px, calc(0.7em - 6.5px)); }      /* level with the first line of text, as in the panes */
   .txt { flex: 1; word-break: break-word; }
   .note, .badge { display: block; font-size: 12px; color: var(--muted); }
   .via { display: block; font-size: 11px; color: var(--muted); margin-bottom: 1px; }
@@ -189,10 +197,11 @@
   .subload { font-size: 12px; color: var(--muted); margin-top: 3px; }
   .rm { border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; display: inline-flex; align-items: center; justify-content: center; height: 20px; line-height: 1; flex: none; }
   .card:hover .rm, .card:focus-within .rm { opacity: 1; }
-  @media (hover: hover) {   /* the hover buttons float over the card's corner instead of taking text width */
-    .card .rm, .card .mv, .card .del { position: absolute; top: 3px; width: 24px; height: 22px; padding: 0; background: var(--card); border-radius: 0; }   /* touching, solid, so text never shows between the icons */
-    .card .del { right: 3px; border-radius: 0 4px 4px 0; } .card .mv { right: 27px; } .card .rm { right: 51px; border-radius: 4px 0 0 4px; box-shadow: -8px 0 6px -2px var(--card); }
-    .card:not(:hover):not(:focus-within) .rm { box-shadow: none; }
+  @media (hover: hover) {   /* the hover buttons sit on the card's top edge, half outside it, so they never cover the text or the lock */
+    .card .rm, .card .mv, .card .del { position: absolute; top: -12px; width: 26px; height: 22px; padding: 0; background: var(--card); border: 1px solid var(--border); border-left-width: 0; border-radius: 0; z-index: 3; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+    .card .del { right: 8px; border-radius: 0 6px 6px 0; } .card .mv { right: 34px; } .card .rm { right: 60px; border-left-width: 1px; border-radius: 6px 0 0 6px; }
+    .card:not(:hover):not(:focus-within) .rm, .card:not(:hover):not(:focus-within) .mv, .card:not(:hover):not(:focus-within) .del { pointer-events: none; }
+    .card:has(textarea:focus) .rm, .card:has(textarea:focus) .mv, .card:has(textarea:focus) .del { opacity: 0; pointer-events: none; }   /* while you are typing in a card the buttons are hidden */
   }
   .bellb { white-space: nowrap; }
   .rm:hover { color: var(--accent); }
@@ -314,7 +323,7 @@
   #dayPop .dp-x { border: none; background: none; color: var(--muted); cursor: pointer; padding: 2px 4px; }
   #dayPop .dp-x:hover { color: var(--text); }
   #dayPop > div:nth-child(2) { flex: none; }
-  #dayPop .dp-list { flex: 1; min-height: 40px; overflow-y: auto; padding: 4px 0; }
+  #dayPop .dp-list { flex: 1; min-height: 40px; overflow-y: auto; padding: 14px 0 4px; }
   #dayPop .dp-foot { flex: none; margin-top: 8px; }
   #dayPop .dp-foot button { width: 100%; padding: 6px; font-size: 13px; }
   .srcs .sub { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 10px 0 6px; }
@@ -432,6 +441,13 @@
   .kcard input[type=checkbox] { flex: none; margin: 2px 0 0; }
   .kcol.wide { width: 360px; }
   .kcol .pl { padding-right: 2px; }
+  .kcol .pl input[type=checkbox] { font-size: inherit; margin-top: max(2px, calc(0.7em - 6.5px)); }      /* the box sits level with the first line of text */
+  .kcol .pl { position: relative; }
+  .cbar { position: absolute; top: 1px; right: 0; display: none; background: var(--col, var(--card)); border-radius: 6px; box-shadow: -10px 0 8px -2px var(--col, var(--card)); }
+  .cbar button { border: none; background: none; color: var(--muted); width: 24px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .cbar .rm, .cbar .mv, .cbar .del { opacity: 1; position: static; box-shadow: none; border: none; width: 24px; height: 22px; background: none; }
+  .cbar button:hover { color: var(--accent); } .cbar .del:hover { color: #de350b; }
+  @media (hover: hover) { .kcol .pl:hover > .cbar, .kcol .pl:focus-within > .cbar { display: inline-flex; } .kcol .pl:has(textarea:focus) > .cbar { display: none; } }
   .kcol .kcards .pl .t { cursor: text; }
   .kcard .kopen { flex: none; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 2px; opacity: 0; }
   .kcard:hover .kopen { opacity: 1; }
@@ -456,6 +472,63 @@
   .kch { font-weight: 700; margin: 8px 0 4px; flex: none; }
   .klane { display: flex; flex-direction: column; min-height: 0; flex: 1; }
   .klsel { font: inherit; font-weight: 600; padding: 5px 8px; margin: 2px 0 6px; border-radius: 6px; border: 1px solid var(--line, #ccc); background: transparent; color: inherit; flex: none; max-width: 100%; }
+  .kcol.kmax { flex: 1 1 auto; width: auto !important; max-width: none; }
+  .klh { display: flex; gap: 6px; align-items: center; flex: none; }
+  .klh .klsel { flex: 1; min-width: 0; }
+  .klh .kln { flex: none; width: auto; }
+  .klcols { display: flex; gap: 8px; flex: 1; min-height: 0; overflow-x: auto; align-items: stretch; }
+  .kldiv { flex: none; width: 6px; margin: 0 -2px; cursor: col-resize; border-radius: 3px; align-self: stretch; }
+  .kldiv.end { margin: 0 0 0 -2px; }
+  .kldiv:hover, .klcols.sizing .kldiv { background: var(--accent); opacity: .5; }
+  .klcols.sizing { user-select: none; }
+  .klc { flex: 1 1 0; min-width: 150px; display: flex; flex-direction: column; min-height: 0; }
+  .ktgrid { margin-left: 10px; background: none; border: 0; color: inherit; opacity: .7; text-decoration: underline; cursor: pointer; font-size: 11.5px; padding: 0; }
+  .ktw { margin: 2px 0 8px; }
+  .ktb { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 13px; }
+  .ktb th, .ktb td { border: 1px solid var(--line, #d8d8d8); padding: 0; vertical-align: top; text-align: left; }
+  .ktb th { background: rgba(127,127,127,.14); font-weight: 600; }
+  .ktb textarea.ktc { display: block; width: 100%; box-sizing: border-box; border: 0; background: transparent; color: inherit; font: inherit; font-weight: inherit; padding: 5px 7px; resize: none; overflow: hidden; outline: none; }
+  .ktb textarea.ktc:focus { background: rgba(80,140,255,.10); }
+  .ktb td, .ktb th { padding: 0; } .ktb th:not(:has(textarea)), .ktb td:not(:has(textarea)) { padding: 5px 7px; }
+  .ktbar { display: flex; gap: 12px; align-items: center; margin-top: 3px; font-size: 11.5px; opacity: .7; }
+  .ktbar a { color: inherit; } .ktbar button { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; font-size: inherit; padding: 0; }
+  .kcol.kitem { width: auto; max-height: none; background: none; padding: 9px 0 0; border-radius: 0; display: block; }   /* a little air between the accent line and the first line */
+  .kcol.kitem .kcards { overflow: visible; }
+  .pagebar { flex: none; display: flex; align-items: center; gap: 6px; margin: -8px 0 4px; }
+  .pagebar .pagesave { flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pagebar #pageEdit { flex: none; display: inline-flex; align-items: center; margin-left: auto; padding: 0 5px; }
+  .pagebar #pageEdit.on { color: var(--accent); }
+  .pagebar #pageEdit svg { display: block; }
+  .viewbar .iedit { display: inline-flex; align-items: center; padding: 2px 6px; }
+  .viewbar .iedit.on { color: var(--accent); }
+  .viewbar .iedit svg { display: block; }
+  .kcol.editing { box-shadow: inset 0 3px 0 var(--accent); }          /* a thin line along the top edge while editing */
+  .kcol.editing .pl .outc, .kcol.editing .pl .indc, .kcol.editing .pl .zmc, .kcol.editing .pl .addc, .kcol.editing .pl .delc { display: none !important; }
+  #kbKeys { position: fixed; z-index: 60; left: 50%; top: 12%; transform: translateX(-50%); width: min(900px, 96vw); max-height: 76vh; overflow: auto; background: var(--card, #fff); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.28); padding: 14px 16px; }
+  #kbKeys[hidden] { display: none; }
+  #kbKeys h3 { margin: 0 0 8px; font-size: 15px; }
+  #kbKeys table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  #kbKeys td { padding: 3px 6px 3px 0; vertical-align: top; }
+  #kbKeys td:nth-child(2), #kbKeys td:nth-child(3) { white-space: nowrap; padding-right: 14px; }
+  #kbKeys tr.win td:nth-child(2), #kbKeys tr.mac td:nth-child(3) { font-weight: 700; }
+  #kbKeys tr.kg td { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding-top: 10px; border-bottom: 1px solid var(--border); }
+  #kbKeys th { text-align: left; font-size: 12px; color: var(--muted); padding: 0 14px 4px 0; }
+  #kbKeys small { color: var(--muted); display: block; margin-top: 8px; }
+  .pl .t.live { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 6px; cursor: text; }
+  .pe-live { flex: 1 1 60%; min-width: 0; border: none; background: transparent; color: inherit; font: inherit; line-height: inherit; padding: 0; margin: 0; resize: none; overflow: hidden; outline: none; border-radius: 3px; display: block; }
+  .pe-live:focus { background: rgba(127,127,127,.14); }
+  .pl.sel { background: color-mix(in srgb, var(--accent) 20%, transparent); border-radius: 4px; }
+  .t.klocked { cursor: pointer; border-radius: 3px; }
+  .t.klocked:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pe-locked { flex: 1 1 60%; min-width: 0; border: none; background: transparent; color: var(--muted); font: inherit; padding: 0; margin: 0; resize: none; overflow: hidden; outline: none; display: block; }
+  .pl.done .pe-live { text-decoration: line-through; color: var(--muted); }
+  .pl .t.live .pn { flex-basis: 100%; }
+  .pe-nt { flex: 1 1 100%; min-width: 0; display: block; border: none; background: transparent; color: var(--muted); font: inherit; font-size: 12px; line-height: 1.4; padding: 0; margin: 1px 0 0; resize: none; overflow: hidden; outline: none; border-radius: 3px; }
+  .pe-nt:focus { background: rgba(127,127,127,.14); color: var(--text); }
+  .kfb.on { color: var(--accent); }
+  .kbsave { font-size: 12px; color: var(--muted); }
+  .kbsave.err { color: #c0392b; }
+  .kbsave.note { color: var(--accent); }
   .kdrops { display: none; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; flex: none; }
   body.kbdrag .kdrops { display: flex; }
   .kdrop { padding: 6px 10px; border: 2px dashed var(--line, #aaa); border-radius: 8px; font-size: 13px; }
@@ -488,10 +561,11 @@
   .kact button { border: none; background: none; color: inherit; cursor: pointer; padding: 0 4px; opacity: .6; font-size: 14px; line-height: 1; }
   .kact button:hover { opacity: 1; }
   .kcb { width: 13px; flex: none; text-align: center; opacity: .55; }
-  .kcc { font-size: 11px; opacity: .6; margin-left: 4px; flex: none; }
+  .kcc { font-size: 11px; color: var(--muted); margin-left: 6px; white-space: nowrap; flex: none; }
   .kkids { display: flex; flex-direction: column; gap: 4px; margin: -2px 0 6px 14px; padding-left: 6px; border-left: 2px solid var(--line, #ddd); }
   .kcol .kh .kfb { font-size: 13px; opacity: .6; padding: 0 3px; }
   .kcol .kh .kfb:hover { opacity: 1; }
+  .kcol .kh .kfb svg { display: block; }
   .kadd { display: flex; gap: 4px; margin-top: 6px; flex: none; }
   .kadd input[type=text] { flex: 1; min-width: 0; padding: 6px 8px; border: 1px dashed var(--border); border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: 13px; }
   .kadd input[type=text]:focus { outline: none; border-style: solid; border-color: var(--accent); }
@@ -582,12 +656,13 @@
   .dr a:hover { color: var(--accent); }
 
   /* Plan day */
-  #plan { flex: 1; min-width: 0; display: flex; gap: 12px; overflow: hidden; }
+  #plan { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .planbody { flex: 1; min-height: 0; display: flex; gap: 12px; overflow: hidden; }
   #plan[hidden], #board[hidden] { display: none; }
   .planpane { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; background: var(--col); border-radius: 8px; padding: 10px; overflow: hidden; }
   .planpane.today { background: var(--today); }
   .planpane h2 { font-size: 14px; margin: 0 0 8px; }
-  .planpane .tasks { padding: 4px 0; }
+  .planpane .tasks { padding: 14px 0 4px; }   /* room above the first card for its hover buttons */
   .phead { flex: none; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
   .phead h2 { flex: 1; margin: 0; min-width: 0; font-size: 15px; }
   .phead .mini { padding: 0 8px; font-size: 12px; }
@@ -601,7 +676,7 @@
   .restbtn { flex: none; margin-bottom: 8px; align-self: flex-start; font-size: 13px; padding: 4px 10px; }
   .planpane .addhint { flex: none; }
   .planpane > div:last-child { flex: none; }
-  .bring-list { flex: 1; min-height: 0; overflow-y: auto; }
+  .bring-list { flex: 1; min-height: 0; overflow-y: auto; padding-top: 14px; }
   .bgh { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 2px 4px; }
   .bgh:first-child { margin-top: 0; }
   .bgh .mini { padding: 1px 8px; font-size: 12px; }
@@ -609,7 +684,7 @@
   .brow .bt { flex: 1; min-width: 0; word-break: break-word; }
   .brow .bd { flex: none; font-size: 11px; color: var(--muted); padding-top: 2px; white-space: nowrap; }
   .brow .bring { flex: none; padding: 1px 8px; font-size: 12px; }
-  @media (max-width: 820px) { #plan { flex-direction: column; overflow-y: auto; } .planpane { flex: none; max-height: 70vh; } }
+  @media (max-width: 820px) { .planbody { flex-direction: column; overflow-y: auto; } .planpane { flex: none; max-height: 70vh; } }
 </style>
 </head>
 <body>
@@ -633,7 +708,8 @@
     <div class="kbbar">
       <button id="kbBack" type="button" title="Back to the week board (Esc)">&larr; Week board</button>
       <h2>Panes</h2>
-      <label><input type="checkbox" id="kbHide"> Hide done</label>
+      <span id="kbSave" class="kbsave" role="status" aria-live="polite"></span>
+      <button id="kbKeysBtn" type="button" hidden title="Keyboard shortcuts for Edit mode (Ctrl+/ or Cmd+/)">&#9000; Keys</button>
       <button id="kbCollapse" type="button" title="Fold every column into a narrow strip">Fold columns</button>
       <button id="kbExpand" type="button" title="Open every folded column">Unfold columns</button>
       <button id="kbSetup" type="button" title="Choose which nodes are columns">Columns&hellip;</button>
@@ -656,6 +732,7 @@
         <button id="moveNotes" role="menuitem" type="button"><span>&#8627; Move notes in<small>Move the shown day's plain bullets into the notes bullet</small></span></button>
       </div>
       <div class="pagetree" id="pageTree">Loading…</div>
+      <div class="pagebar"><span class="kbsave pagesave" id="pageSave" role="status" aria-live="polite"></span><button class="mini" id="pageEdit" type="button" aria-label="Edit like a text editor"></button></div>
       <div class="notesadd"><input id="notesAdd" type="text" autocomplete="off" spellcheck="true"></div>
       <div class="outbar">
         <span class="outright">
@@ -680,7 +757,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.4</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.5</span></div>
   </div>
 </footer>
 
@@ -698,6 +775,7 @@
         <!--@addons:tab-->
       </nav>
       <div class="set-pane setpane" data-sec="board">
+        <label><input type="checkbox" class="readEditCb"><span>Disable the original double-click edit in read mode<small>Everywhere on the desktop. Ticked: in read mode (and on cards with “Edit cards in place” off) clicking or double-clicking a line no longer opens the pop-up editor. Use the pencil, or turn on in-place editing, to type</small></span></label>
         <div class="setrow"><span>Days shown<small>Columns on the board. 3 is today plus the next two days.</small></span>
         <div class="seg" id="seg" title="Days to show">
           <button data-span="3">3</button><button data-span="5">5</button><button data-span="7">7</button>
@@ -713,6 +791,7 @@
       <label><input type="checkbox" id="optSoon"><span>Upcoming<small>Tasks in the 14 days after the days shown</small></span></label>
       <label class="sel"><span>Nested<small>Tasks indented under a plain bullet. Group: one card per bullet. Flatten: each task its own card.</small></span>
         <select id="optNested"><option value="off">Off</option><option value="group">Group</option><option value="flatten">Flatten</option></select></label>
+      <label><input type="checkbox" id="optLive"><span>Edit cards in place<small>Click a task's text to type in it. Off: double-click to edit<span id="liveLock" hidden> Locked on while “Disable the original double-click edit in read mode” is ticked, so cards can always be edited.</span></small></span></label>
       <label><input type="checkbox" id="optSubs"><span>Sub-items<small>Count on tasks that have sub-items, and a checklist you can open</small></span></label>
       <div class="srcs" id="inboxSetBox">
         <div class="sh">Inbox<small>The &#128229; Inbox button (or the I key) opens this node so you can edit everything in it. You can also drop a task on the button to send it there. Saved in this browser.</small></div>
@@ -754,6 +833,8 @@
       <div class="set-pane setpane" data-sec="kanban" hidden>
       <div class="srcs">
         <div class="sh">Pane columns<small>The Panes view (the Panes button, or the B key) shows each node below as a column, with its children as cards. Saved in this browser.</small></div>
+        <label><input type="checkbox" class="readEditCb"><span>Disable the original double-click edit in read mode<small>Same setting as in Week board: ticked makes read mode read-only everywhere</small></span></label>
+        <label><input type="checkbox" id="kbHide"><span>Hide completed<small>Leave ticked tasks out of the panes, and out of the calendar dots</small></span></label>
         <div class="sub">Your columns</div>
         <div id="kbList"></div>
         <div class="srcadd">
@@ -836,6 +917,7 @@
 </div>
 
 <div class="pop fixed" id="kbMenu" role="menu" hidden></div>
+<div id="kbKeys" role="dialog" aria-label="Edit mode shortcuts" hidden></div>
 
 <div class="modal" id="encModal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-label="Encrypted items">
@@ -885,12 +967,14 @@ const nestQueued = new Set();
 function getPref(k) { try { return localStorage.getItem(k) === "1"; } catch (e) { return false; } }
 function setPref(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} }
 function loadNestedMode() { try { const v = localStorage.getItem("nested"); return v === "group" || v === "flatten" ? v : "off"; } catch (e) { return "off"; } }
-const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true) };
+let kbReadEdit = (() => { try { return localStorage.getItem("kbReadEdit") !== "0"; } catch (e) { return true; } })();     // read mode: does clicking a line open the pop-up editor?
+const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true) };
 
 // Past due range: "1".."4" weeks back, or "all". Default is 2 weeks.
 let lateRange = loadLateRange();
 let loadingExtras = false;   // true while Past due / Upcoming days are still being fetched
 let loadToken = 0;           // lets a newer load cancel an older one
+let kbHost = null, kbHostOpen = null;   // when the live editor draws somewhere other than the Panes (the item window): { root, render }
 let viewItem = null;         // id of the search result open in the item editor, or null
 let itemNodes = [];         // the open item (and its children) shown in the editor; viewItem is its id
 let itemPath = [];          // names of the lines above the open item
@@ -960,6 +1044,11 @@ function showError(msg) {
   el.textContent = msg; el.style.display = msg ? "block" : "none";
 }
 
+// WorkFlowy limits how fast it can be asked for things. This turns its "429" answer into something readable.
+function busyMessage(text) {
+  let wait = 0; try { wait = Math.ceil(Number(JSON.parse(text).retry_after) || 0); } catch (e) { /* not JSON */ }
+  return "WorkFlowy is busy: too many requests at once. " + (wait > 0 ? `Wait about ${wait} second${wait === 1 ? "" : "s"} and try again.` : "Wait a few seconds and try again.");
+}
 async function call(method, path, body) {
   const res = await fetch(API + path, {
     method,
@@ -968,6 +1057,7 @@ async function call(method, path, body) {
   });
   if (res.status === 401) { location.href = "/login"; throw new Error("Signed out. Redirecting to the sign-in page…"); }
   if (res.status === 404 && method === "GET") return null;   // day not created yet = empty column
+  if (res.status === 429) { const t = await res.text(); const e = new Error(busyMessage(t)); try { e.retryAfter = Number(JSON.parse(t).retry_after) || 2; } catch (x) { e.retryAfter = 2; } throw e; }
   if (!res.ok) throw new Error(`${method} ${path} failed (${res.status}): ${await res.text()}`);
   return res.json();
 }
@@ -1186,7 +1276,7 @@ function entryEl(e, showDate) {
 
 // While a line is being edited, redraws caused by background loads wait until the editor closes (they used to wipe it out).
 const redrawQueue = new Map();
-const editorOpen = () => !!document.querySelector(".pl-edit");
+const editorOpen = () => !!document.querySelector(".pl-edit") || (document.activeElement && document.activeElement.classList && (document.activeElement.classList.contains("pe-live") || document.activeElement.classList.contains("pe-nt") || document.activeElement.classList.contains("cd-live") || document.activeElement.classList.contains("cd-note")));
 function deferRedraw(key, fn) { if (!editorOpen()) return false; redrawQueue.set(key, fn); return true; }
 function flushRedraws() {
   if (editorOpen() || !redrawQueue.size) return;
@@ -1452,9 +1542,10 @@ function subList(nodes, rootId) {
     const t = document.createElement("span");
     t.className = "st2"; t.textContent = shownVisible(c.name) || "(empty)";
     if (rootId) {                                       // click a sub-item to edit it (this is where an add-on such as Encrypt gets its turn)
-      t.classList.add("editable"); t.title = "Click to edit";
+      if (kbReadEdit) { t.classList.add("editable"); t.title = "Click to edit"; }
       t.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (!kbReadEdit) return;
         if (String(window.getSelection && window.getSelection()) !== "") return;
         const card = t.closest(".card"), wasDraggable = card ? card.draggable : false;
         if (card) card.draggable = false;                // so clicking buttons and selecting text inside the editor doesn't start dragging the card
@@ -1532,9 +1623,9 @@ function groupCard(e, showDate) {
     badge.textContent = keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     title.appendChild(badge);
   }
-  title.title = "Double-click to rename";
+  if (kbReadEdit) title.title = "Double-click to rename";
   title.addEventListener("dblclick", () => {         // rename
-    if (selMode) return;   // rename the bullet in place (formatting kept; its note is editable too)
+    if (selMode || !kbReadEdit) return;   // rename the bullet in place (formatting kept; its note is editable too)
     if (el.querySelector(".pl-edit")) return;
     el.draggable = false;
     startEdit(b, title, () => act(() => loadDay(k)), () => { el.draggable = true; });
@@ -1573,16 +1664,19 @@ function groupCard(e, showDate) {
       const txt = document.createElement("span");
       txt.className = "st2";
       const ttag = parseTag(t.name), ttm = ttag || parseTime(plain(t.name));
-      txt.textContent = (ttm && !ttag ? dropTime(shownVisible(t.name)) : shownVisible(t.name)) || "(empty)";
-      txt.title = "Double-click to edit";
+      const gMode = cardMode(t), gLive = gMode === "live";
+      if (gLive) txt.appendChild(cardField(t, k, el, b, true));
+      else if (gMode === "locked") cardLockedBox(t, txt, el);
+      else txt.textContent = (ttm && !ttag ? dropTime(shownVisible(t.name)) : shownVisible(t.name)) || "(empty)";
+      if (gMode === "plain" && kbReadEdit) txt.title = "Double-click to edit";
       txt.addEventListener("dblclick", () => {         // edit a task inside the group in place
-        if (selMode) return;
+        if (selMode || gMode !== "plain" || !kbReadEdit) return;
         if (row.querySelector(".pl-edit")) return;
         el.draggable = false;
         startEdit(t, txt, () => act(() => reloadBullet(b.id)), () => { el.draggable = true; });
       });
       row.append(cb, txt);
-      if (ttm && !t.completedAt) {
+      if (ttm && !t.completedAt && !gLive) {
         const bb = document.createElement("button");
         bb.type = "button"; bb.className = "bellb"; bb.textContent = "🔔 " + fmtTime(ttm.h, ttm.mi) + (ttag && ttag.key !== k ? " · " + dayLabel(ttag.key) : "");
         bb.title = ttag ? "Reminder from the date tag" : "Reminder: click to change";
@@ -1728,8 +1822,13 @@ function card(n, k, showDate, opts) {
   const txt = document.createElement("div");
   txt.className = "txt";
   const tag = parseTag(n.name), tm = tag || parseTime(plain(n.name));
-  txt.textContent = tag ? shownName(n.name) : tm ? dropTime(shownName(n.name)) : shownName(n.name);
-  if (tm && !n.completedAt) {
+  const cmode = cardMode(n);                           // "live", "locked" (encrypted: click to unlock) or "plain" (old double-click editor)
+  const liveOk = cmode === "live";
+  let cta = null;
+  if (liveOk) { cta = cardField(n, k, el, nested ? opts.bullet : null); txt.appendChild(cta); }
+  else if (cmode === "locked") cardLockedBox(n, txt, el);
+  else txt.textContent = tag ? shownName(n.name) : tm ? dropTime(shownName(n.name)) : shownName(n.name);
+  if (tm && !n.completedAt && !liveOk) {
     const bb = document.createElement("button");
     bb.type = "button"; bb.className = "bellb"; bb.textContent = "🔔 " + fmtTime(tm.h, tm.mi) + (tag && tag.key !== k ? " · " + dayLabel(tag.key) : "");
     bb.title = tag ? "Reminder from the date tag" : "Reminder: click to change";
@@ -1747,7 +1846,8 @@ function card(n, k, showDate, opts) {
     badge.textContent = keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     txt.appendChild(badge);
   }
-  if (n.note) {
+  if (cta && !n.pending && n.note && maskTokens(visibleText(n.note)) === visibleText(n.note)) txt.appendChild(cardNoteField(n, k, el, cta));
+  else if (n.note) {
     const note = document.createElement("span");
     note.className = "note"; note.textContent = plain(n.note);
     txt.appendChild(note);
@@ -1758,9 +1858,9 @@ function card(n, k, showDate, opts) {
   subs.addEventListener("dblclick", (e) => e.stopPropagation());   // double-clicking a sub-item isn't editing the task
   fillSubs(subs, n.id);
   txt.appendChild(subs);
-  txt.title = "Double-click to edit";
+  if (cmode === "plain" && kbReadEdit) txt.title = "Double-click to edit";
   txt.addEventListener("dblclick", () => {           // edit right on the card (keeps formatting; the note is editable too)
-    if (selMode || el.querySelector(".pl-edit")) return;
+    if (liveOk || cmode === "locked" || selMode || !kbReadEdit || el.querySelector(".pl-edit")) return;
     if (String(window.getSelection && window.getSelection()) !== "") window.getSelection().removeAllRanges();
     el.draggable = false;                            // so selecting text inside the box doesn't drag the card
     startEdit(n, txt, () => act(async () => {
@@ -1771,6 +1871,7 @@ function card(n, k, showDate, opts) {
   const del = document.createElement("button");
   del.className = "del"; del.innerHTML = X_ICON; del.title = "Delete";
   del.addEventListener("click", () => {
+    if (n.pending) { el.remove(); return; }
     const sc = prefs.showSubs && kids[n.id] ? kids[n.id].count : 0;
     if (!confirm(sc ? `Delete this task and its ${sc} sub-item${sc === 1 ? "" : "s"} (and anything under them) permanently?` : "Delete this task permanently?")) return;
     act(async () => {
@@ -1788,20 +1889,270 @@ function card(n, k, showDate, opts) {
       await moveMany([{ id: n.id, from: nested ? opts.bullet.id : k, name: shortName(n) }], to);
     });
   };
-  mv.addEventListener("click", (e) => { e.stopPropagation(); openMovePop(mv, k, moveTo); });
+  mv.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => openMovePop(mv, k, moveTo)); });
 
   const rb = document.createElement("button");
   rb.className = "rm"; rb.innerHTML = BELL_ICON; rb.title = "Set a reminder…";
-  rb.addEventListener("click", (e) => { e.stopPropagation(); openRemPop(rb, n, k, nested ? opts.bullet : null, tm); });
+  rb.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => { const t = parseTime(plain(n.name)); openRemPop(rb, n, k, nested ? opts.bullet : null, parseTag(n.name) || t); }); });
 
   el.append(cb, txt, rb, mv, del);
   return el;
 }
 
+
+/* ---------- Live editing on a week-board card ---------- */
+// The task's name is a text box right on the card. It saves a second after you stop typing, or when you leave it.
+// Enter goes to the next card; on the last card of a day it starts a new one (dropped again if you leave it empty).
+const cardRevealed = new Map();                           // id -> { text, originals }: locked cards opened for editing; each closes again when you leave it
+let cardFocusId = null;
+const CARD_SEALED_RE = /wbenc1\.[A-Za-z0-9_-]{59,}/;
+function cardMode(n) {
+  if (!prefs.liveCards) return "plain";
+  return "live";                                    // a card with locked words is live too: the 🔒 parts stay locked while you edit around them
+}
+async function cardUnlock(n) {                           // ask for the passphrase if needed and open the locked words in the card
+  const C = window.wbcryptLive; if (!C || !C.ready()) { showError("Encryption is off, or the Encrypt add-on isn't installed."); return; }
+  if (!C.unlocked() && !(await C.unlock())) return;
+  kbHookLock();
+  const r = await C.reveal(visibleText(n.name));
+  if (r.failed && !r.originals.length) { showError("That passphrase doesn't open this card."); return; }
+  cardRevealed.set(n.id, { text: r.text, originals: r.originals }); cardFocusId = n.id;
+  if (!deferRedraw("render", render)) render();
+}
+// A locked card shows 🔒; one click (or Enter) asks for the passphrase if needed and opens it as a live box.
+function cardLockedBox(n, txt, el) {
+  const b = document.createElement("div");
+  b.className = "clocked"; b.tabIndex = 0; b.setAttribute("role", "button"); b.dataset.id = n.id;
+  b.textContent = shownVisible(n.name) || "🔒"; b.title = "Encrypted. Click or press Enter to unlock and edit it here";
+  const open = async () => {
+    if (selMode || String(window.getSelection && window.getSelection()) !== "") return;
+    cardUnlock(n);
+  };
+  b.addEventListener("click", open);
+  b.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); open(); } else if (e.key === "Escape") b.blur(); });
+  txt.appendChild(b);
+}
+/* ---------- Locked words inside a line ---------- */
+// A line with encrypted words opens as a normal text box. Each locked part shows as 🔒 (🔒₁, 🔒₂ … when there are several) and is put back
+// byte for byte when the line is saved, so you can add or change the plain words around it without the passphrase. Deleting a 🔒 asks first.
+const LOCK_TIP = "🔒 stands for encrypted words. They stay locked while you edit around them. Ctrl/Cmd+Shift+E unlocks them.";
+const SUB_DIG = "₀₁₂₃₄₅₆₇₈₉";
+const lockLabel = (i, total) => (total === 1 ? "🔒" : "🔒" + String(i + 1).replace(/\d/g, (d) => SUB_DIG[+d]));
+function lockChips(raw) {
+  const tokens = [];
+  const text = String(raw == null ? "" : raw).replace(TOKEN_TEXT_RE, (m) => { tokens.push(m); return "\u0001" + (tokens.length - 1) + "\u0002"; });
+  return { tokens, text: text.replace(/\u0001(\d+)\u0002/g, (m, i) => lockLabel(+i, tokens.length)) };
+}
+function lockRestore(text, tokens) {
+  const n = tokens.length, seen = new Set();
+  const out = n === 1
+    ? text.replace(/🔒/g, () => { seen.add(0); return tokens[0]; })
+    : text.replace(/🔒([₀-₉]+)/g, (m, d) => { const i = +[...d].map((c) => SUB_DIG.indexOf(c)).join("") - 1; if (i >= 0 && i < n) { seen.add(i); return tokens[i]; } return m; });
+  const lost = []; for (let i = 0; i < n; i++) if (!seen.has(i)) lost.push(i);
+  return { text: out, lost };
+}
+// Returns { text } to save, or null when the save should wait (the field was put back as it was and the person told).
+function lockPrepare(ta, shown) {
+  if (!ta._lock) return { text: shown, lost: 0 };
+  const r = lockRestore(shown, ta._lock.tokens);
+  if (r.lost.length && !confirm(r.lost.length === 1 ? "This removes encrypted words from the line for good. Remove them?" : `This removes ${r.lost.length} encrypted parts from the line for good. Remove them?`)) {
+    ta.value = ta.value.replace(/\s+$/, "") + " " + r.lost.map((i) => lockLabel(i, ta._lock.tokens.length)).join(" ");      // keep them: put them back at the end
+    ta.dispatchEvent(new Event("input")); return null;
+  }
+  return { text: r.text, lost: r.lost.length };
+}
+function lockAfterSave(ta, n) {                                // the saved name is the new truth: renumber the 🔒 marks if some were removed
+  if (!ta._lock) return null;
+  const nl = lockChips(visibleText(n.name)); const changed = nl.tokens.length !== ta._lock.tokens.length;
+  ta._lock = nl.tokens.length ? nl : null;
+  if (changed) { ta.value = nl.text; return nl.text; }
+  return null;
+}
+// Grows a text box to fit its text. While the box is hidden (another view is open) it cannot be measured: it is left alone, and measured when it shows up, so no line ends up squashed to nothing.
+function autoFit(ta) {
+  const fit = () => {
+    if (!ta.isConnected || !ta.offsetWidth) { ta.style.height = ""; return; }
+    ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px";
+  };
+  if (typeof ResizeObserver === "function") { let w = 0; try { new ResizeObserver(() => { const nw = ta.offsetWidth; if (nw !== w) { w = nw; if (nw) fit(); } }).observe(ta); } catch (e) { /* no observer: the other fits still run */ } }
+  return fit;
+}
+function cardClean(ta) { return ta.value.replace(/\s*\n\s*/g, " ").trim(); }
+async function cardSettle(ta) {                          // before 🔔 / 📅: make sure what was typed is saved, and let go of the box so the board can redraw
+  if (ta && ta._flush) { try { await ta._flush(); } catch (e) { /* shown already */ } ta.blur(); }
+}
+function cardField(n, k, el, bullet, group) {      // group: the task sits in a group card (el is the whole group)
+  const ta = document.createElement("textarea");
+  ta.className = "cd-live"; ta.rows = 1; ta.value = n.pending ? "" : visibleText(n.name);
+  const rev = cardRevealed.get(n.id); if (rev) { ta._enc = rev; ta.value = rev.text; }      // a locked card you opened: shown readable, sealed again whenever it is saved
+  else if (!n.pending) { const lk = lockChips(visibleText(n.name)); if (lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } }      // locked words stay locked: edit around them
+  if (n.pending) ta.placeholder = "New task"; else ta.dataset.id = n.id;
+  ta.readOnly = selMode; ta.spellcheck = true;
+  let base = ta.value, timer = null, saved = false, busy = null;
+  const fit = autoFit(ta);
+  ta._flush = () => {
+    clearTimeout(timer); timer = null;
+    const shown = cardClean(ta);
+    if (!shown || shown === base.trim()) return busy || Promise.resolve();
+    const lp = lockPrepare(ta, shown); if (!lp) return busy || Promise.resolve();
+    const next = lp.text;
+    busy = (async () => {
+      try {
+        await kbQueued(async () => {
+          let t1 = next;
+          if (ta._enc) { const r = await window.wbcryptLive.seal(next, ta._enc.originals); t1 = r.text; ta._enc.originals = r.originals; }
+          const t2 = await boardHooks.pipe("beforeSave", t1, { node: n, field: "name" });
+          const had = TIME_RE.test(n.name || "") || !!parseTag(n.name || "");
+          if (n.pending) {
+            const r = await call("POST", "/nodes", { parent_id: k, name: t2, layoutMode: "todo", position: "bottom" });
+            n.id = r.item_id; n.pending = false; n.name = t2; el.dataset.id = n.id; ta.dataset.id = n.id; ta.placeholder = "";
+            (cache[k] || (cache[k] = [])).push(n);
+          } else {
+            const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name;
+          }
+          base = ta._enc ? next : ta._lock ? shown : visibleText(n.name); saved = true;
+          const re = lockAfterSave(ta, n); if (re != null) base = re;
+          if (had || TIME_RE.test(n.name) || parseTag(n.name)) remPoll(true);
+        });
+      } catch (e) { /* kbQueued showed it */ }
+    })();
+    return busy;
+  };
+  ta.addEventListener("input", () => { fit(); if (ta._enc) ta._enc.text = ta.value; clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
+  ta.addEventListener("focus", () => { el.draggable = false; });
+  ta.addEventListener("mousedown", (e) => { if (selMode) e.preventDefault(); });
+  ta.addEventListener("blur", () => {
+    el.draggable = group ? !selMode : !bullet && !selMode;
+    ta._flush().then(() => {
+      setTimeout(() => {
+        if (document.activeElement === ta) return;
+        if (ta._enc && cardRevealed.get(n.id) === ta._enc) {
+          if (cardClean(ta) !== base.trim()) { flushRedraws(); return; }       // the last change could not be saved (say a stray ⟦ ⟧): stay readable so nothing typed is lost
+          cardRevealed.delete(n.id); saved = true;       // you left it: it locks again
+        }
+        if (n.pending && !cardClean(ta) && !(document.activeElement && document.activeElement.closest && document.activeElement.closest(".card") === el)) { el.remove(); }
+        if (saved) { saved = false; if (!deferRedraw("render", render)) render(); } else flushRedraws();
+      }, 30);
+    });
+  });
+  const cards = () => [...(el.closest(".col") || document).querySelectorAll(".card textarea.cd-live, .card textarea.cd-note, .grp textarea.cd-live, .grp textarea.cd-note")];
+  ta.addEventListener("keydown", (e) => {
+    if (e.isComposing) return;
+    const plain1 = !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); ta.blur(); return; }
+    if (e.code === "KeyE" && e.shiftKey && (e.altKey ? !(e.ctrlKey || e.metaKey) : (e.ctrlKey || e.metaKey))) { e.preventDefault(); cardCryptKey(n, ta); return; }   // encrypt, as in the panes
+    if (e.key === "Enter" && e.shiftKey && plain1) {                         // the note, as in the panes
+      e.preventDefault();
+      if (n.pending && !cardClean(ta)) return;
+      ta._flush().then(() => {
+        if (n.pending || (n.note && maskTokens(visibleText(n.note)) !== visibleText(n.note))) return;
+        let nt = el.querySelector("textarea.cd-note");
+        if (!nt) { nt = cardNoteField(n, k, el, ta); ta.after(nt); }
+        nt.focus(); nt.setSelectionRange(nt.value.length, nt.value.length);
+      });
+      return;
+    }
+    if (e.key === "Enter" && plain1 && !e.shiftKey) {
+      e.preventDefault();
+      const all = cards().filter((x) => x.classList.contains("cd-live")), i = all.indexOf(ta), nx = all[i + 1];
+      if (nx) { nx.focus(); nx.setSelectionRange(0, 0); return; }
+      if (bullet || n.pending && !cardClean(ta)) return;                    // nothing below, and no new card from a sub-task or an empty new card
+      ta._flush().then(() => cardAddAfter(el, k));
+      return;
+    }
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 18, one = ta.scrollHeight < lh * 1.8;
+    if (e.key === "ArrowDown" && plain1 && !e.shiftKey && (one || ta.selectionEnd === ta.value.length)) { const all = cards(), nx = all[all.indexOf(ta) + 1]; if (nx) { e.preventDefault(); nx.focus(); } }
+    else if (e.key === "ArrowUp" && plain1 && !e.shiftKey && (one || ta.selectionStart === 0)) { const all = cards(), pv = all[all.indexOf(ta) - 1]; if (pv) { e.preventDefault(); pv.focus(); } }
+  });
+  requestAnimationFrame(fit); setTimeout(fit, 0);
+  if (cardFocusId === n.id) { cardFocusId = null; setTimeout(() => { if (ta.isConnected) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }, 0); }
+  return ta;
+}
+
+// Ctrl/Cmd+Shift+E (or Alt+Shift+E): encrypt the selected words, or the whole line, then the card closes (shown as 🔒; double-click opens it again).
+async function cardCryptKey(n, ta) {
+  if (ta._lock && !ta._enc) { try { await ta._flush(); } catch (e) { return; } ta.blur(); cardUnlock(n); return; }      // a card with locked words: the key opens them
+  const C = window.wbcryptLive;
+  if (n.pending && !cardClean(ta)) return;
+  if (!C || !C.ready()) { showError("Encryption is off, or the Encrypt add-on isn't installed."); return; }
+  const a = ta.selectionStart, b = ta.selectionEnd;
+  if (!C.unlocked()) {
+    try { await ta._flush(); } catch (e) { return; }
+    const ok = await C.unlock(); if (!ok) { ta.focus(); return; }
+    ta.focus(); ta.setSelectionRange(a, b);
+  }
+  kbHookLock();
+  const res = C.toggle(ta.value, ta.selectionStart, ta.selectionEnd);
+  if (res.error) { showError(res.error); return; }
+  ta.value = res.next; ta.dispatchEvent(new Event("input"));
+  if (res.mode === "remove") return;
+  if (!ta._enc) ta._enc = { text: ta.value, originals: [] };
+  ta._enc.text = ta.value; cardRevealed.set(n.id, ta._enc);
+  ta.setSelectionRange(res.b, res.b);                        // stay in the card, cursor after the protected words: keep typing; it is saved sealed after a pause, and locks when you leave it
+}
+// The note under a card's text. Shift+Enter in the name opens it (and goes back to the name from it); Enter adds a line; an empty note closes again.
+function cardNoteField(n, k, el, nameTa) {
+  const ta = document.createElement("textarea");
+  ta.className = "cd-note"; ta.rows = 1; ta.placeholder = "Note"; ta.setAttribute("aria-label", "Note"); ta.value = visibleText(n.note || ""); ta.readOnly = selMode;
+  let base = ta.value, timer = null, saved = false, busy = null;
+  const fit = autoFit(ta);
+  ta._flush = () => {
+    clearTimeout(timer); timer = null;
+    const next = ta.value.replace(/\s+$/, "");
+    if (next === base.replace(/\s+$/, "")) return busy || Promise.resolve();
+    busy = (async () => {
+      try {
+        await kbQueued(async () => {
+          const t2 = await boardHooks.pipe("beforeSave", next, { node: n, field: "note" });
+          const note = t2 === "" ? "" : applyEdit(n.note || "", t2);
+          await call("POST", `/nodes/${n.id}`, { note }); n.note = note; base = next; saved = true;
+        });
+      } catch (e) { /* kbQueued showed it */ }
+    })();
+    return busy;
+  };
+  ta.addEventListener("input", () => { fit(); clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
+  ta.addEventListener("focus", () => { el.draggable = false; });
+  ta.addEventListener("blur", () => {
+    el.draggable = !el.classList.contains("nested") && !selMode;     // (a group card is not "nested", so it stays draggable)
+    ta._flush().then(() => setTimeout(() => {
+      if (document.activeElement === ta) return;
+      if (!ta.value.trim() && !(n.note || "").trim()) ta.remove();
+      if (saved) { saved = false; if (!deferRedraw("render", render)) render(); } else flushRedraws();
+    }, 30));
+  });
+  ta.addEventListener("keydown", (e) => {
+    if (e.isComposing) return;
+    const p1 = !e.ctrlKey && !e.metaKey && !e.altKey;
+    const all = () => [...(el.closest(".col") || document).querySelectorAll(".card textarea.cd-live, .card textarea.cd-note, .grp textarea.cd-live, .grp textarea.cd-note")];
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); ta.blur(); }
+    else if (e.key === "Enter" && e.shiftKey && p1) { e.preventDefault(); nameTa.focus(); nameTa.setSelectionRange(nameTa.value.length, nameTa.value.length); }
+    else if (e.key === "ArrowUp" && p1 && !e.shiftKey && ta.selectionStart === 0 && ta.selectionEnd === 0) { const a = all(), t = a[a.indexOf(ta) - 1]; if (t) { e.preventDefault(); t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }
+    else if (e.key === "ArrowDown" && p1 && !e.shiftKey && ta.selectionStart === ta.value.length) { const a = all(), t = a[a.indexOf(ta) + 1]; if (t) { e.preventDefault(); t.focus(); t.setSelectionRange(0, 0); } }
+  });
+  requestAnimationFrame(fit); setTimeout(fit, 0);
+  return ta;
+}
+// A new, empty card under the last one. It is only saved once it has text.
+function cardAddAfter(prevEl, k) {
+  const n = { id: "new" + (++cardSeq), name: "", pending: true, priority: 1e9, data: { layoutMode: "todo" } };
+  const c = card(n, k, false);
+  prevEl.after(c);
+  const ta = c.querySelector("textarea.cd-live"); if (ta) { ta.focus(); c.scrollIntoView({ block: "nearest" }); }
+}
+let cardSeq = 0;
+
 /* ---------- Move-to-date popover (closes on Cancel, Esc, or a click elsewhere) ---------- */
 const CAL_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
 const X_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="display:block"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>';
 let movePop = null;
+// Opens under the card (above it if there is no room), never on top of the card, so the text being edited stays visible.
+function placeCardPop(pop, anchor) {
+  const r = anchor.getBoundingClientRect(), c = anchor.closest && anchor.closest(".card"), cr = c ? c.getBoundingClientRect() : r;
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+  pop.style.top = (cr.bottom + h + 8 > innerHeight ? Math.max(8, cr.top - h - 4) : cr.bottom + 4) + "px";
+}
 function closeMovePop() { if (movePop) { movePop.remove(); movePop = null; } }
 function openMovePop(anchor, from, onPick) {
   const wasMine = movePop && movePop._anchor === anchor;
@@ -1834,9 +2185,7 @@ function openMovePop(anchor, from, onPick) {
   cancel.addEventListener("click", closeMovePop);
   pop.append(quick, row, cancel);
   document.body.appendChild(pop);
-  const r = anchor.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-  pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
-  pop.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+  placeCardPop(pop, anchor);
   movePop = pop;
 }
 document.addEventListener("click", closeMovePop);
@@ -2295,6 +2644,9 @@ async function loadPage() {
 // Draws Daily page in the sidebar, or (when a search result is open) the item editor inside the search window.
 function renderPage() {
   if (deferRedraw("renderPage", renderPage)) return;
+  if (viewItem && itemLiveOn()) { itemLiveRender(); return; }
+  if (!viewItem && pageLiveOn() && !kbIsOpen()) { pageLiveRender(); return; }
+  kbHostEnd();
   const tree = viewItem ? itemTree : pageTree;
   const roots = viewItem ? itemNodes : pageNodes;
   const keepScroll = tree.scrollTop;          // stay where you were after a reload or edit
@@ -2481,8 +2833,9 @@ function pageLine(n, level, prev, removable, fold, out) {
     pn.className = "pn"; pn.textContent = visibleText(n.note).split("\n")[0];
     t.appendChild(pn);
   }
-  t.title = "Click to edit";
+  if (kbReadEdit) t.title = "Click to edit";
   t.addEventListener("click", () => {
+    if (!kbReadEdit) return;                                                    // read mode is read-only when the setting is off
     if (String(window.getSelection && window.getSelection()) !== "") return;   // selecting text isn't editing
     startEdit(n, t, async () => {
       if (viewItem) await reloadItem();
@@ -2619,12 +2972,12 @@ nestedSel.onchange = () => {
   render();                                            // shows what's already loaded; missing bullets load in the background
 };
 
-for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["optSoon", "showSoon"], ["optSubs", "showSubs"]]) {
+for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["optSoon", "showSoon"], ["optSubs", "showSubs"], ["optLive", "liveCards"]]) {
   const el = document.getElementById(id);
   el.checked = prefs[pref];
   el.onchange = () => {
     prefs[pref] = el.checked; setPref(pref, el.checked);
-    if (pref === "hideDone" || pref === "showSubs") { render(); if (pref === "hideDone") renderPage(); } else loadWeek();   // these are instant; the others need to fetch days
+    if (pref === "hideDone" || pref === "showSubs" || pref === "liveCards") { render(); if (pref === "hideDone") renderPage(); } else loadWeek();   // these are instant; the others need to fetch days
   };
 }
 
@@ -2683,6 +3036,7 @@ async function api(path) {
   if (res.status === 401) { location.href = "/login"; throw new Error("Signed out. Redirecting to the sign-in page…"); }
   let data = null;
   try { data = await res.json(); } catch (e) { /* not JSON */ }
+  if (res.status === 429) throw new Error(busyMessage(JSON.stringify(data || {})));
   if (!res.ok) throw new Error((data && data.error) || `${path.split("?")[0]} failed (${res.status})`);
   return data;
 }
@@ -2812,7 +3166,7 @@ async function openItem(id, fromBoard) {
   try { r = await api("/item?id=" + encodeURIComponent(id)); } catch (e) { showError(e.message); return; }
   if (fromBoard === true && searchModal.hidden) { searchModal.hidden = false; itemFromBoard = true; }
   else if (searchModal.hidden === false && fromBoard !== true && !viewItem) itemFromBoard = false;
-  viewItem = id; addingFor = null;
+  kbHostEnd(); viewItem = id; addingFor = null;
   itemNodes = [r.item]; itemPath = r.path;
   document.getElementById("listPane").hidden = true;
   document.getElementById("itemPane").hidden = false;
@@ -2834,7 +3188,7 @@ async function reloadItem(refresh) {
 // Back to the results list (quiet = the window is closing).
 function closeItem(quiet) {
   if (!viewItem) return;
-  viewItem = null; addingFor = null; itemNodes = [];
+  kbHostEnd(); viewItem = null; addingFor = null; itemNodes = [];
   document.getElementById("itemPane").hidden = true;
   document.getElementById("listPane").hidden = false;
   const fromBoard = itemFromBoard; itemFromBoard = false;
@@ -2855,7 +3209,12 @@ function updateViewBar() {
   const fresh = document.createElement("button");
   fresh.textContent = "↻"; fresh.title = "Download a fresh copy of your outline from WorkFlowy (allowed once a minute)";
   fresh.onclick = () => reloadItem(true);
-  bar.append(back, path, link, fresh);
+  const ed = document.createElement("button"); ed.type = "button"; ed.className = "iedit" + (itemLiveOn() ? " on" : ""); ed.setAttribute("aria-label", "Edit like a text editor"); ed.setAttribute("aria-pressed", itemLiveOn() ? "true" : "false");
+  ed.innerHTML = kbModeIcon(itemLiveOn());
+  ed.title = itemLiveOn() ? "Editing: click anywhere to type, Enter for a new line, Tab to indent. Click here to switch to reading." : "Reading: lines open in the pop-up editor. Click here to switch to editing.";
+  ed.onclick = () => itemSetLive(!itemLiveOn());
+  const st = document.createElement("span"); st.id = "itemSave"; st.className = "kbsave"; st.setAttribute("role", "status"); st.setAttribute("aria-live", "polite");
+  bar.append(back, path, link, fresh, ed, st);
 }
 
 searchInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => doSearch(), 150); });
@@ -2913,6 +3272,13 @@ document.getElementById("searchRefresh").onclick = async (e) => {
   await doSearch(false, true);
   btn.disabled = false;
 };
+document.addEventListener("keydown", (e) => {          // Esc inside the live item window only leaves the line, selection or note; a second Esc closes the window
+  if (e.key !== "Escape" || !kbHostOn() || !kbMenu.hidden || (kbHost.kind === "item" && (!viewItem || searchModal.hidden))) return;
+  const a = document.activeElement;
+  if (kbSel.ids.length) { kbSelClear(); e.stopPropagation(); return; }
+  if (a && a.classList && a.classList.contains("pe-nt")) { const l = kbFindLive(a.dataset.for); if (l) { l.focus(); l.setSelectionRange(l.value.length, l.value.length); } else a.blur(); e.stopPropagation(); return; }
+  if (a && a.classList && a.classList.contains("pe-live")) { a.blur(); e.stopPropagation(); return; }
+}, true);
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); }
   else if (e.key === "Escape" && !settingsPop.hidden) { setSettingsOpen(false); settingsBtn.focus(); }
@@ -2951,16 +3317,16 @@ function dropTime(s) { return s.replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "
 function fmtTime(h, mi) { return new Date(2000, 0, 1, h, mi).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
 const pad2 = (n) => String(n).padStart(2, "0");
 
-async function setReminder(n, k, bullet, hhmm) {
+async function setReminder(n, k, bullet, hhmm, after) {
   const base = (n.name || "").replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
   const name = hhmm ? `${base} @${hhmm}`.trim() : base;
   await act(async () => {
     await call("POST", `/nodes/${n.id}`, { name });
-    if (bullet) await reloadBullet(bullet.id); else await loadDay(k);
+    if (after) await after(); else if (bullet) await reloadBullet(bullet.id); else await loadDay(k);
   });
   remPoll(true);
 }
-function openRemPop(anchor, n, k, bullet, cur) {
+function openRemPop(anchor, n, k, bullet, cur, after) {
   const wasMine = movePop && movePop._anchor === anchor;
   closeMovePop();
   if (wasMine) return;
@@ -2970,7 +3336,7 @@ function openRemPop(anchor, n, k, bullet, cur) {
   const done = (hhmm) => {
     closeMovePop();
     if (hhmm && typeof Notification !== "undefined" && Notification.permission === "default") { try { Notification.requestPermission().then(remNotifyState); } catch (e) {} }
-    setReminder(n, k, bullet, hhmm);
+    setReminder(n, k, bullet, hhmm, after);
     if (hhmm) showToast("Reminder set for " + fmtTime(+hhmm.slice(0, 2), +hhmm.slice(3)) + (k === key(new Date()) ? "" : " on " + dayLabel(k)), false);
   };
   if (cur && cur.fromTag) {                                // the time lives in WorkFlowy's date tag, which the board doesn't rewrite
@@ -3009,9 +3375,7 @@ function openRemPop(anchor, n, k, bullet, cur) {
     pop.appendChild(rmv);
   }
   document.body.appendChild(pop);
-  const r = anchor.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-  pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
-  pop.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + "px";
+  placeCardPop(pop, anchor);
   movePop = pop;
   inp.focus({ preventScroll: true });
 }
@@ -3177,13 +3541,15 @@ async function snapshotTree(n) {
   top.truncated = budget.cut;
   return top;
 }
-async function restoreTree(parent, s) {
+async function restoreTree(parent, s, run) {
+  run = run || ((f) => f());
   const body = { parent_id: parent, name: s.name, layoutMode: s.layoutMode, position: "bottom" };
   if (s.note) body.note = s.note;
-  const res = await call("POST", "/nodes", body);
+  const res = await run(() => call("POST", "/nodes", body));
   const id = res && res.item_id;
-  if (id && s.completedAt) await call("POST", `/nodes/${id}/complete`);
-  if (id) for (const c of s.children) await restoreTree(id, c);
+  if (id && s.completedAt) await run(() => call("POST", `/nodes/${id}/complete`));
+  if (id) for (const c of s.children) await restoreTree(id, c, run);
+  return id;
 }
 // items: [{ id, parent, node }]
 async function deleteMany(items) {
@@ -3581,6 +3947,9 @@ document.getElementById("encCopy").onclick = async (e) => {
 };
 
 /* ---------- Board view: your chosen nodes as columns (cards or outline), plus WorkFlowy calendar columns ---------- */
+let kbMenuLine = null;                                          // the line whose right-click menu is open
+const kbHostOn = () => !!kbHost && (kbHost.kind === "item" || !kbIsOpen());      // the Daily page host stands aside while the Panes are open
+const kbRoot = () => (kbHostOn() ? kbHost.root : kbColsEl);
 const kbColsEl = document.getElementById("kbCols"), kbBtn = document.getElementById("kbBtn"), kbMenu = document.getElementById("kbMenu");
 const KB_NODE_ID = /^[A-Za-z0-9_-]{8,40}$/, KB_CAL_ID = /^@cal[a-z0-9]{1,8}$/;
 function kbLoadCols() {
@@ -3671,7 +4040,7 @@ function kbSetOpen(id, on) { if (on) kbOpenSet.add(id); else kbOpenSet.delete(id
 function kbAllParents(tree, out) { for (const n of tree || []) { const k = (n.children || []).concat(n._g || []); if (k.length) { out.push(n.id); kbAllParents(k, out); } } return out; }
 function kbSetAll(col, on) {
   const cs = col.kind === "calendar" ? kbCal[col.id] : kbData[col.id];
-  const roots = kbView(col) === "kanban" ? kbLaneCards(col, kbSelLane(col)) : kbGroupTree(col, (cs && cs.tree) || []);
+  const roots = kbView(col) === "kanban" ? kbSelLanes(col).flatMap((l) => kbLaneCards(col, l)) : kbGroupTree(col, (cs && cs.tree) || []);
   for (const id of kbAllParents(roots, [])) { if (on) kbOpenSet.add(id); else kbOpenSet.delete(id); }
   for (const n of roots) if (n._g) { if (on) kbHeadShut.delete(n.id); else kbHeadShut.add(n.id); }    // the H1 groups too
   kbSaveHeadShut();
@@ -3685,20 +4054,51 @@ function kbSelLane(col) {
   const titles = (kbData[col.id] || {}).cards || [];
   return titles.find((t) => t.id === kbLane[col.id]) || titles[0] || null;
 }
+// How many titles a Kanban column shows side by side (1 to 5), and which ones. Slot 1 is kbLane (as before); slots 2 and up are kbLaneX.
+let kbLaneN = {}, kbLaneX = {}; try { kbLaneN = JSON.parse(localStorage.getItem("kbLaneN") || "{}") || {}; kbLaneX = JSON.parse(localStorage.getItem("kbLaneX") || "{}") || {}; } catch (e) {}
+let kbMaxId = null; try { kbMaxId = sessionStorage.getItem("kbMax"); } catch (e) {}              // the column that fills the whole pane view (this browser tab)
+function kbSetMax(id) { kbMaxId = id; try { if (id) sessionStorage.setItem("kbMax", id); else sessionStorage.removeItem("kbMax"); } catch (e) {} kbRender(); }
+let kbLaneW = {}; try { kbLaneW = JSON.parse(localStorage.getItem("kbLaneW") || "{}") || {}; } catch (e) {}      // widths (px) of the side-by-side titles, per column
+const kbSaveLaneW = () => { try { localStorage.setItem("kbLaneW", JSON.stringify(kbLaneW)); } catch (e) {} };
+const KB_LANE_MIN = 150;
+const kbLaneRef = {};                                              // column id -> the title whose width you set last (the model for "same width")
+// Every title takes the width of the one you set last (the first title if you have not set one); the column grows or shrinks to fit them.
+function kbEqualLanes(col) {
+  const colEl = [...kbColsEl.querySelectorAll(".kcol")].find((x) => x.dataset.id === col.id), cs = colEl ? [...colEl.querySelectorAll(".klc")] : [];
+  if (cs.length < 2) return;
+  const ws = cs.map((x) => Math.round(x.getBoundingClientRect().width)), ref = Math.min(kbLaneRef[col.id] || 0, cs.length - 1);
+  const overhead = Math.round(colEl.getBoundingClientRect().width) - ws.reduce((a, b) => a + b, 0);
+  const each = Math.max(KB_LANE_MIN, Math.min(ws[ref], Math.floor((KB_MAX_W - overhead) / cs.length)));
+  kbLaneW[col.id] = cs.map(() => each); kbSaveLaneW();
+  if (kbMaxId !== col.id) { kbWidths[col.id] = Math.min(KB_MAX_W, Math.max(KB_MIN_W, overhead + each * cs.length)); kbSaveWidths(); }
+  kbRender();
+}
+const kbSaveLaneN = () => { try { localStorage.setItem("kbLaneN", JSON.stringify(kbLaneN)); localStorage.setItem("kbLaneX", JSON.stringify(kbLaneX)); } catch (e) {} };
+const kbNLanes = (col) => Math.max(1, Math.min(5, Number(kbLaneN[col.id]) || 1));
+function kbSelLanes(col) {
+  const titles = (kbData[col.id] || {}).cards || [], first = kbSelLane(col);
+  if (!first) return [];
+  const out = [first], extra = kbLaneX[col.id] || [];
+  for (let i = 1; i < Math.min(kbNLanes(col), titles.length); i++) {
+    const t = titles.find((x) => x.id === extra[i - 1] && !out.includes(x)) || titles.find((x) => !out.includes(x));   // a saved choice, else the next title not shown yet
+    if (t) out.push(t);
+  }
+  return out;
+}
 const kbLaneCards = (col, lane) => (lane && ((kbData[col.id] || {}).lanes || {})[lane.id]) || [];
 const kbData = {};                       // column id -> { cards, tree, error, loaded }
 const kbCal = {};                        // calendar column id -> { start, sel, days: { key: { count } }, tree }
 let kbToken = 0, kbDirty = false, kbAddingFor = null;
 const kbIsOpen = () => document.body.classList.contains("kb");
 const kbType = (n) => (n.data && n.data.layoutMode) || "bullets";
-const kbHidden = (n) => kbHideDone && kbType(n) === "todo" && !!n.completedAt;
+const kbHidden = (n) => (kbHostOn() ? !!(kbHost.hide && kbHost.hide()) : kbHideDone) && kbType(n) === "todo" && !!n.completedAt;
 function kbCalState(col) {
   if (!kbCal[col.id]) { const t = todayDate(); kbCal[col.id] = { start: t, sel: key(t), days: {}, tree: [] }; }
   return kbCal[col.id];
 }
 async function kbLoadCal(col, onlyDay) {
   const cs = kbCalState(col), keys = [...Array(kbCalN(col))].map((_, i) => key(addDays(cs.start, i)));
-  if (!onlyDay) await Promise.all(keys.map(async (k) => { const d = await gate(() => call("GET", `/nodes?parent_id=${k}`)); cs.days[k] = { count: d && d.nodes ? d.nodes.length : 0 }; }));
+  if (!onlyDay) await Promise.all(keys.map(async (k) => { const d = await gate(() => call("GET", `/nodes?parent_id=${k}`)); const ns = d && d.nodes ? d.nodes : []; cs.days[k] = { count: ns.length, open: ns.filter((x) => !(kbType(x) === "todo" && x.completedAt)).length }; }));
   const sel = cs.sel, tree = await fetchTree(sel, 8);
   if (cs.sel === sel) cs.tree = tree;
 }
@@ -3728,8 +4128,8 @@ async function kbLoadOne(col, fresh) {
       if (d === null) throw new Error("WorkFlowy doesn't know this node any more. Remove the column and add it again.");
       st.cards = (d.nodes || []).slice().sort((a, b) => a.priority - b.priority);
       if (kbView(col) === "kanban") { st.lanes = st.lanes || {}; await Promise.all(st.cards.slice(0, 40).map((t) => kbLoadLane(col, t, fresh))); }
-      if (kbView(col) === "outline") {
-        const z = kbZoomTop(col); let top = z ? z.id : col.id;
+      if (kbView(col) === "outline" || (kbView(col) === "cards" && kbEditOn(col))) {
+        const z = kbView(col) === "outline" ? kbZoomTop(col) : null; let top = z ? z.id : col.id;
         if (top === "None") st.tree = await kbLiveChildren("None", fresh);         // the top level: its items live, what is inside them from the server's copy
         else try { const r = await api("/item?id=" + encodeURIComponent(top)); st.tree = (r.item && r.item.children) || []; }
         catch (e) {
@@ -3766,24 +4166,39 @@ function kbCount(col) {
   const tasks = cards.filter((c) => kbType(c) === "todo");
   return { n: cards.length, done: tasks.filter((c) => c.completedAt).length, tasks: tasks.length };
 }
+function kbRestoreFocus() {
+  if (!kbPendingFocus) return;                                   // put the cursor back where an editing key was pressed
+  const f = kbPendingFocus; kbPendingFocus = null;
+  const ta = [...kbRoot().querySelectorAll(f.note ? "textarea.pe-nt" : "textarea.pe-live, .t.klocked")].find((x) => (f.note ? x.dataset.for : x.dataset.id) === f.id);
+  if (ta && ta.tagName === "TEXTAREA") { ta.focus(); const c = f.caret < 0 ? ta.value.length : Math.min(f.caret, ta.value.length); ta.setSelectionRange(c, c); ta.scrollIntoView({ block: "nearest" }); }
+  else if (ta) { ta.focus(); ta.scrollIntoView({ block: "nearest" }); }
+}
 function kbRender() {
+  if (kbHostOn()) { if (deferRedraw("kbRender", kbRender)) return; kbHost.render(); return; }
   if (!kbIsOpen()) return;
   if (deferRedraw("kbRender", kbRender)) return;           // never wipe a line that is being edited
-  const keepX = kbColsEl.scrollLeft; kbColsEl.textContent = "";
-  document.getElementById("kbHide").checked = kbHideDone;
+  const keepX = kbColsEl.scrollLeft, keepY = {};
+  kbColsEl.querySelectorAll(".kcol").forEach((c) => { const b = c.querySelector(".kcards"); if (b && b.scrollTop) keepY[c.dataset.id] = b.scrollTop; });
+  kbColsEl.textContent = "";
+  document.getElementById("kbHide").checked = kbHideDone; document.querySelectorAll(".readEditCb").forEach((c) => { c.checked = !kbReadEdit; });
   if (!kbCols.length) {
     const d = document.createElement("div"); d.className = "kempty";
     d.append("No columns yet. Add the nodes you want to see side by side, each by its WorkFlowy link, or a calendar column. ");
     const b = document.createElement("button"); b.type = "button"; b.textContent = "Choose columns…"; b.onclick = kbOpenSetup; d.appendChild(b);
     kbColsEl.appendChild(d); return;
   }
-  kbCols.forEach((col, i) => kbColsEl.appendChild(kbColEl(col, i)));
-  kbColsEl.scrollLeft = keepX;
+  document.getElementById("kbKeysBtn").hidden = !kbCols.some((c) => kbEditOn(c));
+  const only = kbMaxId && kbCols.find((c) => c.id === kbMaxId && !kbShut.has(c.id));
+  if (kbMaxId && !only) kbMaxId = null;                           // that column is gone or folded
+  kbCols.forEach((col, i) => { if (!only || col === only) kbColsEl.appendChild(kbColEl(col, i)); });
+  kbColsEl.scrollLeft = only ? 0 : keepX;
+  kbColsEl.querySelectorAll(".kcol").forEach((c) => { const b = c.querySelector(".kcards"); if (b && keepY[c.dataset.id]) b.scrollTop = keepY[c.dataset.id]; });   // stay where you were
+  kbRestoreFocus();
 }
 function kbToggle(id) { if (kbShut.has(id)) kbShut.delete(id); else kbShut.add(id); kbSaveShut(); kbRender(); }
 function kbColEl(col, idx) {
   const st = kbData[col.id] || {}, c = kbCount(col), shut = kbShut.has(col.id), view = kbView(col), cal = col.kind === "calendar";
-  const el = document.createElement("div"); el.className = "kcol" + (shut ? " shut" : "") + (view === "outline" || view === "calendar" ? " wide" : ""); el.dataset.id = col.id;
+  const el = document.createElement("div"); el.className = "kcol" + (kbEditOn(col) ? " editing" : "") + (kbMaxId === col.id ? " kmax" : "") + (shut ? " shut" : "") + (view === "outline" || view === "calendar" ? " wide" : ""); el.dataset.id = col.id;
   el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
   el.addEventListener("dragleave", (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove("over"); });
   el.addEventListener("drop", (e) => { e.preventDefault(); el.classList.remove("over"); kbDrop(e, col); });
@@ -3796,18 +4211,22 @@ function kbColEl(col, idx) {
     el.append(a, t, n); el.onclick = () => kbToggle(col.id);
     return el;
   }
-  if (kbWidths[col.id]) el.style.width = Math.max(KB_MIN_W, Math.min(KB_MAX_W, kbWidths[col.id])) + "px";
+  const extra = 0;                                                       // no pill any more: editing needs no extra room
+  if (kbMaxId === col.id) { /* fills the pane view: no fixed width */ }
+  else if (kbWidths[col.id]) el.style.width = Math.max(KB_MIN_W, Math.min(KB_MAX_W, kbWidths[col.id])) + extra + "px";
+  else if (extra) el.style.width = (el.classList.contains("wide") ? 360 : 272) + extra + "px";
+  else if (kbView(col) === "kanban" && kbNLanes(col) > 1) el.style.width = Math.min(KB_MAX_W, 240 * kbNLanes(col)) + "px";     // room for the titles, until you size it yourself
   const grip = document.createElement("div"); grip.className = "kgrip"; grip.title = "Drag to change the column width (double-click: reset)";
   grip.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return; e.preventDefault(); e.stopPropagation();
     const x0 = e.clientX, w0 = el.getBoundingClientRect().width; grip.setPointerCapture(e.pointerId); el.classList.add("sizing");
     const mv = (m) => { el.style.width = Math.max(KB_MIN_W, Math.min(KB_MAX_W, Math.round(w0 + m.clientX - x0))) + "px"; };
-    const up = () => { grip.removeEventListener("pointermove", mv); grip.removeEventListener("pointerup", up); grip.removeEventListener("pointercancel", up); el.classList.remove("sizing"); kbWidths[col.id] = Math.round(el.getBoundingClientRect().width); kbSaveWidths(); };
+    const up = () => { grip.removeEventListener("pointermove", mv); grip.removeEventListener("pointerup", up); grip.removeEventListener("pointercancel", up); el.classList.remove("sizing"); kbWidths[col.id] = Math.round(el.getBoundingClientRect().width) - extra; kbSaveWidths(); };
     grip.addEventListener("pointermove", mv); grip.addEventListener("pointerup", up); grip.addEventListener("pointercancel", up);
   });
-  grip.addEventListener("dblclick", () => { delete kbWidths[col.id]; kbSaveWidths(); el.style.width = ""; });
+  grip.addEventListener("dblclick", () => { delete kbWidths[col.id]; kbSaveWidths(); el.style.width = extra ? (el.classList.contains("wide") ? 360 : 272) + extra + "px" : ""; });
   grip.addEventListener("click", (e) => e.stopPropagation());
-  el.appendChild(grip);
+  if (kbMaxId !== col.id) el.appendChild(grip);
   const h = document.createElement("div"); h.className = "kh";
   const tg = document.createElement("button"); tg.type = "button"; tg.textContent = "▾"; tg.title = "Collapse this column"; tg.onclick = () => kbToggle(col.id);
   const t = document.createElement("span"); t.className = "kt"; t.textContent = col.name;
@@ -3822,9 +4241,19 @@ function kbColEl(col, idx) {
     }
     h.appendChild(vs);
   }
-  if (view !== "cards") for (const [label, title, on] of [["⊞", "Expand all lines", true], ["⊟", "Collapse all lines", false]]) {
+  if (!cal) {
+    const ed = document.createElement("button"); ed.type = "button"; ed.className = "kfb" + (kbEditOn(col) ? " on" : "");
+    ed.innerHTML = kbModeIcon(kbEditOn(col));
+    ed.title = kbEditOn(col) ? "Editing: click anywhere to type, Enter for a new line, Tab to indent. Click here to switch to reading." : "Reading: lines open in the pop-up editor. Click here to switch to editing."; ed.setAttribute("aria-label", "Edit like a text editor"); ed.setAttribute("aria-pressed", kbEditOn(col) ? "true" : "false");
+    ed.onclick = (ev) => { ev.stopPropagation(); kbSetEdit(col, !kbEditOn(col)); }; h.appendChild(ed);
+  }
+  if (view !== "cards" || kbEditOn(col)) for (const [label, title, on] of [["⊞", "Expand all lines", true], ["⊟", "Collapse all lines", false]]) {
     const b = document.createElement("button"); b.type = "button"; b.className = "kfb"; b.textContent = label; b.title = title; b.setAttribute("aria-label", title); b.onclick = (ev) => { ev.stopPropagation(); kbSetAll(col, on); }; h.appendChild(b);
   }
+  const mx = document.createElement("button"); mx.type = "button"; mx.className = "kfb"; mx.textContent = kbMaxId === col.id ? "⤡" : "⤢";
+  mx.title = kbMaxId === col.id ? "Back to all the columns (Esc)" : "Fill the whole pane view with this column"; mx.setAttribute("aria-label", mx.title);
+  mx.onclick = (ev) => { ev.stopPropagation(); kbSetMax(kbMaxId === col.id ? null : col.id); };
+  h.appendChild(mx);
   h.appendChild(mb); el.appendChild(h);
   const sub = document.createElement("div"); sub.className = "ksub" + (st.error ? " err" : "");
   if (view === "kanban" || cal) sub.textContent = st.error || (!cal && !st.loaded ? "Loading…" : "");          // the drop-down / calendar already say the rest
@@ -3834,9 +4263,9 @@ function kbColEl(col, idx) {
   if (view === "kanban") { el.appendChild(kbLaneEl(col, st)); return el; }
   const zt = view === "outline" ? kbZoomTop(col) : null;
   if (zt) el.appendChild(kbCrumb(col));
-  const ctx = kbCtx(col, zt ? zt.id : col.id);
+  const ctx = kbCtx(col, zt ? zt.id : col.id); ctx.top = st.tree;
   const list = document.createElement("div"); list.className = "kcards";
-  if (view === "outline") { if (st.tree) kbWalk(list, kbGroupTree(col, st.tree), 0, null, null, ctx); }
+  if (view === "outline" || (view === "cards" && kbEditOn(col))) { if (st.tree) kbWalk(list, kbGroupTree(col, st.tree), 0, null, null, ctx); }
   else for (const card of st.cards || []) { if (kbHidden(card)) continue; list.appendChild(kbCardEl(card, col, ctx)); }
   el.appendChild(list);
   el.appendChild(kbAddRow(ctx, zt ? zt.id : col.id, 0));
@@ -3859,27 +4288,79 @@ function kbLaneEl(col, st) {
   const box = document.createElement("div"); box.className = "klane";
   const titles = st.cards || [];
   if (!titles.length) { const e = document.createElement("div"); e.className = "kempty"; e.textContent = st.loaded ? "This node has no children to use as titles. Add some in WorkFlowy (for example To do, Doing, Done)." : ""; box.appendChild(e); return box; }
-  const lane = kbSelLane(col), nm = (t) => shownVisible(t.name) || "(empty)";
-  const sel = document.createElement("select"); sel.className = "klsel"; sel.setAttribute("aria-label", "Which title to show");
-  for (const t of titles) { const o = document.createElement("option"); o.value = t.id; o.textContent = `${nm(t)} (${kbLaneCards(col, t).length})`; if (lane && t.id === lane.id) o.selected = true; sel.appendChild(o); }
-  sel.onchange = () => {
-    kbLane[col.id] = sel.value; kbSaveLane(); kbAddingFor = null; kbRender();
-    const t = titles.find((x) => x.id === sel.value); if (t) kbLoadLane(col, t, false).then(kbRender).catch((e) => showError(e.message));       // read this title again from WorkFlowy
-  };
-  box.appendChild(sel);
+  const lanes = kbSelLanes(col), nm = (t) => shownVisible(t.name) || "(empty)";
   // while a card is being dragged, every title is a drop target
   const drops = document.createElement("div"); drops.className = "kdrops";
   for (const t of titles) {
-    const d = document.createElement("div"); d.className = "kdrop" + (lane && t.id === lane.id ? " cur" : ""); d.textContent = `${nm(t)} (${kbLaneCards(col, t).length})`;
+    const d = document.createElement("div"); d.className = "kdrop" + (lanes.includes(t) ? " cur" : ""); d.textContent = `${nm(t)} (${kbLaneCards(col, t).length})`;
     d.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); d.classList.add("over"); });
     d.addEventListener("dragleave", () => d.classList.remove("over"));
     d.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); d.classList.remove("over"); document.body.classList.remove("kbdrag"); kbDrop(e, col, t.id, `“${nm(t)}”`); });
     drops.appendChild(d);
   }
   box.appendChild(drops);
-  const ctx = kbCtx(col, lane.id), list = document.createElement("div"); list.className = "kcards";
-  kbLaneCardsEl(list, kbLaneCards(col, lane), { id: lane.id, name: nm(lane) }, 0, ctx, col);
-  box.appendChild(list); box.appendChild(kbAddRow(ctx, lane.id, 0));
+  const wrap = document.createElement("div"); wrap.className = "klcols";
+  lanes.forEach((lane, i) => {
+    const c = document.createElement("div"); c.className = "klc";
+    const hd = document.createElement("div"); hd.className = "klh";
+    const sel = document.createElement("select"); sel.className = "klsel"; sel.setAttribute("aria-label", lanes.length > 1 ? `Which title to show in part ${i + 1}` : "Which title to show");
+    for (const t of titles) { const o = document.createElement("option"); o.value = t.id; o.textContent = `${nm(t)} (${kbLaneCards(col, t).length})`; if (t.id === lane.id) o.selected = true; sel.appendChild(o); }
+    sel.onchange = () => {
+      const ids = lanes.map((l) => l.id), j = ids.indexOf(sel.value);
+      if (j >= 0 && j !== i) ids[j] = ids[i];                       // choosing a title that is already showing swaps the two
+      ids[i] = sel.value;
+      kbLane[col.id] = ids[0]; kbSaveLane(); kbLaneX[col.id] = ids.slice(1); kbSaveLaneN(); kbAddingFor = null; kbRender();
+      const t = titles.find((x) => x.id === sel.value); if (t) kbLoadLane(col, t, false).then(kbRender).catch((e) => showError(e.message));       // read this title again from WorkFlowy
+    };
+    hd.appendChild(sel);
+    if (i === 0) {
+      const ns = document.createElement("select"); ns.className = "klsel kln"; ns.title = "How many titles to show side by side"; ns.setAttribute("aria-label", "How many titles to show");
+      for (let k = 1; k <= Math.min(5, Math.max(titles.length, kbNLanes(col))); k++) { const o = document.createElement("option"); o.value = k; o.textContent = k; if (k === kbNLanes(col)) o.selected = true; ns.appendChild(o); }
+      ns.onchange = () => {
+        kbLaneN[col.id] = Number(ns.value); kbSaveLaneN(); delete kbLaneW[col.id]; kbSaveLaneW(); kbAddingFor = null;
+        const need = Math.min(KB_MAX_W, 240 * kbNLanes(col));
+        if (kbNLanes(col) > 1 && (kbWidths[col.id] || 0) < need && kbWidths[col.id]) { kbWidths[col.id] = need; kbSaveWidths(); }     // a column you had made narrow opens up to fit the titles (never shrinks)
+        kbRender();
+      };
+      hd.appendChild(ns);
+    }
+    c.appendChild(hd);
+    const ctx = kbCtx(col, lane.id), list = document.createElement("div"); list.className = "kcards";
+    if (kbEditOn(col)) { ctx.top = kbLaneCards(col, lane); ctx.lane = lane; ctx.reload = async () => { kbDirty = true; await kbLoadLane(col, lane, true); kbRender(); }; kbWalk(list, ctx.top, 0, null, null, ctx); }
+    else kbLaneCardsEl(list, kbLaneCards(col, lane), { id: lane.id, name: nm(lane) }, 0, ctx, col);
+    c.appendChild(list); c.appendChild(kbAddRow(ctx, lane.id, 0));
+    const ws = kbLaneW[col.id];
+    if (ws && ws.length === lanes.length) { const wi = Math.max(KB_LANE_MIN, Number(ws[i]) || KB_LANE_MIN); c.style.flex = kbMaxId === col.id ? `${wi} 1 0px` : `0 0 ${wi}px`; }     // filling the pane view: the saved widths become proportions, and nothing saved is changed
+    wrap.appendChild(c);
+    if (i < lanes.length - 1 || lanes.length > 1) {                // a handle between this title and the next; the last title has one on its right edge
+      const dv = document.createElement("div"); dv.className = "kldiv"; dv.title = "Drag to change the widths of these titles (double-click: equal widths)";
+      const isLast = i === lanes.length - 1; if (isLast) dv.classList.add("end");
+      dv.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return; e.preventDefault(); e.stopPropagation();
+        const cs = [...wrap.querySelectorAll(":scope > .klc")], w = cs.map((x) => Math.round(x.getBoundingClientRect().width)), x0 = e.clientX, a = w[i], b = isLast ? 0 : w[i + 1];
+        const colEl = wrap.closest(".kcol"), cw0 = colEl ? colEl.getBoundingClientRect().width : 0, grows = isLast && colEl && kbMaxId !== col.id;
+        cs.forEach((x, k) => { x.style.flex = `0 0 ${w[k]}px`; });
+        dv.setPointerCapture(e.pointerId); wrap.classList.add("sizing");
+        const mv = (m) => {
+          if (isLast) {                                                 // the last title alone gets wider or narrower, and the column follows it
+            const d = Math.max(KB_LANE_MIN - a, Math.min(grows ? KB_MAX_W - cw0 : 2000, m.clientX - x0)); w[i] = a + d; cs[i].style.flex = `0 0 ${w[i]}px`;
+            if (grows) colEl.style.width = Math.max(KB_MIN_W, Math.round(cw0 + d)) + "px";
+            return;
+          }
+          const d = Math.max(KB_LANE_MIN - a, Math.min(b - KB_LANE_MIN, m.clientX - x0)); w[i] = a + d; w[i + 1] = b - d; cs[i].style.flex = `0 0 ${w[i]}px`; cs[i + 1].style.flex = `0 0 ${w[i + 1]}px`;
+        };
+        const up = () => {
+          dv.removeEventListener("pointermove", mv); dv.removeEventListener("pointerup", up); dv.removeEventListener("pointercancel", up); wrap.classList.remove("sizing");
+          kbLaneW[col.id] = w; kbSaveLaneW(); kbLaneRef[col.id] = i;
+          if (grows) { kbWidths[col.id] = Math.round(colEl.getBoundingClientRect().width); kbSaveWidths(); }
+        };
+        dv.addEventListener("pointermove", mv); dv.addEventListener("pointerup", up); dv.addEventListener("pointercancel", up);
+      });
+      dv.addEventListener("dblclick", () => { delete kbLaneW[col.id]; kbSaveLaneW(); if (isLast) { delete kbWidths[col.id]; kbSaveWidths(); } kbRender(); });
+      wrap.appendChild(dv);
+    }
+  });
+  box.appendChild(wrap);
   return box;
 }
 // The cards of a title, and (when opened) the lines inside each card as smaller cards, to any depth.
@@ -3896,12 +4377,12 @@ function kbLaneCardsEl(list, cards, parent, level, ctx, col) {
       const tg = document.createElement("button"); tg.type = "button"; tg.className = "kctg"; tg.textContent = open ? "▾" : "▸"; tg.title = open ? "Collapse" : `Expand (${countBelow(card)} line${countBelow(card) === 1 ? "" : "s"} inside)`;
       tg.onclick = (ev) => { ev.stopPropagation(); kbSetOpen(card.id, !open); if (kbAddingFor === card.id) kbAddingFor = null; kbRender(); };
       el.insertBefore(tg, el.firstChild);
-      if (!open) { const c = document.createElement("span"); c.className = "kcc"; c.textContent = String(countBelow(card)); c.title = "Lines inside"; el.insertBefore(c, el.querySelector(".kopen")); }
+      if (!open) { const c = document.createElement("span"); c.className = "kcc"; const nb = countBelow(card); c.textContent = `(${nb})`; c.title = `${nb} hidden line${nb === 1 ? "" : "s"}`; el.insertBefore(c, el.querySelector(".kcolb") || el.querySelector(".kopen")); }
     }
     if (!el.querySelector('input[type="checkbox"]')) { const b = document.createElement("span"); b.className = "kcb"; b.textContent = kbType(card) === "numbered" ? "" : "•"; b.setAttribute("aria-hidden", "true"); el.insertBefore(b, el.querySelector(".kct")); }   // same width as a check box, so every line's text starts at the same place
     const act = document.createElement("span"); act.className = "kact";
     const plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.title = "Add a line inside this card";
-    plus.onclick = (ev) => { ev.stopPropagation(); kbAddingFor = kbAddingFor === card.id ? null : card.id; kbRender(); const x = kbColsEl.querySelector(`.kaddin[data-parent="${card.id}"]`); if (x) x.focus(); };
+    plus.onclick = (ev) => { ev.stopPropagation(); kbAddingFor = kbAddingFor === card.id ? null : card.id; kbRender(); const x = kbRoot().querySelector(`.kaddin[data-parent="${card.id}"]`); if (x) x.focus(); };
     const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.title = "Delete this card";
     minus.onclick = async (ev) => {
       ev.stopPropagation(); const below = countBelow(card);
@@ -3916,7 +4397,7 @@ function kbLaneCardsEl(list, cards, parent, level, ctx, col) {
       e.preventDefault(); e.stopPropagation(); el.classList.remove("dropin"); document.body.classList.remove("kbdrag");
       let it; try { it = JSON.parse(e.dataTransfer.getData("text/plain") || "{}"); } catch (x) { return; }
       if (!it || !it.id || it.id === card.id) return;
-      const mine = kbFindNode(kbLaneCards(col, kbSelLane(col)), it.id);
+      const mine = kbFindNode(kbSelLanes(col).flatMap((l) => kbLaneCards(col, l)), it.id);
       if (mine && kbFindNode([mine], card.id)) { showError("A card can't be moved into itself."); return; }
       kbSetOpen(card.id, true); kbDrop(e, col, card.id, `“${(shownVisible(card.name) || "card").slice(0, 40)}”`);
     });
@@ -3950,7 +4431,7 @@ function kbCardEl(n, col, ctx) {
     };
     el.appendChild(cb);
   }
-  const t = document.createElement("span"); t.className = "kct"; t.textContent = shownVisible(n.name) || "(empty)"; t.title = "Click to edit here";
+  const t = document.createElement("span"); t.className = "kct"; t.textContent = shownVisible(n.name) || "(empty)"; if (kbReadEdit) t.title = "Click to edit here";
   el.appendChild(t);
   if (n.note && plain(n.note).trim()) { const i = document.createElement("span"); i.className = "kic"; i.textContent = "≡"; i.title = "Has a note"; el.appendChild(i); }
   if (kbColors[n.id]) el.dataset.color = kbColors[n.id];
@@ -3962,6 +4443,7 @@ function kbCardEl(n, col, ctx) {
   el.addEventListener("click", (ev) => {
     if (ev.target.closest("input,button,.pl-edit")) return;
     if (ev.ctrlKey || ev.metaKey) { openItem(n.id, true); return; }
+    if (!kbReadEdit) return;
     if (String(window.getSelection && window.getSelection()) !== "") return;
     if (el.querySelector(".pl-edit")) return;
     el.draggable = false;
@@ -3982,6 +4464,7 @@ function kbAddRow(ctx, parentId, level) {
   const paint = () => { sel.textContent = kinds[ki][1]; sel.title = `New line type: ${kinds[ki][2]} (click to change)`; sel.setAttribute("aria-label", sel.title); };
   Object.defineProperty(sel, "value", { get: () => kinds[ki][0] });
   sel.onclick = () => { ki = (ki + 1) % kinds.length; try { localStorage.setItem("kbAddType", kinds[ki][0]); } catch (e) {} paint(); inp.focus(); };
+  const calRow = ctx.col.kind === "calendar"; if (calRow) ki = 1;                       // calendar lines are tasks
   paint();
   inp.addEventListener("keydown", async (e) => {
     if (e.key === "Escape") { e.stopPropagation(); if (level) { kbAddingFor = null; kbRender(); } else inp.blur(); return; }
@@ -3992,24 +4475,612 @@ function kbAddRow(ctx, parentId, level) {
       const res = await call("POST", "/nodes", req); const id = res && res.item_id;
       if (level) kbSetOpen(parentId, true);          // a line you add under stays visible
       await ctx.reload();
-      const again = kbColsEl.querySelector(`.kaddin[data-col="${ctx.col.id}"][data-parent="${parentId}"]`); if (again) again.focus();
+      const again = kbRoot().querySelector(`.kaddin[data-col="${ctx.col.id}"][data-parent="${parentId}"]`); if (again) again.focus();
       if (id) pushUndo(`Added “${name.slice(0, 40)}”`, async () => { await call("DELETE", `/nodes/${id}`); await ctx.reload(); });
     } catch (x) { showError(x.message); inp.disabled = false; inp.value = name; }
   });
-  row.append(inp, sel);
+  if (calRow) row.append(inp); else row.append(inp, sel);
   return row;
 }
+
+// The hover buttons of a calendar task line: reminder, move to a date, delete. They sit over the right end of the line and step aside while you type in it.
+function kbCalBar(n, ctx) {
+  const bar = document.createElement("span"); bar.className = "cbar";
+  const k = kbCalState(ctx.col).sel;
+  const mk = (cls, svg, title) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.innerHTML = svg; b.title = title; b.setAttribute("aria-label", title); return b; };
+  const settle = async (b) => { if (n.pending && !(b.closest(".pl").querySelector("textarea.pe-live") || {}).value) return false; const ta = b.closest(".pl").querySelector("textarea.pe-live"); if (ta && ta._flush) { try { await ta._flush(); } catch (e) { return false; } ta.blur(); } return true; };
+  const rb = mk("rm", BELL_ICON, "Set a reminder…"), mv = mk("mv", CAL_ICON, "Move to a date…"), dl = mk("del", X_ICON, "Delete");
+  rb.addEventListener("click", async (e) => { e.stopPropagation(); if (!(await settle(rb))) return; const tag = parseTag(n.name), tm = parseTime(plain(n.name)); openRemPop(rb, n, k, null, tag || tm, async () => { await ctx.reload(); }); });
+  mv.addEventListener("click", async (e) => {
+    e.stopPropagation(); if (!(await settle(mv))) return;
+    openMovePop(mv, k, async (to) => {
+      if (!ISO_DAY.test(to) || to === k) return;
+      try {
+        await call("POST", `/nodes/${n.id}/move`, { parent_id: to, position: "bottom" }); kbDirty = true; await ctx.reload();
+        pushUndo(`Moved “${(shownVisible(n.name) || "task").slice(0, 40)}” to ${dayLabel(to)}`, async () => { await call("POST", `/nodes/${n.id}/move`, { parent_id: k, position: "bottom" }); await ctx.reload(); });
+      } catch (x) { showError(x.message); }
+    });
+  });
+  dl.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const below = countBelow(n);
+    if (!confirm(`Delete this task permanently?` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
+    try { await kbDeleteNodes(ctx, [kbFindNode(ctx.top, n.id) || n]); kbDirty = true; await ctx.reload(); } catch (x) { /* already shown */ }
+  });
+  bar.append(rb, mv, dl);
+  return bar;
+}
 /* ----- outline: lines you can edit where they are (the same behaviour as the Daily page) ----- */
+/* ----- WorkFlowy tables: a node set to "table" holds rows (empty lines), and each row holds one line per cell. Shown as a grid; the first row is the header. ----- */
+let kbTableOutline = new Set(); try { kbTableOutline = new Set(JSON.parse(localStorage.getItem("kbTableOutline") || "[]")); } catch (e) {}       // tables you chose to see as plain outline lines (remembered in this browser)
+function kbTableShow(id, grid) { if (grid) kbTableOutline.delete(id); else kbTableOutline.add(id); try { localStorage.setItem("kbTableOutline", JSON.stringify([...kbTableOutline])); } catch (e) {} if (kbHost) kbHost.render(); else kbRender(); }
+const kbIsTable = (n) => kbType(n) === "table" && !kbTableOutline.has(n.id) && (n.children || []).length > 0 && n.children.every((r) => !r.pending);
+function kbTableGrid(n, level, ctx) {
+  const wrap = document.createElement("div"); wrap.className = "ktw"; wrap.style.marginLeft = (level * 16 + 22) + "px";
+  const rows = (n.children || []).slice().sort((a, b) => a.priority - b.priority).map((r) => (r.children || []).slice().sort((a, b) => a.priority - b.priority));
+  const cols = Math.max(1, ...rows.map((r) => r.length)), live = kbEditOn(ctx.col);
+  const tb = document.createElement("table"); tb.className = "ktb";
+  rows.forEach((cells, ri) => {
+    const tr = document.createElement("tr");
+    for (let ci = 0; ci < cols; ci++) {
+      const c = cells[ci], td = document.createElement(ri === 0 ? "th" : "td");
+      if (c && live) td.appendChild(kbTableCell(c));
+      else td.textContent = c ? (shownVisible(c.name) || "") : "";
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  });
+  const bar = document.createElement("div"); bar.className = "ktbar";
+  const open = document.createElement("a"); open.href = kbLink(n.id); open.target = "_blank"; open.rel = "noopener"; open.textContent = "Open in WorkFlowY to add or remove rows and columns ↗".replace("WorkFlowY", "WorkFlowy");
+  const out = document.createElement("button"); out.type = "button"; out.textContent = "Show as outline";
+  out.addEventListener("click", () => kbTableShow(n.id, false));
+  bar.append(open, out); wrap.append(tb, bar);
+  return wrap;
+}
+function kbTableCell(c) {
+  const ta = document.createElement("textarea"); ta.className = "ktc"; ta.rows = 1; ta.dataset.id = c.id; ta.setAttribute("aria-label", "Table cell");
+  const lk = lockChips(visibleText(c.name)); if (lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } else ta.value = visibleText(c.name);
+  let base = ta.value, timer = null; const fit = autoFit(ta);
+  ta._flush = async () => {
+    clearTimeout(timer); timer = null;
+    const shown = ta.value.replace(/\s*\n\s*/g, " ").trim();
+    if (shown === base.trim()) return;
+    const lp = lockPrepare(ta, shown); if (!lp) return;
+    await kbQueued(async () => {
+      const name = applyEdit(c.name, lp.text); await call("POST", `/nodes/${c.id}`, { name }); c.name = name;
+      base = ta._lock ? shown : visibleText(c.name); kbDirty = true;
+      const re = lockAfterSave(ta, c); if (re != null) base = re;
+    });
+  };
+  ta.addEventListener("input", () => { fit(); clearTimeout(timer); timer = setTimeout(() => ta._flush().catch(() => {}), KB_PAUSE); });
+  ta.addEventListener("blur", () => { ta._flush().catch(() => {}).then(() => flushRedraws()); });
+  ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ta.blur(); } else if (e.key === "Escape") { e.preventDefault(); ta.blur(); } });
+  requestAnimationFrame(fit);
+  return ta;
+}
 function kbWalk(cont, all, level, parent, grandId, ctx) {
   const vis = all.filter((x) => !kbHidden(x));
   vis.forEach((n, i) => {
+    if (kbIsTable(n)) {
+      const sibT = { real: parent ? (parent.children || all) : (ctx.top || all), parentId: parent ? parent.id : ctx.rootId, virt: false };
+      cont.appendChild(kbLine(n, level, i > 0 ? vis[i - 1] : null, parent && grandId ? { parent, grandId } : null, "", ctx, sibT));
+      cont.appendChild(kbTableGrid(n, level, ctx));
+      return;
+    }
     const kids = (n.children || []).concat(n._g || []), hasKids = kids.some((x) => !kbHidden(x)), virt = kbVirt.has(n.id);
     const closed = hasKids && (n._g ? kbHeadShut.has(n.id) : !kbOpenSet.has(n.id)) && kbAddingFor !== n.id;
     const prev = i > 0 && (!virt || kbVirt.has(vis[i - 1].id)) ? vis[i - 1] : null;           // a line drawn under a heading can only be indented under another such line
-    cont.appendChild(kbLine(n, level, prev, !virt && parent && grandId ? { parent, grandId } : null, hasKids ? (closed ? "closed" : "open") : "", ctx));
+    const sib = { real: virt || !parent ? (ctx.top || all) : (parent.children || all), parentId: virt || !parent ? ctx.rootId : parent.id, virt };
+    cont.appendChild(kbLine(n, level, prev, !virt && parent && grandId ? { parent, grandId } : null, hasKids ? (closed ? "closed" : "open") : "", ctx, sib));
     if (hasKids && !closed) kbWalk(cont, kids, level + 1, n, parent ? parent.id : ctx.rootId, ctx);
     if (kbAddingFor === n.id) cont.appendChild(kbAddRow(ctx, n.id, level + 1));
   });
+}
+/* ----- outline: "edit like a text editor": every line is a live field, saved about a second after you pause ----- */
+let kbEditMap = {}; try { kbEditMap = JSON.parse(localStorage.getItem("kbEditOn") || "{}") || {}; } catch (e) {}
+const kbEditOn = (col) => col.kind === "calendar" || kbEditMap[col.id] !== false;     // the calendar column is always live: just click a line     // on unless you turned it off for that column
+function kbSetEdit(col, on) { kbEditMap[col.id] = !!on; try { localStorage.setItem("kbEditOn", JSON.stringify(kbEditMap)); } catch (e) {} const d = kbData[col.id]; if (on && kbView(col) === "cards" && !(d && d.tree)) kbLoadOne(col).then(kbRender); kbRender(); }
+const kbModeIcon = (editing) => {
+  const svg = (d) => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  return editing ? svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>') : svg('<path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7Z"/>');
+};
+/* ----- the item window (opened from search or the Panes) uses the same live editor ----- */
+const kbItemCol = { id: "_item", name: "this item" };
+const itemLiveOn = () => kbEditMap._item !== false;
+function kbHostEnd() { if (!kbHost) return; kbOpenSet = kbHostOpen; kbHost = null; kbHostOpen = null; kbSelClear(); }
+function itemLiveRender() {
+  const it = itemNodes[0]; if (!it) return;
+  if (kbHost && kbHost.kind !== "item") kbHostEnd();
+  if (!kbHost) { kbHost = { kind: "item", root: document.getElementById("itemTree"), render: itemLiveRender }; kbHostOpen = kbOpenSet; kbOpenSet = new Set(kbAllParents(itemNodes, [])); }   // every line starts unfolded here
+  const tree = kbHost.root, keep = tree.scrollTop; tree.textContent = "";
+  it.children = it.children || [];
+  const ctx = { col: kbItemCol, rootId: null, top: itemNodes, reload: async () => { await reloadItem(); } };       // rootId null: lines under the item cannot be outdented out of it
+  const wrap = document.createElement("div"); wrap.className = "kcol editing kitem"; wrap.dataset.id = kbItemCol.id;
+  const list = document.createElement("div"); list.className = "kcards";
+  kbWalk(list, itemNodes, 0, null, null, ctx);
+  wrap.append(list, kbAddRow(ctx, viewItem, 0));
+  tree.appendChild(wrap); tree.scrollTop = keep;
+  kbRestoreFocus();
+}
+/* ----- the Daily page uses it too ----- */
+const kbPageCol = { id: "_page", name: "the Daily page" };
+const pageLiveOn = () => kbEditMap._page !== false;
+const kbIsRootLine = (n) => !!kbHost && kbHost.kind === "item" && n.id === viewItem;          // the opened item itself, shown as the first line
+const kbIsNotesLine = (n) => !!kbHost && kbHost.kind === "page" && kbHost.top.some((x) => x.id === n.id) && sameName(plain(n.name), notesName);
+let kbPageSync = null;
+function pageLiveRender() {
+  const k = pageKey();
+  if (kbHost && (kbHost.kind !== "page" || kbHost.key !== k)) kbHostEnd();
+  if (!kbHost) { kbHost = { kind: "page", key: k, root: pageTree, render: pageLiveRender, hide: () => prefs.hideDone, noTodoTop: true, top: pageNodes, after: () => { clearTimeout(kbPageSync); kbPageSync = setTimeout(() => { if (!viewItem) loadDay(pageKey()).then(() => render()).catch(() => {}); }, 1200); } }; kbHostOpen = kbOpenSet; kbOpenSet = new Set(kbAllParents(pageNodes, [])); }
+  kbHost.top = pageNodes;
+  const tree = pageTree, keep = tree.scrollTop; tree.textContent = "";
+  const ctx = { col: kbPageCol, rootId: k, top: pageNodes, reload: async () => { await loadPage(); } };
+  const wrap = document.createElement("div"); wrap.className = "kcol editing kitem"; wrap.dataset.id = kbPageCol.id;
+  const list = document.createElement("div"); list.className = "kcards";
+  kbWalk(list, pageNodes, 0, null, null, ctx);
+  wrap.appendChild(list);
+  if (!pageNodes.length) { const e = document.createElement("div"); e.className = "kempty"; e.textContent = "No notes on this page yet. Type below, or press Enter in the box under the page."; wrap.append(e, kbAddRow(ctx, k, 0)); }
+  tree.appendChild(wrap); tree.scrollTop = keep;
+  kbRestoreFocus();
+}
+function paintPageEdit() {
+  const b = document.getElementById("pageEdit"); if (!b) return; const on = pageLiveOn();
+  b.innerHTML = kbModeIcon(on); b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.title = on ? "Editing: click anywhere to type, Enter for a new line, Tab to indent. Click here to switch to reading." : "Reading: lines open in the pop-up editor. Click here to switch to editing.";
+}
+function pageSetLive(on) { kbEditMap._page = !!on; try { localStorage.setItem("kbEditOn", JSON.stringify(kbEditMap)); } catch (e) {} paintPageEdit(); renderPage(); }
+function itemSetLive(on) { kbEditMap._item = !!on; try { localStorage.setItem("kbEditOn", JSON.stringify(kbEditMap)); } catch (e) {} updateViewBar(); renderPage(); }
+const KB_PAUSE = 1000;
+const kbRevealed = new Map();                                   // id -> { text, originals }: encrypted lines opened for editing; each closes again when you leave it
+let kbSaving = 0, kbStatTimer = null, kbQueue = Promise.resolve(), kbNewSeq = 0, kbPendingFocus = null; const kbUnsaved = new Set();
+function kbStat(msg, cls, ms) {
+  const el = document.getElementById(kbHostOn() ? (kbHost.kind === "item" ? "itemSave" : "pageSave") : "kbSave"); if (!el) return; el.textContent = msg; el.className = "kbsave" + (cls ? " " + cls : "");
+  clearTimeout(kbStatTimer); if (ms) kbStatTimer = setTimeout(() => { el.textContent = ""; el.className = "kbsave"; }, ms);
+}
+// One write at a time, in order. If WorkFlowy says it is busy, wait the time it asks for and try again.
+function kbQueued(fn) {
+  kbSaving++; kbStat("Saving…");
+  const run = async () => { for (let k = 0; ; k++) { try { return await fn(); } catch (e) { if (e.retryAfter && k < 3) { await new Promise((r) => setTimeout(r, Math.min(15, e.retryAfter) * 1000 + 200)); continue; } throw e; } } };
+  const p = kbQueue.then(run, run); kbQueue = p.then(() => {}, () => {});
+  return p.then((v) => { if (--kbSaving === 0) { kbStat("Saved ✓", "", 2000); if (kbHostOn() && kbHost.after) kbHost.after(); } return v; }, (e) => { kbSaving--; kbStat("Not saved", "err"); showError(e.message); throw e; });
+}
+function kbDropPending(n, sib) { const i = sib.real.findIndex((x) => x.id === n.id); if (i >= 0) sib.real.splice(i, 1); kbRender(); }
+function kbLiveField(n, ctx, sib, prev, out) {
+  const ta = document.createElement("textarea"); ta.className = "pe-live"; ta.rows = 1; ta.dataset.id = n.id; ta.setAttribute("aria-label", "Line");
+  if (kbIsNotesLine(n)) { ta.readOnly = true; ta.title = "The notes bullet. Rename it from the ⋯ menu."; }
+  const rev = kbRevealed.get(n.id); if (rev) ta._enc = rev;      // an encrypted line you opened: shown as ⟦readable⟧, sealed again whenever it is saved
+  const lk = rev ? null : lockChips(visibleText(n.name));
+  if (lk && lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } else ta.value = rev ? rev.text : visibleText(n.name);
+  let base = ta.value, timer = null;
+  const fit = autoFit(ta);
+  const clean = () => ta.value.replace(/\s*\n\s*/g, " ").trim();
+  ta._flush = async () => {
+    clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
+    const shown = clean();
+    if (!shown || shown === base.trim()) return;                    // an empty line is never saved over a real one: Backspace on it deletes it
+    const lp = lockPrepare(ta, shown); if (!lp) return;
+    const next = lp.text;
+    await kbQueued(async () => {
+      let t1 = next;
+      if (ta._enc) { const r = await window.wbcryptLive.seal(next, ta._enc.originals); t1 = r.text; ta._enc.originals = r.originals; }
+      const t2 = await boardHooks.pipe("beforeSave", t1, { node: n, field: "name" });
+      if (n.pending) {
+        const r = await call("POST", "/nodes", { parent_id: sib.parentId, name: t2, layoutMode: kbType(n), position: "bottom" });
+        n.id = r.item_id; n.pending = false; n._made = true; n.name = t2; ta.dataset.id = n.id; const row = ta.closest(".pl"); if (row) row.dataset.id = n.id;
+      } else { const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; const o = kbFindNode(ctx.top, n.id); if (o) o.name = name; }
+      base = ta._enc ? next : ta._lock ? shown : visibleText(n.name); kbDirty = true;
+      const re = lockAfterSave(ta, n); if (re != null) base = re;
+    });
+  };
+  ta.addEventListener("input", () => { fit(); if (ta._enc) ta._enc.text = ta.value; kbUnsaved.add(ta); kbStat("Unsaved…"); clearTimeout(timer); timer = setTimeout(() => ta._flush().catch(() => {}), KB_PAUSE); });
+  ta.addEventListener("blur", () => {
+    ta._flush().then(() => {
+      if (!ta._enc || kbRevealed.get(n.id) !== ta._enc) return;
+      const cur = document.activeElement;
+      if (!ta._relock && ((kbPendingFocus && kbPendingFocus.id === n.id) || (cur && cur !== ta && cur.classList && cur.classList.contains("pe-live") && cur.dataset.id === n.id))) return;      // still working on it (type change, redraw)
+      kbRevealed.delete(n.id);                                    // you left the line: it closes again
+      ta.value = "🔒"; ta.readOnly = true; ta.className = "pe-locked";
+      if (!deferRedraw("kbRender", kbRender)) kbRender();
+    }).catch(() => {});
+    setTimeout(() => { if (n.pending && !ta.value.trim() && !(document.activeElement && document.activeElement.dataset && document.activeElement.dataset.id === n.id)) kbDropPending(n, sib); else if (n._made && !(document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("pe-live"))) { n._made = false; if (!deferRedraw("kbRender", kbRender)) kbRender(); } else flushRedraws(); }, 40); });
+  const lines = () => [...ta.closest(".kcol").querySelectorAll("textarea.pe-live, textarea.pe-nt, .t.klocked")];
+  const hop = (d, caret) => { const l = lines(), t = l[l.indexOf(ta) + d]; if (!t) return false; t.focus(); if (t.tagName === "TEXTAREA") { const c = caret < 0 ? t.value.length : Math.min(caret, t.value.length); t.setSelectionRange(c, c); } t.scrollIntoView({ block: "nearest" }); return true; };
+  ta.addEventListener("keydown", (e) => {
+    if (e.isComposing) return;
+    const plain = !e.ctrlKey && !e.metaKey && !e.altKey, lh = parseFloat(getComputedStyle(ta).lineHeight) || 18, oneRow = ta.scrollHeight < lh * 1.8;
+    const mod = e.ctrlKey || e.metaKey, pend = !!n.pending;
+    if (e.altKey && e.shiftKey && !mod && ["KeyT", "KeyE", "KeyD", "KeyZ"].includes(e.code)) e.preventDefault();       // on a Mac these keys would otherwise type a stray character (ˇ ´ Î ¸)
+    if (e.code === "KeyT" && e.altKey && e.shiftKey && !mod && pend) { kbCyclePending(n, ta, sib, ctx); return; }
+    if (kbSel.ids.length && !pend) { if (kbSelKey(e, ctx, ta)) return; }
+    else if (e.key === "ArrowDown" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !pend && ta.selectionStart === ta.value.length && ta.selectionEnd === ta.value.length) { e.preventDefault(); kbSelSet(ta.closest(".kcol"), n.id, n.id); kbSelMove(ta, 1); return; }
+    else if (e.key === "ArrowUp" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !pend && ta.selectionStart === 0 && ta.selectionEnd === 0) { e.preventDefault(); kbSelSet(ta.closest(".kcol"), n.id, n.id); kbSelMove(ta, -1); return; }
+    if (((e.key === "d" || e.key === "D") && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey) || (e.code === "KeyD" && e.altKey && e.shiftKey && !mod)) { e.preventDefault(); kbDeleteLine(n, ta, sib, ctx); }
+    else if (e.code === "KeyZ" && e.altKey && e.shiftKey && !mod) { e.preventDefault(); if (!pend) kbRefocus(n, ta); else ta.blur(); doUndo(); }       // leaving the line lets the board redraw with the restored lines
+    else if (e.code === "KeyT" && e.altKey && e.shiftKey && !mod && !pend) { e.preventDefault(); kbCycleType(n, ta, ctx); }
+    else if (e.code === "KeyE" && e.shiftKey && (e.altKey ? !mod : mod) && !pend) { e.preventDefault(); kbCryptKey(n, ta, ctx); }
+    else if (e.key === "/" && mod && !e.altKey) { e.preventDefault(); kbToggleKeys(); }
+    else if (pend) { /* a new line that is not saved yet only takes the plain editing keys below */ if (e.key === "Enter" && plain && !e.shiftKey) { e.preventDefault(); kbEnter(n, ta, sib, ctx); } else if (e.key === "Backspace" && plain && ta.value === "" && ta.selectionStart === 0) { e.preventDefault(); kbBackspace(n, ta, sib, ctx); } else if (e.key === "Escape") { /* handled globally */ } }
+    else if (e.key === "Enter" && e.altKey && !mod && !e.shiftKey) { e.preventDefault(); kbAddInside(n, ta, ctx); }
+    else if (e.key === "Enter" && mod && !e.altKey && !e.shiftKey) { e.preventDefault(); kbToggleDone(n, ta, ctx); }
+    else if (e.key === "Enter" && e.shiftKey && !mod && !e.altKey) { e.preventDefault(); kbNoteEditor(n, ta, ctx); }
+    else if (e.key === "ArrowDown" && mod && !e.altKey && !e.shiftKey) { e.preventDefault(); kbFoldLine(n, ta, true); }
+    else if (e.key === "ArrowUp" && mod && !e.altKey && !e.shiftKey) { e.preventDefault(); kbFoldLine(n, ta, false); }
+    else if (e.key === "ArrowRight" && e.ctrlKey && e.shiftKey && !e.altKey) { e.preventDefault(); kbZoomLine(n, ta, ctx, true); }
+    else if (e.key === "ArrowLeft" && e.ctrlKey && e.shiftKey && !e.altKey) { e.preventDefault(); kbZoomLine(n, ta, ctx, false); }
+    else if (e.key === "Enter" && plain && !e.shiftKey) { e.preventDefault(); kbEnter(n, ta, sib, ctx); }
+    else if (e.key === "Tab" && plain) { e.preventDefault(); kbTab(n, ta, ctx, prev, out, e.shiftKey, sib); }
+    else if (e.key === "Backspace" && plain && ta.value === "" && ta.selectionStart === 0) { e.preventDefault(); kbBackspace(n, ta, sib, ctx); }
+    else if (e.key === "ArrowUp" && plain && !e.shiftKey && (oneRow || ta.selectionStart === 0)) { if (hop(-1, ta.selectionStart)) e.preventDefault(); }
+    else if (e.key === "ArrowDown" && plain && !e.shiftKey && (oneRow || ta.selectionEnd === ta.value.length)) { if (hop(1, ta.selectionStart)) e.preventDefault(); }
+    else if (e.key === "ArrowLeft" && plain && !e.shiftKey && ta.selectionStart === 0 && ta.selectionEnd === 0) { if (hop(-1, -1)) e.preventDefault(); }
+    else if (e.key === "ArrowRight" && plain && !e.shiftKey && ta.selectionStart === ta.value.length) { if (hop(1, 0)) e.preventDefault(); }
+  });
+  ta.addEventListener("paste", (e) => kbPaste(e, n, ta, sib, ctx));
+  ta.addEventListener("contextmenu", (e) => { if (n.pending) return; e.preventDefault(); kbLineMenu(e, n, ta, sib, ctx); });
+  requestAnimationFrame(fit); setTimeout(fit, 0);
+  return ta;
+}
+const kbMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+const kbK = (win, mac) => (kbMac ? mac : win);                     // the key names for this computer
+// Deletes lines, and offers Undo: the lines (and what is inside them) are recreated where they were, with new links.
+function kbParentInfo(top, rootId, id) {
+  const walk = (list, pid) => { for (const x of list || []) { if (x.id === id) return { parentId: pid, list }; const f = walk(x.children, x.id); if (f) return f; } return null; };
+  return walk(top, rootId);
+}
+async function kbDeleteNodes(ctx, nodes) {
+  if (nodes.some((x) => kbIsNotesLine(x) || kbIsRootLine(x))) { nodes = nodes.filter((x) => !kbIsNotesLine(x) && !kbIsRootLine(x)); kbStat("That line can't be deleted here.", "err", 4000); if (!nodes.length) return false; }
+  const top = ctx.top || [], groups = new Map(), snaps = new Map();
+  for (const x of nodes) { const p = kbParentInfo(top, ctx.rootId, x.id); if (!p) continue; if (!groups.has(p.parentId)) groups.set(p.parentId, { orig: p.list.map((y) => y.id), dels: [] }); groups.get(p.parentId).dels.push(x); }
+  let cut = false;
+  try { for (const x of nodes) { const sn = await kbQueued(() => snapshotTree(x)); if (sn.truncated) cut = true; snaps.set(x.id, sn); } } catch (e) { return false; }
+  for (const x of nodes) await kbQueued(() => call("DELETE", `/nodes/${x.id}`));
+  kbDirty = true;
+  const label = nodes.length === 1 ? `Deleted “${shortName(nodes[0])}”` : `Deleted ${nodes.length} lines`;
+  pushUndo(label + (cut ? " (very large: part of it can't be restored)" : ""), async () => {
+    for (const [pid, g] of groups) {
+      const fresh = new Map();
+      for (const x of g.dels) fresh.set(x.id, await restoreTree(pid, snaps.get(x.id), kbQueued));
+      const tail = g.orig.slice(Math.max(0, g.orig.findIndex((id) => fresh.has(id))));
+      if (tail.length <= 60) for (const id of tail) { try { await kbQueued(() => call("POST", `/nodes/${fresh.get(id) || id}/move`, { parent_id: pid, position: "bottom" })); } catch (e) { /* that line is gone: skip it */ } }
+    }
+    kbDirty = true; await ctx.reload();
+  });
+  return true;
+}
+// Selecting several lines (Edit mode): Shift+↓ / Shift+↑ from the end / start of a line, or Shift+click. Delete removes them all.
+let kbSel = { colId: null, anchor: null, head: null, ids: [] };
+const kbSelRows = (colEl) => [...colEl.querySelectorAll(".pl")].filter((r) => r.dataset.id && !String(r.dataset.id).startsWith("new"));
+function kbSelPaint() { kbRoot().querySelectorAll(".pl.sel").forEach((r) => r.classList.remove("sel")); if (!kbSel.ids.length) return; kbRoot().querySelectorAll(".pl").forEach((r) => { if (kbSel.ids.includes(r.dataset.id)) r.classList.add("sel"); }); }
+function kbSelClear() { if (!kbSel.ids.length && !kbSel.anchor) return; kbSel = { colId: null, anchor: null, head: null, ids: [] }; kbSelPaint(); }
+function kbSelSet(colEl, anchor, head) {
+  const rows = kbSelRows(colEl), ids = rows.map((r) => r.dataset.id), a = ids.indexOf(anchor), h = ids.indexOf(head);
+  if (a < 0 || h < 0) { kbSelClear(); return; }
+  kbSel = { colId: colEl.dataset.id, anchor, head, ids: ids.slice(Math.min(a, h), Math.max(a, h) + 1) };
+  kbSelPaint();
+  kbStat(`${kbSel.ids.length} line${kbSel.ids.length === 1 ? "" : "s"} selected. Delete removes them, Esc clears.`, "note", 4000);
+}
+function kbSelMove(ta, d) {
+  const colEl = ta.closest(".kcol"), ids = kbSelRows(colEl).map((r) => r.dataset.id), i = ids.indexOf(kbSel.head);
+  const j = Math.max(0, Math.min(ids.length - 1, i + d)); kbSelSet(colEl, kbSel.anchor, ids[j]);
+  const r = colEl.querySelector(`.pl[data-id="${CSS.escape(ids[j])}"]`); if (r) r.scrollIntoView({ block: "nearest" });
+}
+// Keys while lines are selected. Returns true when the key was used up.
+function kbSelKey(e, ctx, ta) {
+  const k = e.key;
+  if (["Shift", "Control", "Alt", "Meta"].includes(k)) return true;
+  if (k === "Escape") { e.preventDefault(); e.stopPropagation(); kbSelClear(); return true; }
+  if ((k === "ArrowDown" || k === "ArrowUp") && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); kbSelMove(ta, k === "ArrowDown" ? 1 : -1); return true; }
+  if ((k === "Backspace" || k === "Delete") && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); kbSelDelete(ctx, ta); return true; }
+  kbSelClear(); return false;
+}
+async function kbSelDelete(ctx, ta) {
+  const ids = kbSel.ids.slice(); if (!ids.length) return;
+  try { await ta._flush(); } catch (e) { return; }
+  const top = ctx.top || [], nodes = ids.map((id) => kbFindNode(top, id)).filter(Boolean);
+  const keep = nodes.filter((x) => !nodes.some((y) => y !== x && kbFindNode(y.children, x.id)));
+  if (!keep.length) { kbSelClear(); return; }
+  const count = keep.reduce((t, x) => t + 1 + countBelow(x), 0), names = keep.slice(0, 5).map((x) => "• " + (shownName(x.name) || "(empty)").slice(0, 60)).join("\n");
+  if (!confirm(`Delete ${count} line${count === 1 ? "" : "s"} permanently?\n\n${names}${keep.length > 5 ? `\n…and ${keep.length - 5} more` : ""}${count > keep.length ? "\n\nLines inside the selected ones are deleted too." : ""}`)) { ta.focus(); return; }
+  const colEl = ta.closest(".kcol"), rows = kbSelRows(colEl).map((r) => r.dataset.id), first = rows.indexOf(ids[0]), last = rows.indexOf(ids[ids.length - 1]);
+  const near = rows.slice(0, first).reverse().find((x) => !ids.includes(x)) || rows.slice(last + 1).find((x) => !ids.includes(x));
+  if (near) kbPendingFocus = { id: near, caret: -1 };
+  kbSelClear(); ta.blur();
+  try { await kbDeleteNodes(ctx, keep); } catch (e) { /* already shown */ }
+  kbDirty = true; try { await ctx.reload(); } catch (e) { /* shown */ }
+}
+const kbSelMouse = (e) => {
+  if (e.button !== 0 || !e.target.closest) return;
+  const row = e.target.closest(".kcol.editing .pl");
+  if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && row && !String(row.dataset.id).startsWith("new")) {
+    const a = document.activeElement, anchor = kbSel.ids.length ? kbSel.anchor : (a && a.classList && a.classList.contains("pe-live") ? a.dataset.id : null);
+    const colEl = row.closest(".kcol"); if (!anchor || colEl.dataset.id !== (kbSel.ids.length ? kbSel.colId : colEl.dataset.id)) return;
+    e.preventDefault(); kbSelSet(colEl, anchor, row.dataset.id);
+  } else if (kbSel.ids.length) kbSelClear();
+};
+kbColsEl.addEventListener("mousedown", kbSelMouse, true);
+document.getElementById("itemTree").addEventListener("mousedown", kbSelMouse, true);
+const KB_CYCLE = [["bullets", "a bullet"], ["todo", "a task"], ["numbered", "a numbered line"], ["h1", "heading 1"], ["h2", "heading 2"], ["h3", "heading 3"]];
+function kbCyclePending(n, ta, sib, ctx) {
+  if (ctx && ctx.col.kind === "calendar") return;                           // a new line that is not in WorkFlowy yet: the type is kept and used when it is created
+  const i = KB_CYCLE.findIndex((x) => x[0] === kbType(n)); let nx = KB_CYCLE[(i + 1) % KB_CYCLE.length];
+  if (nx[0] === "todo" && kbHostOn() && kbHost.noTodoTop && sib.real === kbHost.top) nx = KB_CYCLE[(i + 2) % KB_CYCLE.length];
+  n.data = Object.assign({}, n.data, { layoutMode: nx[0] }); kbStat("Now " + nx[1], "note", 4000); kbRefocus(n, ta); kbRender();
+}
+function kbCycleType(n, ta, ctx) {
+  if (ctx.col.kind === "calendar") return;                      // calendar lines are tasks
+  const i = KB_CYCLE.findIndex((x) => x[0] === kbType(n)); let nx = KB_CYCLE[(i + 1) % KB_CYCLE.length];
+  if (nx[0] === "todo" && kbHostOn() && kbHost.noTodoTop && kbHost.top.some((x) => x.id === n.id)) nx = KB_CYCLE[(i + 2) % KB_CYCLE.length];
+  kbSetLineType(n, ta, ctx, nx[0]).then((done) => { if (done) kbStat("Now " + nx[1], "note", 4000); });
+}
+const kbFindLive = (id) => kbRoot().querySelector(`textarea.pe-live[data-id="${CSS.escape(String(id))}"]`);
+let kbLockHooked = false;
+function kbHookLock() {                                         // when Encrypt locks (idle, tab hidden), opened lines are saved sealed and closed
+  if (kbLockHooked || !window.wbcryptLive) return; kbLockHooked = true;
+  window.wbcryptLive.onLock(async () => {
+    for (const t of [...document.querySelectorAll("textarea.pe-live, textarea.cd-live")].filter((x) => x._enc)) { try { await t._flush(); } catch (e) { /* the edit is dropped rather than left readable */ } }
+    kbRevealed.clear(); cardRevealed.clear(); const a = document.activeElement; if (a && a.blur) a.blur(); kbRender(); if (!deferRedraw("render", render)) render();
+  });
+}
+// An encrypted line is opened for editing right on the board: unlock if needed, then it becomes a live line until you leave it.
+async function kbUnlockLine(n, ctx) {
+  const C = window.wbcryptLive; if (!C || !C.ready()) return;
+  if (!C.unlocked() && !(await C.unlock())) return;
+  kbHookLock();
+  const r = await C.reveal(visibleText(n.name));
+  if (r.failed && !r.originals.length) { kbStat("That passphrase doesn't open this line.", "err", 6000); return; }
+  kbRevealed.set(n.id, { text: r.text, originals: r.originals });
+  kbPendingFocus = { id: n.id, caret: -1 }; kbRender();
+}
+// Ctrl/Cmd+Shift+E: encrypt the selected words (or the whole line) and close it, or take the encryption off the part the cursor is in.
+async function kbCryptKey(n, ta, ctx) {
+  if (ta._lock && !ta._enc) {                                   // a line with locked words: the key opens them (passphrase), as clicking a locked line used to
+    try { await ta._flush(); } catch (e) { return; }
+    if (!window.wbcryptLive || !window.wbcryptLive.ready()) { kbStat("Encryption is off, or the Encrypt add-on isn't installed.", "note", 5000); return; }
+    ta.blur(); kbUnlockLine(n, ctx); return;                    // leave the box first, so the redraw that shows the opened line is not held back
+  }
+  const C = window.wbcryptLive;
+  if (!C || !C.ready()) { kbStat("Encryption is off, or the Encrypt add-on isn't installed.", "note", 5000); return; }
+  const a = ta.selectionStart, b = ta.selectionEnd;
+  if (!C.unlocked()) {
+    try { await ta._flush(); } catch (e) { return; }
+    const ok = await C.unlock(); ta = kbFindLive(n.id) || ta;
+    if (!ok) { ta.focus(); return; }
+    ta.focus(); ta.setSelectionRange(a, b);
+  }
+  kbHookLock();
+  const res = C.toggle(ta.value, ta.selectionStart, ta.selectionEnd);
+  if (res.error) { kbStat(res.error, "note", 6000); return; }
+  ta.value = res.next; ta.setSelectionRange(res.a, res.b); ta.dispatchEvent(new Event("input"));
+  if (res.mode === "remove") { kbStat("That part will be saved as plain, readable text.", "note", 6000); return; }
+  if (!ta._enc) { const rv = { text: ta.value, originals: [] }; ta._enc = rv; kbRevealed.set(n.id, rv); }
+  ta.setSelectionRange(res.b, res.b);                         // stay in the line, with the cursor after the protected words: keep typing; it is saved sealed after a pause, and the line closes when you leave it
+}
+// Several lines pasted into a line: the first goes in at the cursor, the rest become new lines at the end of the list, indented as pasted.
+async function kbPaste(e, n, ta, sib, ctx) {
+  const raw = ((e.clipboardData && e.clipboardData.getData("text/plain")) || "").replace(/\r\n?/g, "\n").replace(/\s+$/, "");
+  if (!raw.includes("\n") || ta._enc || ta._lock) return;                   // one line pastes as usual
+  e.preventDefault();
+  const rows = raw.split("\n").filter((l) => l.trim()).map((l) => {
+    const ind = (l.match(/^[ \t]*/)[0]), units = (ind.match(/\t/g) || []).length + Math.floor(ind.replace(/\t/g, "").length / 2);
+    let body = l.trim(), type = "bullets", done = false, m;
+    if ((m = body.match(/^(?:[-*•]\s+)?\[( |x|X)\]\s+(.*)$/))) { type = "todo"; done = m[1] !== " "; body = m[2]; }
+    else if ((m = body.match(/^(#{1,3})\s+(.*)$/))) { type = "h" + m[1].length; body = m[2]; }
+    else if ((m = body.match(/^[-*•]\s+(.*)$/))) body = m[1];
+    else if ((m = body.match(/^\d+[.)]\s+(.*)$/))) { type = "numbered"; body = m[1]; }
+    return { units, body, type, done };
+  });
+  const min = Math.min(...rows.map((r) => r.units)); let prevLvl = -1;
+  rows.forEach((r) => { r.lvl = Math.max(0, Math.min(r.units - min, prevLvl + 1)); prevLvl = r.lvl; });
+  if (rows.length > 30 && !confirm(`Paste ${rows.length} lines? Each one is a separate request to WorkFlowy, so it takes a while.`)) return;
+  const first = rows[0], wasEmpty = !ta.value.trim();
+  ta.setRangeText(first.body, ta.selectionStart, ta.selectionEnd, "end"); ta.dispatchEvent(new Event("input"));
+  try {
+    await ta._flush();
+    if (wasEmpty && first.type !== "bullets") { await kbQueued(() => call("POST", `/nodes/${n.id}`, { layoutMode: first.type })); n.data = Object.assign({}, n.data, { layoutMode: first.type }); }
+    const lastAt = [{ id: n.id }]; let lastId = n.id, made = 0;
+    for (const r of rows.slice(1)) {
+      const parentId = r.lvl === 0 ? sib.parentId : lastAt[r.lvl - 1].id;
+      const name = await boardHooks.pipe("beforeSave", r.body, { node: { id: "paste" }, field: "name" });
+      const res = await kbQueued(() => call("POST", "/nodes", { parent_id: parentId, name, layoutMode: r.type, position: "bottom" }));
+      lastAt[r.lvl] = { id: res.item_id }; lastAt.length = r.lvl + 1; lastId = res.item_id; made++;
+      if (r.done) await kbQueued(() => call("POST", `/nodes/${res.item_id}/complete`));
+    }
+    kbDirty = true; kbPendingFocus = { id: lastId, caret: -1 }; ta.blur(); kbStat(`Pasted ${rows.length} lines. The new ones were added at the end of the list.`, "note", 6000);
+    await ctx.reload();
+  } catch (x) { kbDirty = true; ta.blur(); try { await ctx.reload(); } catch (y) { /* shown */ } }
+}
+async function kbEnter(n, ta, sib, ctx) {
+  try { await ta._flush(); } catch (e) { return; }
+  if (kbIsRootLine(n)) { kbAddInside(n, ta, ctx); return; }                // Enter on the item itself starts a line inside it
+  if (n.pending && !ta.value.trim()) return;                    // an empty new line: nothing to add after it
+  if (ctx.col.kind === "calendar" && !n.pending) {                   // like the week-board cards: Enter goes to the next line, and only the last line of the day starts a new one
+    const all = [...ta.closest(".kcol").querySelectorAll("textarea.pe-live")], nx = all[all.indexOf(ta) + 1];
+    if (nx) { nx.focus(); nx.setSelectionRange(0, 0); nx.scrollIntoView({ block: "nearest" }); return; }
+  }
+  const list = sib.real, last = list[list.length - 1];
+  if (last && last.id !== n.id && ctx.col.kind !== "calendar") kbStat("New lines are added at the end of the list: WorkFlowy can't insert a line in the middle.", "note", 7000);
+  const nn = { id: "new" + (++kbNewSeq), pending: true, name: "", note: "", children: [], data: { layoutMode: ctx.col.kind === "calendar" ? "todo" : "bullets" } };
+  list.push(nn);
+  if (sib.virt) { const hs = list.filter((x) => kbType(x) === "h1"); if (hs.length) { kbHeadShut.delete(hs[hs.length - 1].id); kbSaveHeadShut(); } }     // make sure the group it lands in is open
+  kbPendingFocus = { id: nn.id, caret: 0 }; ta.blur(); kbRender();
+}
+async function kbTab(n, ta, ctx, prev, out, shift, sib) {
+  if (kbIsNotesLine(n) || kbIsRootLine(n)) return;
+  try { await ta._flush(); } catch (e) { return; }
+  if (n.pending) return;
+  const caret = ta.selectionStart;
+  if (!shift) {
+    if (!prev) { kbStat("There is no line above to indent under.", "note", 5000); return; }
+    ta.blur(); kbPendingFocus = { id: n.id, caret };
+    const idx = sib ? sib.real.findIndex((x) => x.id === n.id) : -1, after = idx >= 0 ? sib.real.slice(idx + 1).map((x) => x.id) : [], home = sib ? sib.parentId : null;
+    try {
+      await kbQueued(() => call("POST", `/nodes/${n.id}/move`, { parent_id: prev.id, position: "bottom" })); kbDirty = true; kbSetOpen(prev.id, true);
+      if (home && idx >= 0 && after.length <= 60) pushUndo(`Indented “${shortName(n)}”`, async () => {     // back to its old place: out to the end of the old list, then the lines that followed it go after it
+        await kbQueued(() => call("POST", `/nodes/${n.id}/move`, { parent_id: home, position: "bottom" }));
+        for (const id of after) { try { await kbQueued(() => call("POST", `/nodes/${id}/move`, { parent_id: home, position: "bottom" })); } catch (e) { /* gone */ } }
+        kbDirty = true; await ctx.reload();
+      });
+      await ctx.reload();
+    } catch (e) { /* already shown */ }
+  } else {
+    if (!out) { kbStat("This line is already at the top of this view.", "note", 5000); return; }
+    ta.blur(); kbPendingFocus = { id: n.id, caret };
+    try { await kbOutdent(n, out.parent, out.grandId, ctx); kbDirty = true; } catch (e) { showError(e.message); }
+  }
+}
+async function kbBackspace(n, ta, sib, ctx) {
+  if (kbIsRootLine(n)) return;
+  const l = [...ta.closest(".kcol").querySelectorAll("textarea.pe-live")], p = l[l.indexOf(ta) - 1];
+  if (n.pending) { if (p) kbPendingFocus = { id: p.dataset.id, caret: -1 }; ta.blur(); kbDropPending(n, sib); return; }
+  if ((n.children || []).length || (n.note && n.note.trim())) { kbStat("This line has lines or a note inside it, so Backspace won't delete it.", "note", 5000); return; }
+  ta.blur(); if (p) kbPendingFocus = { id: p.dataset.id, caret: -1 };
+  try { await kbDeleteNodes(ctx, [kbFindNode(ctx.top, n.id) || n]); kbDirty = true; await ctx.reload(); } catch (e) { /* already shown */ }
+}
+const kbLink = (id) => "https://workflowy.com/#/" + String(id).slice(-12);
+function kbRefocus(n, ta) { kbPendingFocus = { id: n.id, caret: ta ? ta.selectionStart : 0 }; if (ta) ta.blur(); }
+async function kbDeleteLine(n, ta, sib, ctx) {
+  try { await ta._flush(); } catch (e) { return; }
+  if (kbIsRootLine(n) || kbIsNotesLine(n)) { kbStat("That line can't be deleted here.", "err", 4000); return; }
+  if (n.pending) { kbBackspace(n, ta, sib, ctx); return; }
+  const below = countBelow(n), label = shownName(n.name) || "(empty)";
+  if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) { ta.focus(); return; }
+  const l = [...ta.closest(".kcol").querySelectorAll("textarea.pe-live")], p = l[l.indexOf(ta) - 1] || l[l.indexOf(ta) + 1];
+  if (p) kbPendingFocus = { id: p.dataset.id, caret: -1 };
+  ta.blur();
+  try { await kbDeleteNodes(ctx, [kbFindNode(ctx.top, n.id) || n]); kbDirty = true; await ctx.reload(); } catch (e) { /* already shown */ }
+}
+async function kbAddInside(n, ta, ctx) {
+  try { await ta._flush(); } catch (e) { return; }
+  const base = kbFindNode(ctx.top, n.id) || n, nn = { id: "new" + (++kbNewSeq), pending: true, name: "", note: "", children: [], data: { layoutMode: ctx.col.kind === "calendar" ? "todo" : "bullets" } };
+  (base.children = base.children || []).push(nn);
+  if (n._g) { kbHeadShut.delete(n.id); kbSaveHeadShut(); } else kbSetOpen(n.id, true);
+  kbPendingFocus = { id: nn.id, caret: 0 }; ta.blur(); kbRender();
+}
+function kbFoldLine(n, ta, open) {
+  const kids = (n.children || []).concat(n._g || []); if (!kids.length) return;
+  if (n._g) { if (open) kbHeadShut.delete(n.id); else kbHeadShut.add(n.id); kbSaveHeadShut(); } else kbSetOpen(n.id, open);
+  kbRefocus(n, ta); kbRender();
+}
+async function kbToggleDone(n, ta, ctx) {
+  if (kbType(n) !== "todo") { kbStat("Ctrl+Enter ticks a task. Make this line a task from the right-click menu.", "note", 5000); return; }
+  try { await ta._flush(); } catch (e) { return; }
+  const done = !n.completedAt; kbRefocus(n, ta);
+  try { await kbQueued(() => call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`)); n.completedAt = done ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); } catch (e) { /* already shown */ }
+}
+function kbZoomLine(n, ta, ctx, into) {
+  if (ctx.col.kind === "calendar" || kbView(ctx.col) !== "outline") return;
+  const path = kbZoomPath(ctx.col);
+  ta.blur();                                                    // a line being edited holds back redraws
+  if (into) kbSetZoom(ctx.col, [...path, { id: n.id, name: shownVisible(n.name).slice(0, 80) }]);
+  else if (path.length) kbSetZoom(ctx.col, path.slice(0, -1));
+}
+let kbNoteOpen = null;                                          // the line whose (still empty) note field is open
+const kbSealedNote = (n) => /wbenc1\.[A-Za-z0-9_-]{59,}/.test(visibleText(n.note || ""));
+async function kbNoteEditor(n, ta, ctx) {
+  try { await ta._flush(); } catch (e) { return; }
+  if (kbSealedNote(n)) { const t = ta.closest(".t"); if (t) startEdit(n, t, () => ctx.reload(), null, { type: true }); return; }     // encrypted notes still open through the editor
+  const have = ta.closest(".t").querySelector(`textarea.pe-nt[data-for="${CSS.escape(String(n.id))}"]`);
+  if (have) { have.focus(); have.setSelectionRange(have.value.length, have.value.length); return; }
+  kbNoteOpen = n.id; kbPendingFocus = { id: n.id, caret: -1, note: true }; ta.blur(); kbRender();
+}
+// The note, as a field right under its line.
+function kbNoteField(n, ctx) {
+  const ta = document.createElement("textarea"); ta.className = "pe-nt"; ta.rows = 1; ta.dataset.for = n.id; ta.placeholder = "Note"; ta.setAttribute("aria-label", "Note"); ta.value = visibleText(n.note || "");
+  let base = ta.value, timer = null;
+  const fit = autoFit(ta);
+  ta._flush = async () => {
+    clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
+    const next = ta.value.replace(/\s+$/, "");
+    if (next === base.replace(/\s+$/, "")) return;
+    await kbQueued(async () => {
+      const t2 = await boardHooks.pipe("beforeSave", next, { node: n, field: "note" });
+      const note = t2 === "" ? "" : applyEdit(n.note || "", t2);
+      await call("POST", `/nodes/${n.id}`, { note }); n.note = note; const o = kbFindNode(ctx.top, n.id); if (o) o.note = note;
+      base = next; kbDirty = true;
+    });
+  };
+  ta.addEventListener("input", () => { fit(); kbUnsaved.add(ta); kbStat("Unsaved…"); clearTimeout(timer); timer = setTimeout(() => ta._flush().catch(() => {}), KB_PAUSE); });
+  ta.addEventListener("blur", () => { ta._flush().then(() => { if (!ta.value.trim()) { if (kbNoteOpen === n.id) kbNoteOpen = null; if (!(n.note || "").trim() && !deferRedraw("kbRender", kbRender)) kbRender(); } }).catch(() => {}); setTimeout(flushRedraws, 40); });
+  const nav = (d) => { const l = [...ta.closest(".kcol").querySelectorAll("textarea.pe-live, textarea.pe-nt, .t.klocked")], t = l[l.indexOf(ta) + d]; if (!t) return false; t.focus(); if (t.tagName === "TEXTAREA") { const c = d < 0 ? t.value.length : 0; t.setSelectionRange(c, c); } t.scrollIntoView({ block: "nearest" }); return true; };
+  ta.addEventListener("keydown", (e) => {
+    if (e.isComposing) return;
+    const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (e.key === "Enter" && e.shiftKey && plain) { e.preventDefault(); const l = kbFindLive(n.id); if (l) { l.focus(); l.setSelectionRange(l.value.length, l.value.length); } }
+    else if (e.key === "ArrowUp" && plain && !e.shiftKey && ta.selectionStart === 0 && ta.selectionEnd === 0) { if (nav(-1)) e.preventDefault(); }
+    else if (e.key === "ArrowDown" && plain && !e.shiftKey && ta.selectionStart === ta.value.length) { if (nav(1)) e.preventDefault(); }
+    else if (e.key === "/" && (e.ctrlKey || e.metaKey) && !e.altKey) { e.preventDefault(); kbToggleKeys(); }
+    else if (e.code === "KeyZ" && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); ta.blur(); doUndo(); }
+  });
+  requestAnimationFrame(fit); setTimeout(fit, 0);
+  return ta;
+}
+async function kbSetLineType(n, ta, ctx, type) {
+  if (ctx.col.kind === "calendar") return false;
+  if (type === "todo" && kbHostOn() && kbHost.noTodoTop && kbHost.top.some((x) => x.id === n.id)) { kbStat("A task at the top of a day belongs on the board cards. Indent it under a line first.", "err", 5000); return false; }
+  try { await ta._flush(); } catch (e) { return; }
+  kbRefocus(n, ta);
+  try { await kbQueued(() => call("POST", `/nodes/${n.id}`, { layoutMode: type })); const o = kbFindNode(ctx.top, n.id); if (o) o.data = Object.assign({}, o.data, { layoutMode: type }); n.data = Object.assign({}, n.data, { layoutMode: type }); kbDirty = true; kbRender(); return true; } catch (e) { /* already shown */ }       // a heading 1 on a grouped column is a copy: the real line is updated too
+}
+async function kbMoveEnd(n, ta, sib, ctx, where) {
+  try { await ta._flush(); } catch (e) { return; }
+  kbRefocus(n, ta);
+  try { await kbQueued(() => call("POST", `/nodes/${n.id}/move`, { parent_id: sib.parentId, position: where })); kbDirty = true; await ctx.reload(); } catch (e) { /* already shown */ }
+}
+function kbLineMenu(e, n, ta, sib, ctx) {
+  kbMenu.textContent = ""; kbMenuLine = ta;
+  const add = (label, fn, hint) => { const b = document.createElement("button"); b.type = "button"; b.textContent = hint ? label + "   " + hint : label; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
+  if (kbSel.ids.length > 1 && kbSel.ids.includes(n.id)) {
+    add(`Delete ${kbSel.ids.length} selected lines`, () => kbSelDelete(ctx, ta), "Delete"); add("Clear the selection", () => kbSelClear(), "Esc");
+    kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(e.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(e.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px"; return;
+  }
+  const type = kbType(n);
+  add("Add a line inside", () => kbAddInside(n, ta, ctx), kbK("Alt+Enter", "Option+Enter"));
+  if (type === "todo") add(n.completedAt ? "Mark not done" : "Mark done", () => kbToggleDone(n, ta, ctx), kbK("Ctrl+Enter", "Cmd+Enter"));
+  add("Edit the note…", () => kbNoteEditor(n, ta, ctx), "Shift+Enter");
+  if (ctx.col.kind !== "calendar") for (const [ty, label] of [["bullets", "Bullet"], ["todo", "Task"], ["numbered", "Numbered"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]]) if (type !== ty) add("Make it " + (ty === "todo" ? "a task" : ty === "bullets" ? "a bullet" : ty === "numbered" ? "a numbered line" : label.toLowerCase()), () => kbSetLineType(n, ta, ctx, ty));
+  if (ctx.col.kind !== "calendar") add("Change the type (next one)", () => kbCycleType(n, ta, ctx), kbK("Alt+Shift+T", "Option+Shift+T"));
+  if (window.wbcryptLive && window.wbcryptLive.ready()) add("Encrypt, or remove encryption", () => kbCryptKey(n, ta, ctx), kbK("Alt+Shift+E", "Option+Shift+E"));
+  if (ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline") add("Zoom into this line", () => kbZoomLine(n, ta, ctx, true), "Ctrl+Shift+→");
+  if (ctx.lane && sib.real === ctx.top) for (const t of (kbData[ctx.col.id] || {}).cards || []) if (t.id !== ctx.lane.id) add("Move to “" + (shownVisible(t.name) || "(empty)").slice(0, 30) + "”", () => kbMoveToTitle(n, ta, ctx, t));
+  add("Move to the top of its list", () => kbMoveEnd(n, ta, sib, ctx, "top"));
+  add("Move to the bottom of its list", () => kbMoveEnd(n, ta, sib, ctx, "bottom"));
+  const a = document.createElement("a"); a.href = kbLink(n.id); a.target = "_blank"; a.rel = "noopener"; a.textContent = "Open in WorkFlowy ↗"; a.style.cssText = "display:block;padding:7px 8px;font-size:14px;color:inherit;text-decoration:none;"; a.onclick = () => { kbMenu.hidden = true; }; kbMenu.appendChild(a);
+  add("Copy raw data (for support)", async () => {
+    try {
+      kbStat("Reading the line…", "", 1500);
+      const kids = await fetchTree(n.id, 4);
+      const strip = (x) => ({ id: x.id, name: x.name, note: x.note, priority: x.priority, completedAt: x.completedAt, layoutMode: x.data && x.data.layoutMode, children: (x.children || []).map(strip) });
+      const txt = JSON.stringify({ ...strip(n), children: kids.map(strip) }, null, 1);
+      try { await navigator.clipboard.writeText(txt); kbStat("Raw data copied: paste it into the chat", "", 3000); }
+      catch (x) { const t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select(); const ok = document.execCommand("copy"); t.remove(); kbStat(ok ? "Raw data copied: paste it into the chat" : "Couldn't copy the raw data", ok ? "" : "err", 3000); }
+    } catch (x) { kbStat("Couldn't read the line", "err", 3000); }
+  });
+  add("Copy the link", () => { try { navigator.clipboard.writeText(kbLink(n.id)); kbStat("Link copied", "", 2000); } catch (x) { kbStat("Couldn't copy the link", "err", 3000); } });
+  add("Delete this line", () => kbDeleteLine(n, ta, sib, ctx), kbK("Alt+Shift+D", "Option+Shift+D"));
+  kbMenu.hidden = false;
+  const w = kbMenu.offsetWidth, h = kbMenu.offsetHeight;
+  kbMenu.style.left = Math.max(8, Math.min(e.clientX, innerWidth - w - 8)) + "px";
+  kbMenu.style.top = Math.max(8, Math.min(e.clientY, innerHeight - h - 8)) + "px";
+}
+const kbKeysEl = document.getElementById("kbKeys");
+function kbToggleKeys() {
+  if (!kbKeysEl.hidden) { kbKeysEl.hidden = true; return; }
+  const G = (t) => ({ group: t });
+  const rows = [G("Moving around"), ["Put the cursor in a line", "Click the line", "Click the line"], ["Go to the line above or below", "↑ / ↓ (← / → at the ends)", "↑ / ↓ (← / → at the ends)"], ["Zoom into the line, or up one level", "Ctrl+Shift+→ / ←", "Control+Shift+→ / ←"], ["Unfold or fold the line", "Ctrl+↓ / ↑", "Cmd+↓ / ↑"], ["Leave the line", "Esc", "Esc"],
+    G("Adding and removing lines"), ["Add a line at the end of the list", "Enter", "Enter"], ["Add a line inside this one", "Alt+Enter", "Option+Enter"], ["Paste several lines (first at the cursor, the rest at the end)", "Ctrl+V", "Cmd+V"], ["Delete the line (asks first)", "Alt+Shift+D (or Ctrl+Shift+D)", "Option+Shift+D (or Control+Shift+D)"], ["Remove an empty line", "Backspace", "Backspace"], ["Select several lines (Shift+↓ at a line's end, Shift+↑ at its start)", "Shift+↓ / ↑, or Shift+click", "Shift+↓ / ↑, or Shift+click"], ["Delete the selected lines (asks first)", "Delete or Backspace", "Delete or Backspace"],
+    G("Changing a line"), ["Indent under the line above, or outdent", "Tab / Shift+Tab", "Tab / Shift+Tab"], ["Change the type: bullet, task, heading 1 to 3", "Alt+Shift+T", "Option+Shift+T"], ["Tick or untick a task", "Ctrl+Enter", "Cmd+Enter"], ["Open the note under the line (Shift+Enter again or Esc comes back)", "Shift+Enter", "Shift+Enter"], ["Undo the last delete or indent (also the Undo button)", "Alt+Shift+Z", "Option+Shift+Z"], ["Open the line menu (type, move, link)", "Right-click the line", "Right-click or Control+click"],
+    G("Encryption (Encrypt add-on)"), ["Encrypt the selected words, or the line", "Alt+Shift+E (or Ctrl+Shift+E)", "Option+Shift+E (or Cmd+Shift+E)"], ["Unlock an encrypted line to edit it here", "Click it, or Enter on it", "Click it, or Enter on it"],
+    G("Help"), ["Show or hide this list", "Ctrl+/", "Cmd+/"]];
+  kbKeysEl.innerHTML = "<h3>Edit mode shortcuts</h3><table><tr class=\"kkh\"><th>Action</th><th>Windows / Linux</th><th>Mac</th></tr>" + rows.map((r) => r.group ? `<tr class="kg"><td colspan="3">${r.group}</td></tr>` : `<tr class="${kbMac ? "mac" : "win"}"><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("") + "</table><small>Your computer's keys are in bold.</small>";
+  kbKeysEl.hidden = false;
+}
+document.getElementById("kbKeysBtn").onclick = (e) => { e.stopPropagation(); kbToggleKeys(); };
+document.addEventListener("click", (e) => { if (!kbKeysEl.hidden && !kbKeysEl.contains(e.target) && e.target.id !== "kbKeysBtn") kbKeysEl.hidden = true; });
+window.addEventListener("beforeunload", (e) => { if (kbUnsaved.size || kbSaving) { e.preventDefault(); e.returnValue = ""; } });
+async function kbMoveToTitle(n, ta, ctx, t) {
+  try { await ta._flush(); } catch (e) { return; }
+  ta.blur();
+  try { await kbQueued(() => call("POST", `/nodes/${n.id}/move`, { parent_id: t.id, position: "bottom" })); kbDirty = true; await kbLoadOne(ctx.col, true); kbStat("Moved to “" + (shownVisible(t.name) || "(empty)") + "”", "ok", 3000); kbRender(); } catch (e) { /* already shown */ }
 }
 async function kbOutdent(n, parent, grandId, ctx) {        // as the Daily page: the line goes right below its parent
   const kids = async (id) => (((await call("GET", `/nodes?parent_id=${id}`)) || {}).nodes || []).slice().sort((a, b) => a.priority - b.priority);
@@ -4026,14 +5097,14 @@ async function kbOutdent(n, parent, grandId, ctx) {        // as the Daily page:
   });
   await ctx.reload();
 }
-function kbLine(n, level, prev, out, fold, ctx) {
+function kbLine(n, level, prev, out, fold, ctx, sib) {
   const mode = kbType(n), row = document.createElement("div"), zoomable = ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline";
-  row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : ""); row.style.paddingLeft = level * 16 + "px"; row.dataset.id = n.id;
+  row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "") + (kbSel.ids.includes(n.id) ? " sel" : ""); row.style.paddingLeft = level * 16 + "px"; row.dataset.id = n.id;
   const tg = document.createElement(fold ? "button" : "span"); tg.className = "tg";
   if (fold) { tg.textContent = fold === "open" ? "▾" : "▸"; tg.title = fold === "open" ? "Collapse" : "Expand"; tg.addEventListener("click", () => { if (n._g) { if (fold === "open") kbHeadShut.add(n.id); else kbHeadShut.delete(n.id); kbSaveHeadShut(); } else kbSetOpen(n.id, fold !== "open"); if (kbAddingFor === n.id) kbAddingFor = null; kbRender(); }); }
   row.appendChild(tg);
   if (mode === "todo") {
-    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt;
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.disabled = !!n.pending;
     cb.addEventListener("change", async () => {
       try { await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`); n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); }
       catch (e) { showError(e.message); cb.checked = !cb.checked; }
@@ -4043,18 +5114,38 @@ function kbLine(n, level, prev, out, fold, ctx) {
     const b = document.createElement("span");
     if (mode === "numbered") { n._num = (prev && kbType(prev) === "numbered" && prev._num ? prev._num : 0) + 1; b.className = "b nb"; b.textContent = n._num + "."; }
     else { b.className = "b"; b.textContent = "•"; }
-    if (zoomable) { b.classList.add("zb"); b.title = "Click to zoom into this line"; b.addEventListener("click", () => kbSetZoom(ctx.col, [...kbZoomPath(ctx.col), { id: n.id, name: shownVisible(n.name).slice(0, 80) }])); }
+    if (zoomable && !n.pending) { b.classList.add("zb"); b.title = "Click to zoom into this line"; b.addEventListener("click", () => kbSetZoom(ctx.col, [...kbZoomPath(ctx.col), { id: n.id, name: shownVisible(n.name).slice(0, 80) }])); }
     row.appendChild(b);
   }
-  const t = document.createElement("span"); t.className = "t"; t.textContent = shownVisible(n.name) || "(empty)";
-  if (fold === "closed") { const pc = document.createElement("span"); const hidden = countBelow(n) + (n._g || []).reduce((a, x) => a + 1 + countBelow(x), 0); pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`; t.appendChild(pc); }
-  if (n.note && n.note.trim()) { const pn = document.createElement("small"); pn.className = "pn"; pn.textContent = visibleText(n.note).split("\n")[0]; t.appendChild(pn); }
-  t.title = "Click to edit here";
-  t.addEventListener("click", () => {
-    if (String(window.getSelection && window.getSelection()) !== "") return;
-    startEdit(n, t, () => ctx.reload(), null, { type: true });
-  });
+  const sealed = /wbenc1\.[A-Za-z0-9_-]{59,}/.test(visibleText(n.name)), crypt = !!window.wbcryptLive && window.wbcryptLive.ready();
+  const live = !!sib && kbEditOn(ctx.col);     // a line with encrypted text opens only when you unlock it; without the add-on it still opens through the editor
+  const t = document.createElement("span"); t.className = "t" + (live ? " live" : "");
+  if (live) t.appendChild(kbLiveField(n, ctx, sib, prev, out)); else t.textContent = shownVisible(n.name) || "(empty)";
+  if (fold === "closed" && !live) { const pc = document.createElement("span"); const hidden = countBelow(n) + (n._g || []).reduce((a, x) => a + 1 + countBelow(x), 0); pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`; t.appendChild(pc); }
+  if (live && !n.pending && !kbSealedNote(n) && ((n.note && n.note.trim()) || kbNoteOpen === n.id)) t.appendChild(kbNoteField(n, ctx));
+  else if (n.note && n.note.trim()) { const pn = document.createElement("small"); pn.className = "pn"; pn.textContent = shownVisible(n.note).split("\n")[0]; t.appendChild(pn); }
+  if (!live && sib && sealed && crypt && kbEditOn(ctx.col)) {
+    t.classList.add("klocked"); t.tabIndex = 0; t.dataset.id = n.id; t.setAttribute("role", "button"); t.title = "Encrypted. Click or press Enter to unlock this line and edit it here";
+    t.addEventListener("click", () => { if (String(window.getSelection && window.getSelection()) !== "") return; kbUnlockLine(n, ctx); });
+    t.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); kbUnlockLine(n, ctx); }
+      else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        const l = [...t.closest(".kcol").querySelectorAll("textarea.pe-live, textarea.pe-nt, .t.klocked")], x = l[l.indexOf(t) + (e.key === "ArrowUp" ? -1 : 1)];
+        if (x) { e.preventDefault(); x.focus(); if (x.tagName === "TEXTAREA") x.setSelectionRange(x.value.length, x.value.length); x.scrollIntoView({ block: "nearest" }); }
+      } else if (e.key === "Escape") t.blur();
+    });
+  } else if (!live) {
+    if (kbReadEdit) t.title = "Click to edit here";
+    t.addEventListener("click", () => {
+      if (!kbReadEdit) return;
+      if (String(window.getSelection && window.getSelection()) !== "") return;
+      startEdit(n, t, () => ctx.reload(), null, { type: true });
+    });
+  }
+  if (mode === "table" && kbTableOutline.has(n.id) && (n.children || []).length) { const g = document.createElement("button"); g.type = "button"; g.className = "ktgrid"; g.textContent = "Show as grid"; g.title = "Show this table as a grid again"; g.addEventListener("click", () => kbTableShow(n.id, true)); t.appendChild(g); }
   row.appendChild(t);
+  if (ctx.col.kind === "calendar" && mode === "todo" && !kbIsNotesLine(n)) row.appendChild(kbCalBar(n, ctx));        // 🔔 📅 ✕ on hover, hidden while you type in the line (a new line works once it is saved)
+  if (n.pending) return row;                                  // a new line that is not in WorkFlowy yet: no buttons until it is saved
   if (out) {
     const od = document.createElement("button"); od.className = "outc"; od.textContent = "<"; od.title = "Outdent: move out one level, below its parent";
     od.addEventListener("click", async () => { od.disabled = true; try { await kbOutdent(n, out.parent, out.grandId, ctx); } catch (e) { showError(e.message); od.disabled = false; await ctx.reload().catch(() => {}); } });
@@ -4070,7 +5161,7 @@ function kbLine(n, level, prev, out, fold, ctx) {
     zm.addEventListener("click", () => kbSetZoom(ctx.col, [...kbZoomPath(ctx.col), { id: n.id, name: shownVisible(n.name).slice(0, 80) }])); row.appendChild(zm);
   }
   const plus = document.createElement("button"); plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one";
-  plus.addEventListener("click", () => { kbAddingFor = kbAddingFor === n.id ? null : n.id; kbRender(); const x = kbColsEl.querySelector(`.kaddin[data-parent="${n.id}"]`); if (x) x.focus(); });
+  plus.addEventListener("click", () => { kbAddingFor = kbAddingFor === n.id ? null : n.id; kbRender(); const x = kbRoot().querySelector(`.kaddin[data-parent="${n.id}"]`); if (x) x.focus(); });
   row.appendChild(plus);
   const minus = document.createElement("button"); minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
   minus.addEventListener("click", async () => {
@@ -4099,7 +5190,7 @@ function kbCalBody(col) {
   body.appendChild(nav);
   const strip = document.createElement("div"), tk = key(todayDate()); strip.className = "kcs";
   for (let i = 0; i < nd; i++) {
-    const d = addDays(cs.start, i), k = key(d), has = (cs.days[k] || {}).count > 0;
+    const d = addDays(cs.start, i), k = key(d), dd = cs.days[k] || {}, has = (kbHideDone ? dd.open : dd.count) > 0;
     const b = document.createElement("button"); b.type = "button"; b.className = "kcd" + (k === cs.sel ? " sel" : "") + (k === tk ? " today" : ""); b.dataset.day = k;
     const mon = document.createElement("small"); mon.textContent = i === 0 || d.getDate() === 1 ? d.toLocaleDateString(undefined, { month: "short" }).toUpperCase() : "";
     const wd = document.createElement("span"); wd.textContent = d.toLocaleDateString(undefined, { weekday: "short" });
@@ -4113,7 +5204,7 @@ function kbCalBody(col) {
   const hd = document.createElement("div"); hd.className = "kch";
   hd.textContent = (cs.sel === tk ? "Today, " : "") + keyToDate(cs.sel).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   body.appendChild(hd);
-  const ctx = { col, rootId: cs.sel, reload: () => reloadCal(false) };
+  const ctx = { col, rootId: cs.sel, top: cs.tree || [], reload: () => reloadCal(false) };
   const list = document.createElement("div"); list.className = "kcards";
   kbWalk(list, cs.tree || [], 0, null, null, ctx);
   body.appendChild(list);
@@ -4138,13 +5229,15 @@ async function kbDrop(e, col, laneId, laneLabel) {
   } catch (x) { showError(x.message); }
 }
 function kbOpenMenu(btn, col, idx) {
-  kbMenu.textContent = "";
+  kbMenu.textContent = ""; kbMenuLine = null;
   const add = (label, fn, dis) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.disabled = !!dis; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
   if (col.kind !== "calendar" && col.id !== "None") {
     add("Open in the item window", () => openItem(col.id, true));
     const a = document.createElement("a"); a.href = "https://workflowy.com/#/" + col.id.slice(-12); a.target = "_blank"; a.rel = "noopener"; a.textContent = "Open in WorkFlowy ↗"; a.style.cssText = "display:block;padding:7px 8px;font-size:14px;color:inherit;text-decoration:none;"; a.onclick = () => { kbMenu.hidden = true; }; kbMenu.appendChild(a);
   }
   if (col.kind === "calendar") for (const n of [3, 5, 7]) add((kbCalN(col) === n ? "✓ " : "") + `📅 Show ${n} days`, () => kbSetCalDays(col, n));
+  if (kbView(col) === "kanban" && kbNLanes(col) > 1) add("↔ Make all titles the same width", () => kbEqualLanes(col));
+  add(kbEditOn(col) ? "📖 Switch to reading (plain cards and the pop-up editor)" : "✎ Switch to editing (type right in the lines)", () => kbSetEdit(col, !kbEditOn(col)));
   if (kbView(col) === "outline") add((kbGroupOn(col) ? "✓ " : "") + "Group lines under H1 headings", () => { kbGroup[col.id] = !kbGroupOn(col); kbSaveGroup(); kbRender(); });
   if (kbView(col) !== "cards") { add("⊞ Expand all lines", () => kbSetAll(col, true)); add("⊟ Collapse all lines", () => kbSetAll(col, false)); }
   add("◀ Move left", () => kbMoveCol(idx, -1), idx === 0);
@@ -4161,19 +5254,29 @@ function kbSetCalDays(col, n) {
   if (!ks.includes(cs.sel)) { cs.sel = ks[0]; cs.tree = []; }
   kbLoadCal(col).then(kbRender); kbRender();
 }
-function kbSetView(col, v) { kbViews[col.id] = v; kbSaveViews(); const d = kbData[col.id]; if ((v === "outline" && !(d && d.tree)) || (v === "kanban" && !(d && d.lanes))) kbLoadOne(col).then(kbRender); kbRender(); }
+function kbSetView(col, v) { kbViews[col.id] = v; kbSaveViews(); const d = kbData[col.id]; if (((v === "outline" || (v === "cards" && kbEditOn(col))) && !(d && d.tree)) || (v === "kanban" && !(d && d.lanes))) kbLoadOne(col).then(kbRender); kbRender(); }
 document.addEventListener("click", (e) => { if (!kbMenu.hidden && !kbMenu.contains(e.target)) kbMenu.hidden = true; });
+document.addEventListener("keydown", (e) => {                   // Esc closes the right-click menu and puts the cursor back in the line
+  if (e.key !== "Escape" || kbMenu.hidden) return;
+  e.preventDefault(); e.stopPropagation(); kbMenu.hidden = true;
+  const t = kbMenuLine; kbMenuLine = null; if (t && t.isConnected) { t.focus(); try { t.setSelectionRange(t.value.length, t.value.length); } catch (x) { /* a locked line has no cursor */ } }
+}, true);
 function kbMoveCol(i, d) { const j = i + d; if (j < 0 || j >= kbCols.length) return; [kbCols[i], kbCols[j]] = [kbCols[j], kbCols[i]]; kbSaveCols(); kbRender(); kbRenderSettings(); }
 function kbOpen() {
   if (kbIsOpen()) return;
+  if (planMode) setPlanMode(false);                                            // Plan day and Panes never stay open together
+  if (kbHost && kbHost.kind === "page") kbHostEnd();
+  try { sessionStorage.setItem("kbOn", "1"); } catch (e) {}                    // remembered for this browser tab, like Plan day
   document.body.classList.add("kb"); kbBtn.classList.add("on"); kbBtn.setAttribute("aria-pressed", "true"); kbDirty = false;
   if (!kbCols.length) kbRender(); else kbLoadAll(true);
 }
 function kbClose(quiet) {
   if (!kbIsOpen()) return;
+  try { sessionStorage.removeItem("kbOn"); } catch (e) {}
   document.body.classList.remove("kb"); kbBtn.classList.remove("on"); kbBtn.setAttribute("aria-pressed", "false"); kbMenu.hidden = true;
   if (kbDirty && !quiet) { if (planMode) loadPlan(true); else loadWeek(true); }
   kbDirty = false;
+  if (!viewItem) renderPage();
 }
 function kbOpenSetup() { setSettingsOpen(true); showSettingsSection("kanban"); kbRenderSettings(); document.getElementById("kbLink").focus(); }
 kbBtn.onclick = () => { if (kbIsOpen()) kbClose(); else if (!kbCols.length) { kbOpen(); kbOpenSetup(); } else kbOpen(); };
@@ -4183,6 +5286,19 @@ document.getElementById("kbRefresh").onclick = () => kbLoadAll(true, true);
 document.getElementById("kbSetup").onclick = kbOpenSetup;
 document.getElementById("kbCollapse").onclick = () => { kbCols.forEach((c) => kbShut.add(c.id)); kbSaveShut(); kbRender(); };
 document.getElementById("kbExpand").onclick = () => { kbCols.forEach((c) => kbShut.delete(c.id)); kbSaveShut(); kbRender(); };
+document.getElementById("kbHide").checked = kbHideDone;
+// Editing must always have a path: with the double-click editor disabled, in-place editing on cards is forced on and locked.
+function syncEditLock() {
+  const lockOn = !kbReadEdit, cb = document.getElementById("optLive"), note = document.getElementById("liveLock");
+  if (lockOn && !prefs.liveCards) { prefs.liveCards = true; setPref("liveCards", true); }
+  if (cb) { cb.checked = !!prefs.liveCards; cb.disabled = lockOn; }
+  if (note) note.hidden = !lockOn;
+}
+document.querySelectorAll(".readEditCb").forEach((c) => {
+  c.checked = !kbReadEdit;
+  c.onchange = () => { kbReadEdit = !c.checked; try { localStorage.setItem("kbReadEdit", kbReadEdit ? "1" : "0"); } catch (x) {} document.querySelectorAll(".readEditCb").forEach((o) => { o.checked = !kbReadEdit; }); syncEditLock(); render(); kbRender(); renderPage(); };
+});
+syncEditLock();
 document.getElementById("kbHide").onchange = (e) => { kbHideDone = e.target.checked; try { localStorage.setItem("kbHideDone", kbHideDone ? "1" : "0"); } catch (x) {} kbRender(); };
 // B opens or closes the Board view when you are not typing; Esc goes back (checked first, so a window that is open closes first)
 document.addEventListener("keydown", (e) => {
@@ -4195,7 +5311,12 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || !kbIsOpen()) return;
   if (document.querySelector(".modal:not([hidden]), .pl-edit") || !reportsPop.hidden || !kbMenu.hidden) return;
+  if (!kbKeysEl.hidden) { kbKeysEl.hidden = true; return; }
   const a = document.activeElement; if (a && a.classList && a.classList.contains("kaddin")) return;
+  if (kbSel.ids.length) { kbSelClear(); return; }
+  if (a && a.classList && a.classList.contains("pe-nt")) { const l = kbFindLive(a.dataset.for); if (l) { l.focus(); l.setSelectionRange(l.value.length, l.value.length); } else a.blur(); return; }
+  if (a && a.classList && a.classList.contains("pe-live")) { a.blur(); return; }
+  if (kbMaxId) { kbSetMax(null); return; }
   kbClose();
 }, true);
 
@@ -4368,6 +5489,7 @@ async function loadPlan(force) {
 // Plan day is remembered for this browser tab, so an accidental reload (pull-to-refresh on a phone, say) comes back to it.
 function rememberPlan() { try { if (planMode) { sessionStorage.setItem("planOn", "1"); sessionStorage.setItem("planDay", planDay); } else { sessionStorage.removeItem("planOn"); sessionStorage.removeItem("planDay"); } } catch (e) {} }
 function setPlanMode(on, day) {
+  if (on && kbIsOpen()) kbClose(true);
   planMode = on;
   if (on) planDay = day && ISO_DAY.test(day) ? day : key(todayDate());
   rememberPlan();
@@ -4380,6 +5502,7 @@ function setPlanMode(on, day) {
 planBtn.onclick = () => setPlanMode(!planMode);
 function goPlanDay(k) { planDay = k; rememberPlan(); loadPlan(false); }
 try { if (sessionStorage.getItem("planOn") === "1") setPlanMode(true, sessionStorage.getItem("planDay")); } catch (e) {}
+try { if (sessionStorage.getItem("kbOn") === "1" && kbCols.length) kbOpen(); } catch (e) {}     // Panes comes back after a reload too
 
 function planPane(title) {
   const pane = document.createElement("section");
@@ -4406,7 +5529,7 @@ function renderPlan() {
   if (!planMode) return;
   const keep = {};
   planEl.querySelectorAll(".tasks, .bring-list").forEach((el) => { keep[el.dataset.s] = el.scrollTop; });
-  const keepOuter = planEl.scrollTop;                    // on a narrow screen the whole plan scrolls
+  const oldBody = planEl.querySelector(".planbody"), keepOuter = oldBody ? oldBody.scrollTop : 0;                    // on a narrow screen the whole plan scrolls
   planEl.innerHTML = "";
   const todayK = key(todayDate());
   const isToday = planDay === todayK;
@@ -4522,9 +5645,14 @@ function renderPlan() {
   }
   right.appendChild(scroll);
 
-  planEl.append(left, right);
+  const bar = document.createElement("div"); bar.className = "kbbar";
+  const back = document.createElement("button"); back.type = "button"; back.innerHTML = "&larr; Week board"; back.title = "Back to the week board"; back.onclick = () => setPlanMode(false);
+  const ph = document.createElement("h2"); ph.textContent = "Plan day";
+  bar.append(back, ph);
+  const body = document.createElement("div"); body.className = "planbody"; body.append(left, right);
+  planEl.append(bar, body);
   planEl.querySelectorAll(".tasks, .bring-list").forEach((el) => { if (keep[el.dataset.s]) el.scrollTop = keep[el.dataset.s]; });
-  if (keepOuter) planEl.scrollTop = keepOuter;
+  if (keepOuter) body.scrollTop = keepOuter;
 }
 
 // Settings: the list of extra nodes.
@@ -4696,6 +5824,7 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- The Daily page and its add box are one panel ---------- */
 const outliner = document.getElementById("outliner");
+document.getElementById("pageEdit").onclick = () => pageSetLive(!pageLiveOn()); paintPageEdit();
 updateComposerLabel();
 
 // The "⋯" menu in the header (rename the notes bullet, move notes in).

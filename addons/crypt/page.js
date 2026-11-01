@@ -137,6 +137,7 @@
   var pass = null;            // the passphrase, only while unlocked, only in this closure (never stored anywhere)
   var timer = null;
   var editors = new Set();    // item editors that are open right now
+  var lockHooks = [];         // the board's Edit mode lines register here so they are sealed before the passphrase is forgotten
 
   // Two settings, kept in this browser: whether the editor is integrated at all, and (when it is not) whether encrypted text is shown as <<secret>>.
   function readOpt(key, dflt) { try { var v = localStorage.getItem(key); return v === null ? dflt : v === "1"; } catch (e) { return dflt; } }
@@ -382,6 +383,8 @@
   // Unlock in a dialog (from an editor, or from the header button with ed = null), in a dialog in the middle of the page (so it never has to fit inside a narrow card).
   // If the name already holds encrypted text, opening it proves the passphrase; otherwise it is asked twice.
   var modal = null;
+  var waiters = [];            // callers of wbcryptLive.unlock(): told how the passphrase dialog ended
+  function settle(ok) { var w = waiters; waiters = []; w.forEach(function (f) { f(ok); }); }
   async function showPrompt(ed) {
     if (modal) { if (modal.p1) modal.p1.focus(); return; }
     modal = { opening: true };
@@ -412,7 +415,7 @@
     modal = { p1: p1, back: back };
     if (ed) ed.prompt = modal;
     function close() {
-      back.remove(); modal = null;
+      back.remove(); modal = null; settle(false);
       if (ed) { delete ed.ctx.box.dataset.hold; ed.prompt = null; ed.pending = null; ed.ctx.title.focus(); }
     }
     var busy = false;
@@ -436,7 +439,7 @@
       if (needConfirm || (proof && proof.kind === "line")) await saveCheck(p1.value);      // remembered in this browser, so next time one entry is enough
       var action = ed ? ed.pending : null;
       unlockWith(p1.value);        // reveals every open editor, including this one
-      back.remove(); modal = null;
+      back.remove(); modal = null; settle(true);
       if (!ed) return;
       delete ed.ctx.box.dataset.hold; ed.prompt = null; ed.pending = null;
       ed.ctx.title.focus();
@@ -513,7 +516,7 @@
     if (hidden) return restoreTokens(text, hidden);          // the <<secret>> placeholders go back to the original encrypted text
     if (!enabledOn()) return text;                             // master switch off: nothing here touches what you save
     if (ctx.field !== "name" || !BRACKET_RE.test(text)) return text;
-    if (BRACKET_RE.test(text.replace(REGION_RE, ""))) throw new Error("The title has an unmatched ⟦ or ⟧. Remove it, or use the 🔒 button to protect text.");
+    if (BRACKET_RE.test(text.replace(REGION_RE, ""))) throw new Error("This title has a ⟦ or ⟧ without its matching one, so it was not saved. Delete the stray bracket, or select the words you want protected and use the 🔒 button.");
     var ed = edFor(ctx.node);
     if (!pass) { if (ed) { ed.pending = "save"; showPrompt(ed); } throw new Error("Enter your passphrase to save the encrypted text."); }
     var out = await seal(text, ed);
@@ -521,11 +524,80 @@
     return out;
   });
 
+
+  /* ---------- for the board's Edit mode (live lines): the same rules as the editor, on plain text ---------- */
+
+  // What the cursor/selection would do on the Edit mode shortcut: {next, a, b, mode} or {error}. Pure: nothing is changed here.
+  function toggleText(v, a, b) {
+    var r = regionAt(v, a, b);
+    if (r) return { mode: "remove", next: v.slice(0, r.start) + r.inner + v.slice(r.end), a: r.start, b: r.start + r.inner.length };
+    var next;
+    if (a !== b) {
+      var inner = v.slice(a, b);
+      if (!inner.trim()) return { error: "Select some text first, or press the shortcut with nothing selected to protect the whole line." };
+      if (BRACKET_RE.test(inner) || overlaps(v, a, b)) return { error: "That part is already protected." };
+      var lead = inner.match(/^\s*/)[0], trail = inner.match(/\s*$/)[0];
+      next = v.slice(0, a) + lead + OPEN + inner.slice(lead.length, inner.length - trail.length) + CLOSE + trail + v.slice(b);
+    } else {
+      if (BRACKET_RE.test(v) || hasTokens(v)) return { error: "This line already has encrypted text. Select the words you want to encrypt." };
+      next = wrapName(v);
+    }
+    if (next === v) return { error: "Nothing to protect: the line has no text outside @times and #tags." };
+    return { mode: "wrap", next: next, a: a, b: a !== b ? b + (next.length - v.length) : next.length };
+  }
+  async function revealText(v) {
+    var found = wbcrypt.findTokens(v), out = "", last = 0, originals = [], failed = 0, map = {};
+    if (!pass) return { text: v, originals: [], failed: found.length };
+    for (var i = 0; i < found.length; i++) {
+      var t = found[i].token;
+      if (t in map) continue;
+      try { var p = await wbcrypt.decrypt(t, pass); map[t] = BRACKET_RE.test(p) ? null : p; } catch (e) { map[t] = null; }
+    }
+    found.forEach(function (f) {
+      var p = map[f.token];
+      out += v.slice(last, f.index);
+      if (typeof p === "string") { out += OPEN + p + CLOSE; originals.push({ plain: p, token: f.token }); } else { out += f.token; failed++; }
+      last = f.index + f.token.length;
+    });
+    touch();
+    return { text: out + v.slice(last), originals: originals, failed: failed };
+  }
+  // ⟦…⟧ -> encrypted text. Returns the text to save and the list of parts (so a part you did not change keeps its old token next time).
+  async function sealText(text, originals) {
+    if (BRACKET_RE.test(text.replace(REGION_RE, ""))) throw new Error("This line has a ⟦ or ⟧ without its matching one, so it was not saved. Delete the stray bracket, or select the words you want protected and press " + (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "") ? "Option+Shift+E (or Cmd+Shift+E)" : "Alt+Shift+E (or Ctrl+Shift+E)") + ".");
+    if (!pass) throw new Error("Enter your passphrase to save the encrypted text.");
+    var left = (originals || []).slice(), re = new RegExp(REGION_RE.source, "g"), out = "", last = 0, m, parts = [];
+    while ((m = re.exec(text)) !== null) {
+      out += text.slice(last, m.index);
+      var p = m[1];
+      if (p !== "") {
+        var k = -1;
+        for (var i = 0; i < left.length; i++) if (left[i].plain === p) { k = i; break; }
+        var tok = k >= 0 ? left.splice(k, 1)[0].token : await wbcrypt.encrypt(p, pass);
+        out += tok; parts.push({ plain: p, token: tok });
+      }
+      last = m.index + m[0].length;
+    }
+    out += text.slice(last);
+    if (BRACKET_RE.test(out)) throw new Error("Could not encrypt this text; nothing was saved.");
+    touch();
+    return { text: out, originals: parts };
+  }
+  window.wbcryptLive = {
+    ready: function () { return enabledOn() && editorOn(); },
+    unlocked: function () { return !!pass; },
+    unlock: function () { return new Promise(function (resolve) { waiters.push(resolve); showPrompt(null); }); },
+    reveal: revealText, seal: sealText, toggle: toggleText,
+    onLock: function (fn) { if (typeof fn === "function") lockHooks.push(fn); },
+    touch: touch
+  };
+
   /* ---------- timers and locking ---------- */
 
   async function lock(why) {
     if (timer) { clearTimeout(timer); timer = null; }
     try { await sealEditors(); } catch (e) { /* editors that can't be sealed were cancelled */ }
+    for (var i = 0; i < lockHooks.length; i++) { try { await lockHooks[i](); } catch (e) { /* the board's own live lines: best effort */ } }
     pass = null;
     ["cryptPass", "cryptPass2", "cryptText", "cryptOut"].forEach(function (id) { $(id).value = ""; });
     $("cryptFound").textContent = "";
