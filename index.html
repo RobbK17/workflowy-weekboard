@@ -163,6 +163,8 @@
   .cd-note { display: block; width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--muted); font: inherit; font-size: 12px; line-height: 1.35; padding: 0; margin: 2px 0 0; resize: none; overflow: hidden; outline: none; border-radius: 3px; }
   .cd-note:focus { background: rgba(127,127,127,.14); }
   .card.dragging { opacity: .4; }
+  .card.ins-before, .grp.ins-before { box-shadow: inset 0 2px 0 var(--accent), 0 1px 1px rgba(0,0,0,.12); }
+  .card.ins-after, .grp.ins-after { box-shadow: inset 0 -2px 0 var(--accent), 0 1px 1px rgba(0,0,0,.12); }
   .card input[type=checkbox] { font-size: inherit; margin-top: max(2px, calc(0.7em - 6.5px)); }      /* level with the first line of text, as in the panes */
   .txt { flex: 1; word-break: break-word; }
   .note, .badge { display: block; font-size: 12px; color: var(--muted); }
@@ -1122,6 +1124,7 @@ function renderDayPop(place) {
   const ents = entries(k, false);
   if (!ents.length) list.innerHTML = '<div class="empty">Nothing here</div>';
   for (const e of ents) list.appendChild(entryEl(e, false));
+  bindDayOrder(list, k);
   const foot = document.createElement("div");
   foot.className = "dp-foot";
   const go = document.createElement("button");
@@ -1323,6 +1326,7 @@ function render() {
         `<div class="empty">${hasAny ? "All done" : "Nothing yet"}</div>`);
     }
     for (const e of ents) list.appendChild(entryEl(e, false));
+    bindDayOrder(list, k);
 
     head.appendChild(makeAddBox(k));
     if (prefs.nested === "group") head.appendChild(makeAddGroup(k));
@@ -1594,6 +1598,7 @@ function groupCard(e, showDate) {
   const el = document.createElement("div");
   el.className = "grp";
   el.dataset.id = b.id;
+  el.dataset.anchor = b.id;                 // the day-level item a drop slots against (the bullet itself)
   el.draggable = !selMode;
   if (sel.has(b.id)) el.classList.add("sel");
   el.addEventListener("click", (ev) => {                 // in select mode a click picks the whole group (the bullet and its tasks)
@@ -1603,10 +1608,13 @@ function groupCard(e, showDate) {
     toggleSel(b, k, null, el, true);
   }, true);
   el.addEventListener("dragstart", (ev) => {
-    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40) }));
+    const item = { id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40) };
+    dragItem = item;
+    ev.dataTransfer.setData("text/plain", JSON.stringify(item));
+    ev.dataTransfer.effectAllowed = "move";
     el.classList.add("dragging");
   });
-  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+  el.addEventListener("dragend", () => { el.classList.remove("dragging"); dragItem = null; clearOrderMark(); });
 
   const closed = groupsClosed.has(b.id);
   const open = e.todos.filter((t) => !t.completedAt).length;
@@ -1793,6 +1801,7 @@ function card(n, k, showDate, opts) {
   const el = document.createElement("div");
   el.className = "card" + (n.completedAt ? " done" : "") + (nested ? " nested" : "");
   el.dataset.id = n.id;
+  el.dataset.anchor = nested ? opts.bullet.id : n.id;    // a flattened task slots with its bullet, so the bullet stays in one piece
   el.draggable = !nested && !selMode;                    // moving it out of its bullet would be a surprise
   if (sel.has(n.id)) el.classList.add("sel");
   el.addEventListener("click", (ev) => {                 // in select mode a click picks the card instead of using what's inside it
@@ -1801,10 +1810,14 @@ function card(n, k, showDate, opts) {
     toggleSel(n, k, nested ? opts.bullet : null, el);
   }, true);
   el.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: k, name: shortName(n) }));
+    if (n.pending) { e.preventDefault(); return; }         // not in WorkFlowy yet, so it has no place to move to
+    const item = { id: n.id, from: k, name: shortName(n) };
+    dragItem = item;
+    e.dataTransfer.setData("text/plain", JSON.stringify(item));
+    e.dataTransfer.effectAllowed = "move";
     el.classList.add("dragging");
   });
-  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+  el.addEventListener("dragend", () => { el.classList.remove("dragging"); dragItem = null; clearOrderMark(); });
 
   const cb = document.createElement("input");
   cb.type = "checkbox"; cb.checked = !!n.completedAt;
@@ -3508,6 +3521,156 @@ async function reloadParents(parents) {
   const ids = [...new Set(parents.filter(Boolean))];
   await Promise.all(ids.map((p) => (ISO_DAY.test(p) ? loadDay(p) : srcById(p) ? loadSource(srcById(p), true) : (nest[p] ? reloadBullet(p) : null))));
   if (ids.includes(pageKey())) loadPage();                 // the Daily page shows that day too, so it follows the move
+}
+
+// The card or group currently being dragged. dataTransfer can't be read during dragover, so the slot line uses this.
+let dragItem = null, orderBusy = false;
+function clearOrderMark() {
+  document.querySelectorAll(".ins-before, .ins-after").forEach((el) => el.classList.remove("ins-before", "ins-after"));
+}
+// Where the pointer is among a day's cards. The gap under a card belongs to the next card's top half.
+function orderRowAt(list, y) {
+  const rows = [...list.querySelectorAll(":scope > .card, :scope > .grp")];
+  for (const el of rows) {
+    const r = el.getBoundingClientRect();
+    if (y < r.top + r.height / 2) return { el, before: true };
+  }
+  return rows.length ? { el: rows[rows.length - 1], before: false } : null;
+}
+function showOrderSlot(list, el, before) {
+  clearOrderMark();
+  const rows = [...list.querySelectorAll(":scope > .card, :scope > .grp")].filter((r) => r.dataset.anchor === el.dataset.anchor);
+  const mark = before ? rows[0] : rows[rows.length - 1];
+  if (mark) mark.classList.add(before ? "ins-before" : "ins-after");
+}
+function readOrderSlot(list) {
+  const rows = [...list.querySelectorAll(":scope > .card, :scope > .grp")];
+  const real = (id) => id && !String(id).startsWith("new");   // a card that has not been saved yet is not a sibling
+  const visibleIds = [];
+  for (const el of rows) if (real(el.dataset.anchor) && visibleIds[visibleIds.length - 1] !== el.dataset.anchor) visibleIds.push(el.dataset.anchor);
+  const nextReal = (from) => { for (let j = from; j < rows.length; j++) if (real(rows[j].dataset.anchor)) return rows[j].dataset.anchor; return null; };
+  const marked = list.querySelector(":scope > .ins-before, :scope > .ins-after");
+  if (!marked) return { beforeId: null, visibleIds };
+  if (marked.classList.contains("ins-before") && real(marked.dataset.anchor)) return { beforeId: marked.dataset.anchor, visibleIds };
+  return { beforeId: nextReal(rows.indexOf(marked) + 1), visibleIds };
+}
+// A single-day list (a week-board column, or the sidebar day popup). Past due and Upcoming are mixed days, so they stay as they are.
+function bindDayOrder(list, dayKey) {
+  list.addEventListener("dragover", (e) => {
+    if (!dragItem) return;
+    e.preventDefault();
+    e.stopPropagation();                                   // the column header still means "move to the bottom of this day"
+    const hit = orderRowAt(list, e.clientY);
+    if (hit) showOrderSlot(list, hit.el, hit.before);
+    else clearOrderMark();
+  });
+  list.addEventListener("dragleave", (e) => { if (!list.contains(e.relatedTarget)) clearOrderMark(); });
+  list.addEventListener("drop", (e) => {
+    if (!dragItem) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const it = dragItem, slot = readOrderSlot(list);
+    clearOrderMark();
+    act(() => placeInList(it.id, it.from, dayKey, slot.beforeId, it.name || "task", { visibleIds: slot.visibleIds }));
+  });
+}
+
+// WorkFlowy can only move a node to the top or bottom of its parent. These moves put `id` at `toIndex` in `siblings` (which does not include it) and leave every other node in its relative order. The shorter end is used.
+function planInsert(siblings, id, toIndex) {
+  const ids = siblings.map((s) => s.id);
+  if (toIndex <= 0) return [{ id, position: "top" }];
+  if (toIndex >= ids.length) return [{ id, position: "bottom" }];
+  const prefix = ids.slice(0, toIndex), suffix = ids.slice(toIndex);
+  if (prefix.length <= suffix.length) return [{ id, position: "top" }, ...prefix.slice().reverse().map((pid) => ({ id: pid, position: "top" }))];
+  return [{ id, position: "bottom" }, ...suffix.map((sid) => ({ id: sid, position: "bottom" }))];
+}
+function indexWithout(siblings, id) {
+  const i = siblings.findIndex((s) => s.id === id);
+  return i < 0 ? siblings.length : i;
+}
+// beforeId: insert before that sibling. null: after the last visible sibling (still ahead of a trailing notes bullet). beforeId === id: stay put.
+function targetIndex(siblings, id, beforeId, visibleIds) {
+  const without = siblings.filter((s) => s.id !== id);
+  if (beforeId && beforeId !== id) {
+    const i = without.findIndex((s) => s.id === beforeId);
+    return i < 0 ? without.length : i;
+  }
+  if (beforeId === id) return indexWithout(siblings, id);
+  const vis = visibleIds || [];
+  if (!vis.length) return siblings.some((s) => s.id === id) ? indexWithout(siblings, id) : 0;
+  const last = vis[vis.length - 1];
+  if (last === id) return indexWithout(siblings, id);     // dropped after itself, and it is already the last visible item
+  const li = siblings.findIndex((s) => s.id === last);
+  if (li < 0) return without.length;
+  let n = 0;
+  for (let i = 0; i <= li; i++) if (siblings[i].id !== id) n++;   // immediately after that sibling, hidden items before it stay before it
+  return n;
+}
+async function daySiblings(parentId) {
+  const data = await call("GET", `/nodes?parent_id=${parentId}`);
+  return ((data && data.nodes) || []).slice().sort((a, b) => a.priority - b.priority);
+}
+function dayNode(day, id) {
+  return (cache[day] || []).find((n) => n.id === id) || (dayBullets[day] || []).find((n) => n.id === id) || null;
+}
+async function moveRetry(id, parent, position) {
+  for (let k = 0; ; k++) {
+    try { return await call("POST", `/nodes/${id}/move`, { parent_id: parent, position }); }
+    catch (e) {
+      if (e.retryAfter && k < 3) { await new Promise((r) => setTimeout(r, Math.min(15, e.retryAfter) * 1000 + 200)); continue; }
+      throw e;
+    }
+  }
+}
+// Show the new order immediately. Real priorities replace these ranks when the day is loaded again.
+function paintOrder(id, from, dest, siblings, toIndex) {
+  const without = siblings.filter((s) => s.id !== id);
+  const order = without.map((s) => s.id);
+  order.splice(Math.max(0, Math.min(toIndex, order.length)), 0, id);
+  const rank = new Map(order.map((sid, i) => [sid, i]));
+  const node = dayNode(from, id) || dayNode(dest, id);
+  if (node && from !== dest) {
+    cache[from] = (cache[from] || []).filter((n) => n.id !== id);
+    dayBullets[from] = (dayBullets[from] || []).filter((n) => n.id !== id);
+    const mode = (node.data && node.data.layoutMode) || "bullets";
+    if (mode === "todo") cache[dest] = [...(cache[dest] || []), node];
+    else dayBullets[dest] = [...(dayBullets[dest] || []), node];
+  }
+  for (const n of [...(cache[dest] || []), ...(dayBullets[dest] || [])]) if (rank.has(n.id)) n.priority = rank.get(n.id);
+  if (cache[dest]) cache[dest].sort((a, b) => a.priority - b.priority);
+  if (dayBullets[dest]) dayBullets[dest].sort((a, b) => a.priority - b.priority);
+  render();
+}
+// Put one task or group at a slot in a day. `opt.end` means the very bottom (used when Undo restores an item that was last). `opt.quiet` skips the confirm and the Undo entry.
+async function placeInList(id, from, dest, beforeId, name, opt) {
+  opt = opt || {};
+  if (orderBusy) return;
+  orderBusy = true;
+  try {
+    const siblings = await daySiblings(dest);
+    const toIndex = opt.end ? siblings.filter((s) => s.id !== id).length : targetIndex(siblings, id, beforeId, opt.visibleIds);
+    if (from === dest && siblings.some((s) => s.id === id) && indexWithout(siblings, id) === toIndex) return;
+    const moves = planInsert(siblings.filter((s) => s.id !== id), id, toIndex);
+    if (!opt.quiet && moves.length > 25 && !confirm(`Placing this here re-orders ${moves.length} lines. Continue?`)) return;
+    let follower = null, wasEnd = true;
+    if (!opt.quiet) {
+      const home = from === dest ? siblings : await daySiblings(from);
+      const i = home.findIndex((s) => s.id === id);
+      if (i >= 0 && i < home.length - 1) { follower = home[i + 1].id; wasEnd = false; }
+    }
+    paintOrder(id, from, dest, siblings, toIndex);
+    try {
+      for (const m of moves) await moveRetry(m.id, dest, m.position);
+    } catch (e) {
+      await reloadParents([from, dest]);
+      throw e;
+    }
+    await reloadParents([from, dest]);
+    if (!opt.quiet) {
+      const label = from === dest ? `Reordered “${name}”` : `Moved “${name}” to ${dayLabel(dest)}`;
+      pushUndo(label, async () => { await placeInList(id, dest, from, wasEnd ? null : follower, name, { quiet: true, end: wasEnd }); });
+    }
+  } finally { orderBusy = false; }
 }
 
 // Move tasks (or a group's bullet) to the bottom of a day. items: [{ id, from, name }]. Remembered for Undo.
