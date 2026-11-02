@@ -226,7 +226,10 @@
   .card { position: relative; }
   .movepop { position: fixed; z-index: 80; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 8px; width: 250px; font-size: 13px; }
   .movepop .mq, .movepop .mr { display: flex; gap: 6px; }
+  .movepop .mh { color: var(--muted); font-size: 12px; line-height: 1.35; }
   .movepop button { padding: 5px 9px; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--text); cursor: pointer; font: inherit; }
+  .movepop button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .mir { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 10px; background: rgba(127,127,127,.18); color: var(--muted); font-size: 11px; font-weight: 500; vertical-align: 1px; }
   .movepop .mq button { flex: 1; white-space: nowrap; padding: 5px 4px; }
   .movepop .mr input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
   .movepop .go { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -891,7 +894,7 @@
   <div class="modal-box narrow" role="dialog" aria-modal="true" aria-label="Move open tasks">
     <div class="sm-head"><h3 id="rollTitle">Move tasks</h3><button id="rollClose" title="Close (Esc)">&#10005;</button></div>
     <div class="roll-dest">
-      <span>Move to</span><input type="date" id="rollDate">
+      <span id="rollVerb">Move to</span><input type="date" id="rollDate">
       <button id="rollToday" type="button">Today</button><button id="rollTomorrow" type="button">Tomorrow</button>
       <span class="grow"></span><label><input type="checkbox" id="rollAll" checked> All</label>
     </div>
@@ -1060,6 +1063,47 @@ async function call(method, path, body) {
   if (res.status === 429) { const t = await res.text(); const e = new Error(busyMessage(t)); try { e.retryAfter = Number(JSON.parse(t).retry_after) || 2; } catch (x) { e.retryAfter = 2; } throw e; }
   if (!res.ok) throw new Error(`${method} ${path} failed (${res.status}): ${await res.text()}`);
   return res.json();
+}
+
+// A mirror shows another node's text. Editing or completing it changes that original everywhere.
+const MIRROR_TIP = "Mirror. Editing or completing this changes the original everywhere. Moving or deleting it only affects this copy.";
+function mirrorOrigin(n) {
+  const m = n && n.data && n.data.mirror;
+  return m && typeof m.origin_id === "string" && m.origin_id ? m.origin_id : "";
+}
+function isMirror(n) { return !!mirrorOrigin(n); }
+function mirrorMark() {
+  const s = document.createElement("span");
+  s.className = "mir"; s.textContent = "mirror"; s.title = MIRROR_TIP;
+  return s;
+}
+function askDelete(n, permanent) {
+  return confirm(isMirror(n) ? "Remove this mirror? The original stays." : permanent);
+}
+// Copy a name, note, type or completed state onto every loaded copy of the same original.
+function touchShared(n, patch) {
+  const origin = mirrorOrigin(n) || (n && n.id);
+  if (!origin || !patch) return;
+  const apply = (x) => {
+    if (!x || (x.id !== origin && mirrorOrigin(x) !== origin)) return;
+    if ("name" in patch) x.name = patch.name;
+    if ("note" in patch) x.note = patch.note;
+    if ("completedAt" in patch) x.completedAt = patch.completedAt;
+    if ("layoutMode" in patch) x.data = Object.assign({}, x.data, { layoutMode: patch.layoutMode });
+  };
+  const walk = (list) => { for (const x of list || []) { apply(x); if (x && x.children) walk(x.children); } };
+  for (const list of Object.values(cache)) walk(list);
+  for (const list of Object.values(dayBullets)) walk(list);
+  for (const info of Object.values(nest)) walk(info && info.todos);
+  for (const st of Object.values(srcState)) walk(st && st.todos);
+  walk(pageNodes);
+  walk(itemNodes);
+  for (const info of Object.values(kids)) walk(info && info.tree);
+  for (const st of Object.values(kbData)) {
+    walk(st && st.cards); walk(st && st.tree);
+    for (const lane of Object.values((st && st.lanes) || {})) walk(lane);
+  }
+  for (const st of Object.values(kbCal)) walk(st && st.tree);
 }
 
 async function loadDay(k) {
@@ -1525,6 +1569,7 @@ function subList(nodes, rootId) {
       cb.addEventListener("change", async () => {
         try {
           await call("POST", `/nodes/${c.id}/${cb.checked ? "complete" : "uncomplete"}`);
+          touchShared(c, { completedAt: cb.checked ? Math.floor(Date.now() / 1000) : null });
           c.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
           row.classList.toggle("done", cb.checked);
         } catch (e) { showError(e.message); cb.checked = !cb.checked; }
@@ -1541,6 +1586,7 @@ function subList(nodes, rootId) {
     }
     const t = document.createElement("span");
     t.className = "st2"; t.textContent = shownVisible(c.name) || "(empty)";
+    if (isMirror(c)) t.appendChild(mirrorMark());
     if (rootId) {                                       // click a sub-item to edit it (this is where an add-on such as Encrypt gets its turn)
       if (kbReadEdit) { t.classList.add("editable"); t.title = "Click to edit"; }
       t.addEventListener("click", (e) => {
@@ -1623,6 +1669,7 @@ function groupCard(e, showDate) {
     badge.textContent = keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     title.appendChild(badge);
   }
+  if (isMirror(b)) title.appendChild(mirrorMark());
   if (kbReadEdit) title.title = "Double-click to rename";
   title.addEventListener("dblclick", () => {         // rename
     if (selMode || !kbReadEdit) return;   // rename the bullet in place (formatting kept; its note is editable too)
@@ -1637,9 +1684,10 @@ function groupCard(e, showDate) {
   mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move this group (the bullet and its tasks) to a date…";
   mv.addEventListener("click", (ev) => {
     ev.stopPropagation();
-    openMovePop(mv, k, (to) => {
+    openMovePop(mv, k, (to, mode) => {
       if (!ISO_DAY.test(to) || to === k) return;
-      act(() => moveMany([{ id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40) }], to));
+      const item = { id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40), origin: mirrorOrigin(b) || b.id };
+      act(() => mode === "mirror" ? mirrorMany([item], to) : moveMany([item], to));
     });
   });
   const opn = document.createElement("button");
@@ -1659,6 +1707,7 @@ function groupCard(e, showDate) {
       cb.type = "checkbox"; cb.checked = !!t.completedAt;
       cb.addEventListener("change", () => act(async () => {
         await call("POST", `/nodes/${t.id}/${cb.checked ? "complete" : "uncomplete"}`);
+        touchShared(t, { completedAt: cb.checked ? Math.floor(Date.now() / 1000) : null });
         t.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
       }));
       const txt = document.createElement("span");
@@ -1668,6 +1717,7 @@ function groupCard(e, showDate) {
       if (gLive) txt.appendChild(cardField(t, k, el, b, true));
       else if (gMode === "locked") cardLockedBox(t, txt, el);
       else txt.textContent = (ttm && !ttag ? dropTime(shownVisible(t.name)) : shownVisible(t.name)) || "(empty)";
+      if (isMirror(t)) txt.appendChild(mirrorMark());
       if (gMode === "plain" && kbReadEdit) txt.title = "Double-click to edit";
       txt.addEventListener("dblclick", () => {         // edit a task inside the group in place
         if (selMode || gMode !== "plain" || !kbReadEdit) return;
@@ -1811,10 +1861,12 @@ function card(n, k, showDate, opts) {
   cb.addEventListener("change", () => act(async () => {
     const done = cb.checked;
     await call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`);
+    touchShared(n, { completedAt: done ? Math.floor(Date.now() / 1000) : null });
     if (nested) n.completedAt = done ? Math.floor(Date.now() / 1000) : null;
     else await loadDay(k);
     pushUndo(`${done ? "Completed" : "Reopened"} “${shortName(n)}”`, async () => {
       await call("POST", `/nodes/${n.id}/${done ? "uncomplete" : "complete"}`);
+      touchShared(n, { completedAt: done ? null : Math.floor(Date.now() / 1000) });
       await reloadParents([nested ? opts.bullet.id : k]);
     });
   }));
@@ -1846,6 +1898,7 @@ function card(n, k, showDate, opts) {
     badge.textContent = keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     txt.appendChild(badge);
   }
+  if (isMirror(n)) txt.appendChild(mirrorMark());
   if (cta && !n.pending && n.note && maskTokens(visibleText(n.note)) === visibleText(n.note)) txt.appendChild(cardNoteField(n, k, el, cta));
   else if (n.note) {
     const note = document.createElement("span");
@@ -1873,7 +1926,7 @@ function card(n, k, showDate, opts) {
   del.addEventListener("click", () => {
     if (n.pending) { el.remove(); return; }
     const sc = prefs.showSubs && kids[n.id] ? kids[n.id].count : 0;
-    if (!confirm(sc ? `Delete this task and its ${sc} sub-item${sc === 1 ? "" : "s"} (and anything under them) permanently?` : "Delete this task permanently?")) return;
+    if (!askDelete(n, sc ? `Delete this task and its ${sc} sub-item${sc === 1 ? "" : "s"} (and anything under them) permanently?` : "Delete this task permanently?")) return;
     act(async () => {
       if (nested) { const info = nest[opts.bullet.id]; if (info) info.todos = info.todos.filter((x) => x !== n); }
       await deleteMany([{ id: n.id, parent: nested ? opts.bullet.id : k, node: n }]);
@@ -1882,11 +1935,13 @@ function card(n, k, showDate, opts) {
 
   const mv = document.createElement("button");
   mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move to a date…";
-  const moveTo = (to) => {
+  const moveTo = (to, mode) => {
     if (!ISO_DAY.test(to) || to === k) return;
+    const from = nested ? opts.bullet.id : k;
     act(async () => {
+      if (mode === "mirror") { await mirrorMany([{ id: n.id, from, name: shortName(n), origin: mirrorOrigin(n) || n.id }], to); return; }
       if (nested) { const info = nest[opts.bullet.id]; if (info) info.todos = info.todos.filter((x) => x !== n); }
-      await moveMany([{ id: n.id, from: nested ? opts.bullet.id : k, name: shortName(n) }], to);
+      await moveMany([{ id: n.id, from, name: shortName(n) }], to);
     });
   };
   mv.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => openMovePop(mv, k, moveTo)); });
@@ -2008,7 +2063,7 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
             n.id = r.item_id; n.pending = false; n.name = t2; el.dataset.id = n.id; ta.dataset.id = n.id; ta.placeholder = "";
             (cache[k] || (cache[k] = [])).push(n);
           } else {
-            const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name;
+            const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; touchShared(n, { name });
           }
           base = ta._enc ? next : ta._lock ? shown : visibleText(n.name); saved = true;
           const re = lockAfterSave(ta, n); if (re != null) base = re;
@@ -2105,7 +2160,7 @@ function cardNoteField(n, k, el, nameTa) {
         await kbQueued(async () => {
           const t2 = await boardHooks.pipe("beforeSave", next, { node: n, field: "note" });
           const note = t2 === "" ? "" : applyEdit(n.note || "", t2);
-          await call("POST", `/nodes/${n.id}`, { note }); n.note = note; base = next; saved = true;
+          await call("POST", `/nodes/${n.id}`, { note }); n.note = note; touchShared(n, { note }); base = next; saved = true;
         });
       } catch (e) { /* kbQueued showed it */ }
     })();
@@ -2161,6 +2216,26 @@ function openMovePop(anchor, from, onPick) {
   const pop = document.createElement("div");
   pop.className = "movepop"; pop._anchor = anchor; pop._t = Date.now();
   pop.addEventListener("click", (e) => e.stopPropagation());
+  let mode = "move";
+  const modes = document.createElement("div");
+  modes.className = "mq";
+  const moveB = document.createElement("button");
+  const mirB = document.createElement("button");
+  moveB.type = "button"; mirB.type = "button";
+  moveB.textContent = "Move"; mirB.textContent = "Mirror";
+  const go = document.createElement("button");
+  go.type = "button"; go.textContent = "Move"; go.className = "go";
+  const paint = () => {
+    moveB.classList.toggle("on", mode === "move");
+    mirB.classList.toggle("on", mode === "mirror");
+    go.textContent = mode === "mirror" ? "Mirror" : "Move";
+  };
+  moveB.addEventListener("click", () => { mode = "move"; paint(); });
+  mirB.addEventListener("click", () => { mode = "mirror"; paint(); });
+  modes.append(moveB, mirB);
+  paint();
+  const hint = document.createElement("div");
+  hint.className = "mh"; hint.textContent = "Mirror stays in sync. The original is not moved.";
   const quick = document.createElement("div");
   quick.className = "mq";
   const today = new Date();
@@ -2168,22 +2243,20 @@ function openMovePop(anchor, from, onPick) {
   for (const [label, d] of [["Today", today], ["Tomorrow", addDays(today, 1)], ["Mon", nextMon]]) {
     const b = document.createElement("button");
     b.type = "button"; b.textContent = label;
-    b.addEventListener("click", () => { closeMovePop(); onPick(key(d)); });
+    b.addEventListener("click", () => { closeMovePop(); onPick(key(d), mode); });
     quick.appendChild(b);
   }
   const row = document.createElement("div");
   row.className = "mr";
   const inp = document.createElement("input");
   inp.type = "date"; inp.value = from;
-  const go = document.createElement("button");
-  go.type = "button"; go.textContent = "Move"; go.className = "go";
-  go.addEventListener("click", () => { if (inp.value) { closeMovePop(); onPick(inp.value); } });
+  go.addEventListener("click", () => { if (inp.value) { closeMovePop(); onPick(inp.value, mode); } });
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") go.click(); });
   row.append(inp, go);
   const cancel = document.createElement("button");
   cancel.type = "button"; cancel.textContent = "Cancel"; cancel.className = "cancel";
   cancel.addEventListener("click", closeMovePop);
-  pop.append(quick, row, cancel);
+  pop.append(modes, hint, quick, row, cancel);
   document.body.appendChild(pop);
   placeCardPop(pop, anchor);
   movePop = pop;
@@ -2562,7 +2635,15 @@ function startEdit(n, textEl, onSaved, onClose, opts) {
     if (nextNote !== noteText) body.note = nextNote === "" ? "" : applyEdit(origNote, nextNote);
     if (nextType !== curType) body.layoutMode = nextType;
     if (!Object.keys(body).length) { box.replaceWith(textEl); closed(); if (onClose) onClose(); return; }
-    try { await call("POST", `/nodes/${n.id}`, body); await onSaved(); box.remove(); closed(); }
+    try {
+      await call("POST", `/nodes/${n.id}`, body);
+      const patch = {};
+      if ("name" in body) patch.name = body.name;
+      if ("note" in body) patch.note = body.note;
+      if ("layoutMode" in body) patch.layoutMode = body.layoutMode;
+      touchShared(n, patch);
+      await onSaved(); box.remove(); closed();
+    }
     catch (e) { showError(e.message); finished = false; title.disabled = note.disabled = false; title.focus(); }
   };
   const keys = (multiline) => (e) => {
@@ -2803,6 +2884,7 @@ function pageLine(n, level, prev, removable, fold, out) {
     cb.addEventListener("change", async () => {
       try {
         await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`);
+        touchShared(n, { completedAt: cb.checked ? Math.floor(Date.now() / 1000) : null });
         n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
         n.completed = !!n.completedAt;
         renderPage();
@@ -2822,6 +2904,7 @@ function pageLine(n, level, prev, removable, fold, out) {
   const t = document.createElement("span");
   t.className = "t";
   t.textContent = shownVisible(n.name) || "(empty)";
+  if (isMirror(n)) t.appendChild(mirrorMark());
   if (fold === "closed") {                             // how many lines are hidden
     const pc = document.createElement("span");
     const hidden = countBelow(n);
@@ -2883,7 +2966,7 @@ function pageLine(n, level, prev, removable, fold, out) {
     minus.addEventListener("click", async () => {
       const below = countBelow(n);
       const label = shownName(n.name) || "(empty)";
-      if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
+      if (!askDelete(n, `Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
       minus.disabled = true;
       try { await call("DELETE", `/nodes/${n.id}`); if (viewItem) await reloadItem(); else await loadPage(); }
       catch (e) { showError(e.message); minus.disabled = false; }
@@ -3075,6 +3158,7 @@ function resultEl(hit, terms, i) {
   title.className = "st" + (hit.todo && hit.done ? " done" : "");
   if (hit.todo) title.append(hit.done ? "☑ " : "☐ ");
   title.append(...highlight(maskTokens(hit.name) || "(empty)", terms));
+  if (hit.mirror) title.appendChild(mirrorMark());
   const path = document.createElement("div");
   path.className = "sp"; path.textContent = hit.path.map(maskTokens).join(" › ") || "Top level";
   row.append(title, path);
@@ -3322,6 +3406,7 @@ async function setReminder(n, k, bullet, hhmm, after) {
   const name = hhmm ? `${base} @${hhmm}`.trim() : base;
   await act(async () => {
     await call("POST", `/nodes/${n.id}`, { name });
+    touchShared(n, { name });
     if (after) await after(); else if (bullet) await reloadBullet(bullet.id); else await loadDay(k);
   });
   remPoll(true);
@@ -3510,6 +3595,61 @@ async function reloadParents(parents) {
   if (ids.includes(pageKey())) loadPage();                 // the Daily page shows that day too, so it follows the move
 }
 
+const FULL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// The mirror endpoint wants a real node id. A date key is looked up, and a missing day is created the same way adding a task does.
+async function resolveNodeId(parent) {
+  const keyOrId = String(parent || "");
+  if (FULL_ID.test(keyOrId)) return keyOrId.toLowerCase();
+  const got = await call("GET", `/nodes/${encodeURIComponent(keyOrId)}`);
+  const node = got && (got.node || got);
+  if (node && node.id && node.id !== keyOrId) return node.id;
+  if (!ISO_DAY.test(keyOrId)) throw new Error("That place isn't a day the board can mirror into.");
+  const created = await call("POST", "/nodes", { parent_id: keyOrId, name: "·", position: "bottom" });
+  const ph = created && created.item_id;
+  if (!ph) throw new Error("That day isn't in WorkFlowy yet, and it couldn't be created.");
+  let dayId = "";
+  try {
+    const one = await call("GET", `/nodes/${encodeURIComponent(ph)}`);
+    const child = one && (one.node || one);
+    if (child && child.parent_id && child.parent_id !== keyOrId) dayId = child.parent_id;
+    if (!dayId) {
+      const again = await call("GET", `/nodes/${encodeURIComponent(keyOrId)}`);
+      const dn = again && (again.node || again);
+      if (dn && dn.id && dn.id !== keyOrId) dayId = dn.id;
+    }
+  } finally {
+    try { await call("DELETE", `/nodes/${ph}`); } catch (e) { /* the day was created; the placeholder may still be there */ }
+  }
+  if (!dayId) throw new Error("That day isn't in WorkFlowy yet, and it couldn't be created.");
+  return dayId;
+}
+async function childrenOf(parentKey) {
+  if (ISO_DAY.test(parentKey) && (parentKey in cache)) return [...(cache[parentKey] || []), ...(dayBullets[parentKey] || [])];
+  if (srcById(parentKey) && srcState[parentKey] && srcState[parentKey].loaded) return srcState[parentKey].todos || [];
+  const data = await call("GET", `/nodes?parent_id=${encodeURIComponent(parentKey)}`);
+  return (data && data.nodes) || [];
+}
+// Place a live mirror on a day. items: [{ id, from, name, origin }]. The original stays where it is.
+async function mirrorMany(items, dest) {
+  const parentId = await resolveNodeId(dest);
+  const present = await childrenOf(dest);
+  const made = [], skipped = [];
+  for (const it of items) {
+    const origin = it.origin || it.id;
+    if (present.some((c) => c.id === it.id || c.id === origin || mirrorOrigin(c) === origin)) { skipped.push(it); continue; }
+    const res = await call("POST", `/nodes/${it.id}/mirror`, { parent_id: parentId, position: "bottom" });
+    const id = res && res.item_id;
+    if (id) { made.push({ id, name: it.name }); present.push({ id, data: { mirror: { origin_id: (res && res.origin_id) || origin } } }); }
+  }
+  if (made.length) await reloadParents([dest]);
+  if (skipped.length) showToast(skipped.length === 1 ? `“${skipped[0].name}” is already on ${dayLabel(dest)}` : `${skipped.length} already on ${dayLabel(dest)}`, false);
+  if (!made.length) return;
+  pushUndo(made.length === 1 ? `Mirrored “${made[0].name}” to ${dayLabel(dest)}` : `Mirrored ${made.length} to ${dayLabel(dest)}`, async () => {
+    for (const m of made) await call("DELETE", `/nodes/${m.id}`);
+    await reloadParents([dest]);
+  });
+}
+
 // Move tasks (or a group's bullet) to the bottom of a day. items: [{ id, from, name }]. Remembered for Undo.
 async function moveMany(items, dest) {
   const todo = items.filter((it) => it.from !== dest);
@@ -3551,16 +3691,27 @@ async function restoreTree(parent, s, run) {
   if (id) for (const c of s.children) await restoreTree(id, c, run);
   return id;
 }
-// items: [{ id, parent, node }]
+// items: [{ id, parent, node }]. A mirror is removed and put back as a mirror; anything else is copied back as new nodes.
 async function deleteMany(items) {
-  const snaps = [];
-  for (const it of items) snaps.push({ parent: it.parent, snap: await snapshotTree(it.node) });
+  const snaps = [], mirrors = [];
+  for (const it of items) {
+    const origin = mirrorOrigin(it.node);
+    if (origin) mirrors.push({ parent: it.parent, origin, name: shortName(it.node) });
+    else snaps.push({ parent: it.parent, snap: await snapshotTree(it.node) });
+  }
   for (const it of items) await call("DELETE", `/nodes/${it.id}`);
   await reloadParents(items.map((i) => i.parent));
   const cut = snaps.some((s) => s.snap.truncated);
-  pushUndo((items.length === 1 ? `Deleted “${shortName(items[0].node)}”` : `Deleted ${items.length} tasks`) + (cut ? " (very large: part of it can't be restored)" : ""), async () => {
+  const label = items.length === 1
+    ? (mirrors.length ? `Removed mirror “${mirrors[0].name}”` : `Deleted “${shortName(items[0].node)}”`)
+    : (mirrors.length === items.length ? `Removed ${items.length} mirrors` : `Deleted ${items.length} tasks`);
+  pushUndo(label + (cut ? " (very large: part of it can't be restored)" : ""), async () => {
     for (const s of snaps) await restoreTree(s.parent, s.snap);
-    await reloadParents(snaps.map((s) => s.parent));
+    for (const m of mirrors) {
+      const parent = await resolveNodeId(m.parent);
+      await call("POST", `/nodes/${m.origin}/mirror`, { parent_id: parent, position: "bottom" });
+    }
+    await reloadParents(items.map((i) => i.parent));
   });
 }
 
@@ -3652,7 +3803,7 @@ const sel = new Map();                       // task id -> { n, k, bullet }
 let selMode = false;
 const selBar = document.getElementById("selbar");
 const selBtn = document.getElementById("selBtn");
-function selItem(s) { return { id: s.n.id, from: s.bullet ? s.bullet.id : s.k, name: shortName(s.n) }; }
+function selItem(s) { return { id: s.n.id, from: s.bullet ? s.bullet.id : s.k, name: shortName(s.n), origin: mirrorOrigin(s.n) || s.n.id }; }
 function updateSelBar() {
   document.getElementById("selCount").textContent = `${sel.size} selected`;
   for (const id of ["selMove", "selDone", "selDel"]) document.getElementById(id).disabled = !sel.size;
@@ -3685,17 +3836,17 @@ document.getElementById("selAll").onclick = () => {
 document.getElementById("selMove").onclick = (ev) => {
   ev.stopPropagation();
   const items = [...sel.values()].map(selItem);
-  openMovePop(ev.currentTarget, key(todayDate()), (to) => { setSelMode(false); act(() => moveMany(items, to)); });
+  openMovePop(ev.currentTarget, key(todayDate()), (to, mode) => { setSelMode(false); act(() => mode === "mirror" ? mirrorMany(items, to) : moveMany(items, to)); });
 };
 document.getElementById("selDone").onclick = () => {
   const list = [...sel.values()].filter((s) => !s.n.completedAt && !s.group);   // a group is a bullet, not a task
   if (!list.length) { showToast([...sel.values()].some((s) => s.group) ? "Groups can't be completed (open one and tick its tasks)" : "Those are already done", false); return; }
   setSelMode(false);
   act(async () => {
-    for (const s of list) await call("POST", `/nodes/${s.n.id}/complete`);
+    for (const s of list) { await call("POST", `/nodes/${s.n.id}/complete`); touchShared(s.n, { completedAt: Math.floor(Date.now() / 1000) }); }
     await reloadParents(list.map((s) => (s.bullet ? s.bullet.id : s.k)));
     pushUndo(list.length === 1 ? `Completed “${shortName(list[0].n)}”` : `Completed ${list.length} tasks`, async () => {
-      for (const s of list) await call("POST", `/nodes/${s.n.id}/uncomplete`);
+      for (const s of list) { await call("POST", `/nodes/${s.n.id}/uncomplete`); touchShared(s.n, { completedAt: null }); }
       await reloadParents(list.map((s) => (s.bullet ? s.bullet.id : s.k)));
     });
   });
@@ -3703,7 +3854,11 @@ document.getElementById("selDone").onclick = () => {
 document.getElementById("selDel").onclick = () => {
   const list = [...sel.values()];
   if (!list.length) return;
-  if (!confirm(`Delete ${list.length} ${list.some((s) => s.group) ? "item" : "task"}${list.length === 1 ? "" : "s"} and everything under ${list.length === 1 ? "it" : "them"}? (You can undo this right afterwards.)`)) return;
+  const allMirror = list.every((s) => isMirror(s.n));
+  const msg = allMirror
+    ? (list.length === 1 ? "Remove this mirror? The original stays." : `Remove ${list.length} mirrors? The originals stay.`)
+    : `Delete ${list.length} ${list.some((s) => s.group) ? "item" : "task"}${list.length === 1 ? "" : "s"} and everything under ${list.length === 1 ? "it" : "them"}? (You can undo this right afterwards.)`;
+  if (!confirm(msg)) return;
   setSelMode(false);
   act(() => deleteMany(list.map((s) => ({ id: s.n.id, parent: s.bullet ? s.bullet.id : s.k, node: s.n }))));
 };
@@ -3714,15 +3869,20 @@ const rollModal = document.getElementById("rollModal");
 const rollList = document.getElementById("rollList");
 const rollDate = document.getElementById("rollDate");
 let rollItems = [];
+let rollMode = "move";
 function updateRollCount() {
   const picked = rollList.querySelectorAll("input[type=checkbox][data-i]:checked").length;
-  document.getElementById("rollInfo").textContent = `${picked} of ${rollItems.length} will move`;
+  const verb = rollMode === "mirror" ? "mirror" : "move";
+  document.getElementById("rollInfo").textContent = `${picked} of ${rollItems.length} will ${verb}`;
+  document.getElementById("rollGo").textContent = rollMode === "mirror" ? "Mirror" : "Move";
   document.getElementById("rollGo").disabled = !picked || !rollDate.value;
 }
-function openRoll({ title, items, dest }) {
+function openRoll({ title, items, dest, mode }) {
   items = items.filter((it) => !it.n.completedAt);
-  if (!items.length) { showToast("No open tasks to move", false); return; }
+  if (!items.length) { showToast(mode === "mirror" ? "No open tasks to mirror" : "No open tasks to move", false); return; }
+  rollMode = mode === "mirror" ? "mirror" : "move";
   rollItems = items;
+  document.getElementById("rollVerb").textContent = rollMode === "mirror" ? "Mirror onto" : "Move to";
   document.getElementById("rollTitle").textContent = title;
   rollDate.value = dest;
   rollList.innerHTML = "";
@@ -3758,9 +3918,9 @@ document.getElementById("rollTomorrow").onclick = () => { rollDate.value = key(a
 document.getElementById("rollGo").onclick = () => {
   const dest = rollDate.value;
   if (!ISO_DAY.test(dest)) return;
-  const items = [...rollList.querySelectorAll("input[data-i]:checked")].map((c) => rollItems[Number(c.dataset.i)]).map((it) => ({ id: it.n.id, from: it.k, name: shortName(it.n) }));
+  const items = [...rollList.querySelectorAll("input[data-i]:checked")].map((c) => rollItems[Number(c.dataset.i)]).map((it) => ({ id: it.n.id, from: it.k, name: shortName(it.n), origin: mirrorOrigin(it.n) || it.n.id }));
   closeRoll();
-  act(() => moveMany(items, dest));
+  act(() => rollMode === "mirror" ? mirrorMany(items, dest) : moveMany(items, dest));
 };
 
 /* ---------- Done window: what you finished, by the day you finished it ---------- */
@@ -4386,7 +4546,7 @@ function kbLaneCardsEl(list, cards, parent, level, ctx, col) {
     const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.title = "Delete this card";
     minus.onclick = async (ev) => {
       ev.stopPropagation(); const below = countBelow(card);
-      if (!confirm(`Delete this card permanently?\n\n"${shownName(card.name) || "(empty)"}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} inside will be deleted too.` : ""))) return;
+      if (!askDelete(card, `Delete this card permanently?\n\n"${shownName(card.name) || "(empty)"}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} inside will be deleted too.` : ""))) return;
       minus.disabled = true; try { await call("DELETE", `/nodes/${card.id}`); await ctx.reload(); } catch (e) { showError(e.message); minus.disabled = false; }
     };
     act.append(plus, minus); el.insertBefore(act, el.querySelector(".kopen"));
@@ -4424,14 +4584,14 @@ function kbCardEl(n, col, ctx) {
     cb.onchange = async () => {
       const done = cb.checked; cb.disabled = true;
       try {
-        await call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`); n.completedAt = done ? Math.floor(Date.now() / 1000) : null; kbDirty = true;
+        await call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`); touchShared(n, { completedAt: done ? Math.floor(Date.now() / 1000) : null }); n.completedAt = done ? Math.floor(Date.now() / 1000) : null; kbDirty = true;
         pushUndo(`${done ? "Completed" : "Reopened"} “${(shownVisible(n.name) || "card").slice(0, 40)}”`, async () => { await call("POST", `/nodes/${n.id}/${done ? "uncomplete" : "complete"}`); n.completedAt = done ? null : Math.floor(Date.now() / 1000); kbRender(); });
       } catch (e) { showError(e.message); cb.checked = !done; }
       kbRender();
     };
     el.appendChild(cb);
   }
-  const t = document.createElement("span"); t.className = "kct"; t.textContent = shownVisible(n.name) || "(empty)"; if (kbReadEdit) t.title = "Click to edit here";
+  const t = document.createElement("span"); t.className = "kct"; t.textContent = shownVisible(n.name) || "(empty)"; if (isMirror(n)) t.appendChild(mirrorMark()); if (kbReadEdit) t.title = "Click to edit here";
   el.appendChild(t);
   if (n.note && plain(n.note).trim()) { const i = document.createElement("span"); i.className = "kic"; i.textContent = "≡"; i.title = "Has a note"; el.appendChild(i); }
   if (kbColors[n.id]) el.dataset.color = kbColors[n.id];
@@ -4493,18 +4653,20 @@ function kbCalBar(n, ctx) {
   rb.addEventListener("click", async (e) => { e.stopPropagation(); if (!(await settle(rb))) return; const tag = parseTag(n.name), tm = parseTime(plain(n.name)); openRemPop(rb, n, k, null, tag || tm, async () => { await ctx.reload(); }); });
   mv.addEventListener("click", async (e) => {
     e.stopPropagation(); if (!(await settle(mv))) return;
-    openMovePop(mv, k, async (to) => {
+    openMovePop(mv, k, async (to, mode) => {
       if (!ISO_DAY.test(to) || to === k) return;
+      const item = { id: n.id, from: k, name: (shownVisible(n.name) || "task").slice(0, 40), origin: mirrorOrigin(n) || n.id };
       try {
+        if (mode === "mirror") { await mirrorMany([item], to); kbDirty = true; await ctx.reload(); return; }
         await call("POST", `/nodes/${n.id}/move`, { parent_id: to, position: "bottom" }); kbDirty = true; await ctx.reload();
-        pushUndo(`Moved “${(shownVisible(n.name) || "task").slice(0, 40)}” to ${dayLabel(to)}`, async () => { await call("POST", `/nodes/${n.id}/move`, { parent_id: k, position: "bottom" }); await ctx.reload(); });
+        pushUndo(`Moved “${item.name}” to ${dayLabel(to)}`, async () => { await call("POST", `/nodes/${n.id}/move`, { parent_id: k, position: "bottom" }); await ctx.reload(); });
       } catch (x) { showError(x.message); }
     });
   });
   dl.addEventListener("click", async (e) => {
     e.stopPropagation();
     const below = countBelow(n);
-    if (!confirm(`Delete this task permanently?` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
+    if (!askDelete(n, `Delete this task permanently?` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
     try { await kbDeleteNodes(ctx, [kbFindNode(ctx.top, n.id) || n]); kbDirty = true; await ctx.reload(); } catch (x) { /* already shown */ }
   });
   bar.append(rb, mv, dl);
@@ -4667,7 +4829,7 @@ function kbLiveField(n, ctx, sib, prev, out) {
       if (n.pending) {
         const r = await call("POST", "/nodes", { parent_id: sib.parentId, name: t2, layoutMode: kbType(n), position: "bottom" });
         n.id = r.item_id; n.pending = false; n._made = true; n.name = t2; ta.dataset.id = n.id; const row = ta.closest(".pl"); if (row) row.dataset.id = n.id;
-      } else { const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; const o = kbFindNode(ctx.top, n.id); if (o) o.name = name; }
+      } else { const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; touchShared(n, { name }); const o = kbFindNode(ctx.top, n.id); if (o) o.name = name; }
       base = ta._enc ? next : ta._lock ? shown : visibleText(n.name); kbDirty = true;
       const re = lockAfterSave(ta, n); if (re != null) base = re;
     });
@@ -4943,7 +5105,7 @@ async function kbDeleteLine(n, ta, sib, ctx) {
   if (kbIsRootLine(n) || kbIsNotesLine(n)) { kbStat("That line can't be deleted here.", "err", 4000); return; }
   if (n.pending) { kbBackspace(n, ta, sib, ctx); return; }
   const below = countBelow(n), label = shownName(n.name) || "(empty)";
-  if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) { ta.focus(); return; }
+  if (!askDelete(n, `Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) { ta.focus(); return; }
   const l = [...ta.closest(".kcol").querySelectorAll("textarea.pe-live")], p = l[l.indexOf(ta) - 1] || l[l.indexOf(ta) + 1];
   if (p) kbPendingFocus = { id: p.dataset.id, caret: -1 };
   ta.blur();
@@ -4965,7 +5127,7 @@ async function kbToggleDone(n, ta, ctx) {
   if (kbType(n) !== "todo") { kbStat("Ctrl+Enter ticks a task. Make this line a task from the right-click menu.", "note", 5000); return; }
   try { await ta._flush(); } catch (e) { return; }
   const done = !n.completedAt; kbRefocus(n, ta);
-  try { await kbQueued(() => call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`)); n.completedAt = done ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); } catch (e) { /* already shown */ }
+  try { await kbQueued(() => call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`)); touchShared(n, { completedAt: done ? Math.floor(Date.now() / 1000) : null }); n.completedAt = done ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); } catch (e) { /* already shown */ }
 }
 function kbZoomLine(n, ta, ctx, into) {
   if (ctx.col.kind === "calendar" || kbView(ctx.col) !== "outline") return;
@@ -5106,7 +5268,7 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
   if (mode === "todo") {
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.disabled = !!n.pending;
     cb.addEventListener("change", async () => {
-      try { await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`); n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); }
+      try { await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`); touchShared(n, { completedAt: cb.checked ? Math.floor(Date.now() / 1000) : null }); n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); }
       catch (e) { showError(e.message); cb.checked = !cb.checked; }
     });
     row.appendChild(cb);
@@ -5121,6 +5283,7 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
   const live = !!sib && kbEditOn(ctx.col);     // a line with encrypted text opens only when you unlock it; without the add-on it still opens through the editor
   const t = document.createElement("span"); t.className = "t" + (live ? " live" : "");
   if (live) t.appendChild(kbLiveField(n, ctx, sib, prev, out)); else t.textContent = shownVisible(n.name) || "(empty)";
+  if (isMirror(n)) t.appendChild(mirrorMark());
   if (fold === "closed" && !live) { const pc = document.createElement("span"); const hidden = countBelow(n) + (n._g || []).reduce((a, x) => a + 1 + countBelow(x), 0); pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`; t.appendChild(pc); }
   if (live && !n.pending && !kbSealedNote(n) && ((n.note && n.note.trim()) || kbNoteOpen === n.id)) t.appendChild(kbNoteField(n, ctx));
   else if (n.note && n.note.trim()) { const pn = document.createElement("small"); pn.className = "pn"; pn.textContent = shownVisible(n.note).split("\n")[0]; t.appendChild(pn); }
@@ -5166,7 +5329,7 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
   const minus = document.createElement("button"); minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
   minus.addEventListener("click", async () => {
     const below = countBelow(n), label = shownName(n.name) || "(empty)";
-    if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
+    if (!askDelete(n, `Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
     minus.disabled = true;
     try { await call("DELETE", `/nodes/${n.id}`); await ctx.reload(); } catch (e) { showError(e.message); minus.disabled = false; }
   });
@@ -5517,12 +5680,16 @@ function planRow(n, k, label) {
   row.className = "brow";
   const t = document.createElement("span");
   t.className = "bt"; t.textContent = shownName(n.name) || "(empty)";
+  if (isMirror(n)) t.appendChild(mirrorMark());
   const d = document.createElement("span");
   d.className = "bd"; d.textContent = ISO_DAY.test(k) ? dayLabel(k) : "";
   const b = document.createElement("button");
   b.className = "bring"; b.textContent = "+ " + label; b.title = `Move to ${dayLabel(planDay)}`;
   b.addEventListener("click", () => act(() => moveMany([{ id: n.id, from: k, name: shortName(n) }], planDay)));
-  row.append(t, d, b);
+  const mir = document.createElement("button");
+  mir.className = "bring"; mir.textContent = "Mirror"; mir.title = `Mirror onto ${dayLabel(planDay)} without moving it`;
+  mir.addEventListener("click", () => act(() => mirrorMany([{ id: n.id, from: k, name: shortName(n), origin: mirrorOrigin(n) || n.id }], planDay)));
+  row.append(t, d, b, mir);
   return row;
 }
 function renderPlan() {
@@ -5608,7 +5775,10 @@ function renderPlan() {
     const all = document.createElement("button");
     all.className = "mini"; all.textContent = "Add all…";
     all.onclick = () => openRoll({ title: `Bring past-due tasks to ${dayLabel(planDay)}`, items: late, dest: planDay });
-    lh.appendChild(all);
+    const mirAll = document.createElement("button");
+    mirAll.className = "mini"; mirAll.textContent = "Mirror all…";
+    mirAll.onclick = () => openRoll({ title: `Mirror past-due tasks onto ${dayLabel(planDay)}`, items: late, dest: planDay, mode: "mirror" });
+    lh.append(all, mirAll);
   }
   scroll.appendChild(lh);
   if (!late.length && !planLoading) scroll.insertAdjacentHTML("beforeend", '<div class="empty">Nothing past due.</div>');
@@ -5626,7 +5796,10 @@ function renderPlan() {
       const all = document.createElement("button");
       all.className = "mini"; all.textContent = "Add all…";
       all.onclick = () => openRoll({ title: `Bring ${src.name} tasks to ${dayLabel(planDay)}`, items: open.map((n) => ({ n, k: src.id })), dest: planDay });
-      sh.appendChild(all);
+      const mirAll = document.createElement("button");
+      mirAll.className = "mini"; mirAll.textContent = "Mirror all…";
+      mirAll.onclick = () => openRoll({ title: `Mirror ${src.name} tasks onto ${dayLabel(planDay)}`, items: open.map((n) => ({ n, k: src.id })), dest: planDay, mode: "mirror" });
+      sh.append(all, mirAll);
     }
     scroll.appendChild(sh);
     if (st.error) { const er = document.createElement("div"); er.className = "empty"; er.textContent = "Couldn't read it: " + st.error; scroll.appendChild(er); }

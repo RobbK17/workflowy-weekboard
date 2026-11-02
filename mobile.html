@@ -58,6 +58,7 @@
   .card .t { word-wrap: break-word; overflow-wrap: anywhere; }
   .card .n { font-size: 13px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; white-space: pre-wrap; }
   .chip { display: inline-block; margin-top: 6px; padding: 1px 9px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--muted); }
+  .mir { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: rgba(127,127,127,.18); color: var(--muted); font-size: 11px; font-weight: 600; vertical-align: 1px; }
   #extras { flex: none; display: flex; gap: 8px; padding: 0 10px 6px; }
   #extras button { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-size: 14px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #extras button b { font-weight: 700; }
@@ -692,7 +693,7 @@ function sectionEl(e) {
   hr.append(h, openBtn(b), gm);
   const items = e.items ? sectionShown(e) : [];
   h.innerHTML = '<span class="ar">▾</span><span class="gn"></span><span class="gc"></span>';
-  h.children[1].textContent = (isOpened(b) ? "🔓 " : "") + (shown(b.name) || "(untitled)"); h.children[1].style.fontWeight = "700";
+  h.children[1].textContent = (isOpened(b) ? "🔓 " : "") + (shown(b.name) || "(untitled)") + (mirrorOrigin(b) ? " · mirror" : ""); h.children[1].style.fontWeight = "700";
   if (isOpened(b)) hr.classList.add("dec");
   h.children[2].textContent = e.items ? items.length + (items.length === 1 ? " item" : " items") : "…";
   h.setAttribute("aria-expanded", shut.has(b.id) ? "false" : "true");
@@ -728,6 +729,10 @@ function openSectionMenu(b) {
     sbtn(s, "Close", closeSheet, "cancel");
   });
 }
+function mirrorOrigin(n) {
+  const m = n && n.data && n.data.mirror;
+  return m && typeof m.origin_id === "string" && m.origin_id ? m.origin_id : "";
+}
 function cardEl(n, bullet, inZoom) {
   const ty = typeOf(n), isTask = ty === "todo";
   const el = document.createElement("div"); el.className = "card" + (n.completedAt ? " done" : "") + (isTask ? "" : " line"); el.dataset.id = n.id;
@@ -747,6 +752,7 @@ function cardEl(n, bullet, inZoom) {
   const tm = timeOf(plain(n.name));
   if (bullet) { const gt = document.createElement("span"); gt.className = "gtag"; gt.textContent = "▸ " + (shown(bullet.name) || "(untitled)"); body.appendChild(gt); }
   const t = document.createElement("div"); t.className = "t" + (/^h[1-3]$/.test(ty) ? " hd" : ""); t.textContent = shown(tm && isTask ? stripTime(plain(n.name)) : n.name) || "(empty)";
+  if (mirrorOrigin(n)) { const m = document.createElement("span"); m.className = "mir"; m.textContent = "mirror"; m.title = "Mirror. Editing or completing this changes the original everywhere. Deleting it only removes this copy."; t.appendChild(m); }
   if (isOpened(n)) { el.classList.add("dec"); const dm = document.createElement("span"); dm.className = "decmark"; dm.setAttribute("aria-label", "Decrypted"); dm.textContent = "🔓"; t.prepend(dm); }
   body.appendChild(t);
   const note = plain(n.note || "").trim();
@@ -1117,7 +1123,7 @@ function openReminder(n) {
 function openDelete(n) {
   openSheet((s) => {
     const isTask = typeOf(n) === "todo";
-    head(s, isTask ? "Delete this task?" : "Delete this?", shown(n.name) + (isTask ? "" : " (anything indented under it is deleted too)"));
+    head(s, mirrorOrigin(n) ? "Remove this mirror?" : (isTask ? "Delete this task?" : "Delete this?"), mirrorOrigin(n) ? "The original stays where it is." : shown(n.name) + (isTask ? "" : " (anything indented under it is deleted too)"));
     sbtn(s, "Delete", async () => {
       closeSheet();
       try { await call("DELETE", `/nodes/${n.id}`); removeNode(n.id); err(""); draw(); toast("Deleted"); }
