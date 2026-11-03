@@ -82,7 +82,7 @@ const HOST = REMOTE ? (process.env.HOST || (MODE === "fly" ? "0.0.0.0" : "127.0.
 
 // Only the node endpoints the board needs. The browser never gets the full export: search runs here (see below).
 // Ids are letters, digits, "-" and "_" only (no slashes, dots or %-escapes), so a path can't be bent toward another endpoint.
-const ALLOWED = /^\/api\/v1\/nodes(\/[A-Za-z0-9_-]{1,64}(\/(move|complete|uncomplete))?)?$/;
+const ALLOWED = /^\/api\/v1\/nodes(\/[A-Za-z0-9_-]{1,64}(\/(move|complete|uncomplete|mirror))?)?$/;
 const ALLOWED_METHODS = ["GET", "POST", "DELETE"];
 const MAX_BODY = 1024 * 1024;                  // largest request body the board may send through (1 MB)
 const UPSTREAM_TIMEOUT_MS = 30 * 1000;         // give up on WorkFlowy after 30 seconds
@@ -128,11 +128,16 @@ function addToKids(index, parentId, node) {
 
 function makeNode(r) {
   const name = r.name || "", note = r.note || "";
+  const mirror = r.data && r.data.mirror;
+  const origin = mirror && typeof mirror.origin_id === "string" && mirror.origin_id ? mirror.origin_id : null;
+  const mirrorIds = mirror && Array.isArray(mirror.mirror_ids) ? mirror.mirror_ids.filter((x) => typeof x === "string" && x) : null;
   return {
     id: r.id, parent_id: r.parent_id || null, priority: r.priority || 0,
     name, note, lname: stripHtml(name).toLowerCase(), lnote: note ? stripHtml(note).toLowerCase() : "",
     layoutMode: (r.data && r.data.layoutMode) || "bullets",
     completedAt: r.completedAt || null, modifiedAt: r.modifiedAt || 0,
+    mirrorOrigin: origin,                                         // set when this row is a mirror of another node
+    mirrorIds: mirrorIds && mirrorIds.length ? mirrorIds : null,  // set on the origin: the mirror rows that show it
   };
 }
 
@@ -271,6 +276,7 @@ function search(params) {
   const hits = found.slice(params.offset, params.offset + params.limit).map(({ n, nameHit }) => ({
     id: n.id, name: stripHtml(n.name), path: pathNames(n),
     todo: n.layoutMode === "todo", done: !!n.completedAt, nameHit,
+    mirror: !!n.mirrorOrigin,
     snippet: nameHit ? "" : noteSnippet(n, terms),
   }));
   return { terms, total: found.length, hits };
@@ -281,9 +287,14 @@ function sortedKids(id) {
 }
 
 function itemTree(n, depth) {
+  const data = { layoutMode: n.layoutMode };
+  if (n.mirrorOrigin) data.mirror = { origin_id: n.mirrorOrigin };
+  else if (n.mirrorIds) data.mirror = { mirror_ids: n.mirrorIds };
+  // A mirror's children live under the origin in the export. Listing the origin's children here shows them under the mirror.
+  const childSource = n.mirrorOrigin || n.id;
   return {
-    id: n.id, name: n.name, note: n.note, data: { layoutMode: n.layoutMode }, completedAt: n.completedAt,
-    children: depth > 1 ? sortedKids(n.id).map((c) => itemTree(c, depth - 1)) : [],
+    id: n.id, name: n.name, note: n.note, data, completedAt: n.completedAt,
+    children: depth > 1 ? sortedKids(childSource).map((c) => itemTree(c, depth - 1)) : [],
   };
 }
 
@@ -444,15 +455,27 @@ function edgePriority(parentId, position) {
   const ps = list.map((c) => c.priority);
   return position === "top" ? Math.min(...ps) - 100 : Math.max(...ps) + 100;
 }
+function detachMirror(n) {
+  if (!n || !n.mirrorOrigin) return;
+  const o = idx.byId.get(n.mirrorOrigin);
+  if (o && o.mirrorIds) o.mirrorIds = o.mirrorIds.filter((x) => x !== n.id);
+}
 function dropSubtree(n) {
-  for (const c of (idx.kids.get(n.id) || []).slice()) dropSubtree(c);
+  detachMirror(n);
+  // A mirror's children belong to the origin. Removing the mirror drops that row only.
+  if (!n.mirrorOrigin) for (const c of (idx.kids.get(n.id) || []).slice()) dropSubtree(c);
   idx.kids.delete(n.id);
   idx.byId.delete(n.id);
+}
+// A mirror and its origin share one text and completed state. Apply a content edit to every copy in the index.
+function applyShared(n, fn) {
+  const originId = n.mirrorOrigin || n.id;
+  for (const x of idx.byId.values()) if (x.id === originId || x.mirrorOrigin === originId) fn(x);
 }
 
 function patchIndex(method, pathname, reqBody, resBody) {
   if (!idx) return;
-  const m = pathname.match(/^\/api\/v1\/nodes(?:\/([^/]+)(?:\/(move|complete|uncomplete))?)?$/);
+  const m = pathname.match(/^\/api\/v1\/nodes(?:\/([^/]+)(?:\/(move|complete|uncomplete|mirror))?)?$/);
   if (!m) return;
   const id = m[1], action = m[2];
   if (!id && method === "POST") {                                   // create
@@ -471,22 +494,52 @@ function patchIndex(method, pathname, reqBody, resBody) {
     return;
   }
   const n = id && idx.byId.get(id);
+  if (action === "mirror" && method === "POST") {                   // create a mirror; children stay on the origin
+    const newId = resBody && resBody.item_id;
+    const originId = (resBody && resBody.origin_id) || (n && n.mirrorOrigin) || id;
+    if (!newId || !reqBody || !originId) return;
+    const src = idx.byId.get(originId) || n;
+    const copy = makeNode({
+      id: newId, parent_id: reqBody.parent_id, name: src ? src.name : "", note: src ? src.note : "",
+      priority: edgePriority(reqBody.parent_id, reqBody.position),
+      data: { layoutMode: src ? src.layoutMode : "bullets", mirror: { origin_id: originId } },
+      completedAt: src ? src.completedAt : null,
+      modifiedAt: Math.floor(Date.now() / 1000),
+    });
+    idx.byId.set(copy.id, copy);
+    addToKids(idx, copy.parent_id, copy);
+    const origin = idx.byId.get(originId);
+    if (origin) {
+      if (!origin.mirrorIds) origin.mirrorIds = [];
+      if (!origin.mirrorIds.includes(newId)) origin.mirrorIds.push(newId);
+    }
+    return;
+  }
+  if (method === "DELETE" && action === "mirror") {                 // remove the mirror row only
+    if (!n || !n.mirrorOrigin) return;
+    detachMirror(n);
+    removeFromKids(n.parent_id, n);
+    idx.byId.delete(n.id);
+    return;
+  }
   if (method === "DELETE" && id) { if (n) { removeFromKids(n.parent_id, n); dropSubtree(n); } return; }
   if (method !== "POST" || !n) return;
   const now = Math.floor(Date.now() / 1000);
-  if (action === "complete") { n.completedAt = now; n.modifiedAt = now; }
-  else if (action === "uncomplete") { n.completedAt = null; n.modifiedAt = now; }
+  if (action === "complete") applyShared(n, (x) => { x.completedAt = now; x.modifiedAt = now; });
+  else if (action === "uncomplete") applyShared(n, (x) => { x.completedAt = null; x.modifiedAt = now; });
   else if (action === "move" && reqBody) {
     removeFromKids(n.parent_id, n);
     n.priority = edgePriority(reqBody.parent_id, reqBody.position);
     n.parent_id = reqBody.parent_id || null;
     addToKids(idx, n.parent_id, n);
     n.modifiedAt = now;
-  } else if (!action && reqBody) {                                   // update
-    if (typeof reqBody.name === "string") { n.name = reqBody.name; n.lname = stripHtml(reqBody.name).toLowerCase(); }
-    if (typeof reqBody.note === "string") { n.note = reqBody.note; n.lnote = stripHtml(reqBody.note).toLowerCase(); }
-    if (typeof reqBody.layoutMode === "string") n.layoutMode = reqBody.layoutMode;
-    n.modifiedAt = now;
+  } else if (!action && reqBody) {                                   // update (a mirror edit changes the origin everywhere)
+    applyShared(n, (x) => {
+      if (typeof reqBody.name === "string") { x.name = reqBody.name; x.lname = stripHtml(reqBody.name).toLowerCase(); }
+      if (typeof reqBody.note === "string") { x.note = reqBody.note; x.lnote = stripHtml(reqBody.note).toLowerCase(); }
+      if (typeof reqBody.layoutMode === "string") x.layoutMode = reqBody.layoutMode;
+      x.modifiedAt = now;
+    });
   }
 }
 
