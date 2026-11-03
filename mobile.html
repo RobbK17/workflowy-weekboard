@@ -1249,9 +1249,28 @@ function openUnlock() {
     setTimeout(() => inp.focus(), 50);
   });
 }
+let installEvt = null;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+window.addEventListener("beforeinstallprompt", (e) => { installEvt = e; });
+window.addEventListener("appinstalled", () => { installEvt = null; });
+function installedApp() { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; }
+function iosDevice() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+function openInstallHelp() {
+  openSheet((s) => {
+    head(s, "Add to Home Screen", "In Safari, tap Share, then Add to Home Screen. The board then opens full screen from its own icon.");
+    sbtn(s, "Close", closeSheet, "cancel");
+  });
+}
 function openMainMenu() {
   openSheet((s) => {
     head(s, "Week Board", "Phone view");
+    if (!installedApp()) {
+      if (installEvt) sbtn(s, "⬇ Install app", async () => {
+        const ev = installEvt; installEvt = null; closeSheet();
+        try { await ev.prompt(); } catch (e) { /* the browser dismissed it */ }
+      });
+      else if (iosDevice()) sbtn(s, "⬇ Add to Home Screen", openInstallHelp);
+    }
     if (view === "day" || view === "inbox") sbtn(s, "＋ Add group…", openAddGroup);
     sbtn(s, "⚙ Settings", openSettings);
     sbtn(s, pass === null ? "🔓 Unlock encryption…" : "🔒 Lock encryption", pass === null ? openUnlock : () => { closeSheet(); lockCrypto("Locked"); });
