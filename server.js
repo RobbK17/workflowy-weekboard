@@ -701,9 +701,14 @@ function readBody(req, limit) {
    exactly the plain board. */
 const APP_ASSETS = new Set(["/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png"]);
 const APP_MANIFEST = {
-  name: "Workflowy Week Board", short_name: "Week Board", description: "Your WorkFlowy tasks by day",
+  id: "/m", name: "Workflowy Week Board", short_name: "Week Board", description: "Your WorkFlowy tasks by day",
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
-  icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
+  icons: [
+    { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    { src: "/icon-180.png", sizes: "180x180", type: "image/png", purpose: "any" },
+  ],
 };
 const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors", "/targets", "/resolve-target"]);
 /* ---------- Phone page settings shared between devices ----------
