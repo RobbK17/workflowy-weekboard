@@ -527,7 +527,7 @@ function applySecurityHeaders(res) {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Security-Policy",
-    `default-src 'self'; script-src 'nonce-${res.nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ` +
+    `default-src 'self'; script-src 'nonce-${res.nonce}'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ` +
     "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
   if (REMOTE) res.setHeader("Strict-Transport-Security", "max-age=31536000");
 }
@@ -699,7 +699,7 @@ function readBody(req, limit) {
    Each folder in addons/ with a manifest.json is an optional add-on (see addons/README.md). Add-ons are trusted code:
    they run inside this server with your WorkFlowy key. Install only ones you trust. Without an addons/ folder the board is
    exactly the plain board. */
-const APP_ASSETS = new Set(["/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png"]);
+const APP_ASSETS = new Set(["/manifest.webmanifest", "/sw.js", "/icon-180.png", "/icon-192.png", "/icon-512.png"]);
 const APP_MANIFEST = {
   id: "/m", name: "Workflowy Week Board", short_name: "Week Board", description: "Your WorkFlowy tasks by day",
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
@@ -710,7 +710,7 @@ const APP_MANIFEST = {
     { src: "/icon-180.png", sizes: "180x180", type: "image/png", purpose: "any" },
   ],
 };
-const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors", "/targets", "/resolve-target"]);
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/sw.js", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors", "/targets", "/resolve-target"]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
    (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
@@ -1061,10 +1061,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (APP_ASSETS.has(url.pathname)) {
-    const type = url.pathname.endsWith(".png") ? "image/png" : "application/manifest+json";
+    const type = url.pathname.endsWith(".png") ? "image/png" : url.pathname.endsWith(".js") ? "text/javascript; charset=utf-8" : "application/manifest+json";
     try {
       const body = url.pathname === "/manifest.webmanifest" ? JSON.stringify(APP_MANIFEST) : fs.readFileSync(path.join(__dirname, url.pathname.slice(1)));
-      res.writeHead(200, { "Content-Type": type, "Cache-Control": "public, max-age=86400" });
+      res.writeHead(200, { "Content-Type": type, "Cache-Control": url.pathname.endsWith(".js") ? "no-cache" : "public, max-age=86400" });
       return res.end(body);
     } catch (e) { res.writeHead(404); return res.end("not found"); }
   }

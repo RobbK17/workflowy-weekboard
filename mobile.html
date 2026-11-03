@@ -1250,7 +1250,8 @@ function openUnlock() {
   });
 }
 let installEvt = null;
-window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; });
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+window.addEventListener("beforeinstallprompt", (e) => { installEvt = e; });
 window.addEventListener("appinstalled", () => { installEvt = null; });
 function installedApp() { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; }
 function iosDevice() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
