@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.3.3
+// Version 1.3.6
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.3.3";
+const VERSION = "1.3.6";
 
 const http = require("http");
 const fs = require("fs");
@@ -864,6 +864,12 @@ function parseTime(text) {
   if (mi > 59) return null;
   return { h, mi, token: m[0].trim() };
 }
+// Early alerts: "!1h", "!1d" and "!1w" in a task's text remind you 1 hour, 1 day or 1 week before its time (9:00 when it has no time).
+const LEAD_RE = /(^|\s)!(1[hdw])(?=$|[\s.,;!?)])/gi;
+const LEAD_INFO = { "1h": { label: "1 hour", hours: 1 }, "1d": { label: "1 day", days: 1 }, "1w": { label: "1 week", days: 7 } };
+const NO_TIME_H = 9;
+function parseLeads(text) { const o = new Set(); for (const m of String(text || "").matchAll(LEAD_RE)) o.add(m[2].toLowerCase()); return ["1h", "1d", "1w"].filter((c) => o.has(c)); }
+function dropLeads(text) { return String(text || "").replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")); }
 const REMINDER_TZ = process.env.REMINDER_TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
 try { new Intl.DateTimeFormat("en-US", { timeZone: REMINDER_TZ }); } catch (e) { console.error(`REMINDER_TZ "${REMINDER_TZ}" is not a time zone name (for example America/New_York).`); process.exit(1); }
 const NTFY_TOPIC = (process.env.NTFY_TOPIC || "").trim();
@@ -911,16 +917,26 @@ function parseTag(raw) {                                   // WorkFlowy's own da
   const p2 = (n) => String(n).padStart(2, "0");
   return { key: `${a.startYear}-${p2(a.startMonth)}-${p2(a.startDay)}`, h: a.startHour, mi: a.startMinute };
 }
-function remItem(n, pageKey) {
-  if (n.completedAt) return null;
+function remItem(n, pageKey) {                              // returns a list: the reminder at the task's time, and one for each early alert
+  if (n.completedAt) return [];
   const raw = n.name || "";
   const tag = parseTag(raw);
-  const text = stripHtml(raw.replace(/<time\b[^>]*>.*?<\/time>/gi, ""));
+  const text0 = stripHtml(raw.replace(/<time\b[^>]*>.*?<\/time>/gi, ""));
+  const leads = parseLeads(text0), text = dropLeads(text0);
   const t = tag || parseTime(text);
-  if (!t) return null;
-  const day = tag ? tag.key : pageKey;
-  return { id: n.id, day, time: `${String(t.h).padStart(2, "0")}:${String(t.mi).padStart(2, "0")}`, at: zonedEpoch(day, t.h, t.mi),
-    name: maskTokens((t.token ? text.replace(t.token, "") : text).replace(/\s{2,}/g, " ").trim()) || "(task)" };
+  if (!t && !leads.length) return [];
+  const day = tag ? tag.key : pageKey, h = t ? t.h : NO_TIME_H, mi = t ? t.mi : 0;
+  const time = `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+  const name = maskTokens(((t && t.token) ? text.replace(t.token, "") : text).replace(/\s{2,}/g, " ").trim()) || "(task)";
+  const out = [];
+  if (t) out.push({ id: n.id, day, time, at: zonedEpoch(day, h, mi), name, lead: null });
+  for (const c of leads) {
+    const L = LEAD_INFO[c]; let at;
+    if (L.hours) at = zonedEpoch(day, h, mi) - L.hours * 3600000;
+    else { const [y, m, d] = day.split("-").map(Number); at = zonedEpoch(new Date(Date.UTC(y, m - 1, d - L.days)).toISOString().slice(0, 10), h, mi); }
+    out.push({ id: n.id, day, time, at, name, lead: c, leadLabel: L.label });
+  }
+  return out;
 }
 async function remScan() {
   if (rem.scanning) return rem.scanning;
@@ -936,10 +952,10 @@ async function remScan() {
         const bullets = nodes.filter((n) => !(n.data && n.data.layoutMode === "todo") && !/^WB-Notes$/i.test(stripHtml(n.name || "").trim())).slice(0, REM_MAX_BULLETS);
         for (const b of bullets) { try { for (const n of await remKids(b.id)) if (n.data && n.data.layoutMode === "todo") todos.push(n); } catch (e) {} }
       }
-      for (const n of todos) { const it = remItem(n, key); if (it) items.push(it); }
+      for (const n of todos) items.push(...remItem(n, key));
       for (let i = 1; i <= 7; i++) {                       // a date tag on a task sitting on a coming day page still fires on its own day; plain @times wait for their day
         const k = nextKey(i);
-        try { for (const n of await remKids(k)) if (n.data && n.data.layoutMode === "todo") { const it = remItem(n, k); if (it) items.push(it); } } catch (e) {}
+        try { for (const n of await remKids(k)) if (n.data && n.data.layoutMode === "todo") items.push(...remItem(n, k)); } catch (e) {}
       }
       items.sort((a, b) => a.at - b.at);
       rem.key = key; rem.items = items; rem.scannedAt = Date.now(); rem.error = "";
@@ -972,10 +988,10 @@ async function remTick() {
   const now = Date.now();
   let changed = false;
   for (const it of rem.items) {
-    const k = `${it.id}|${it.day}|${it.time}`;
+    const k = `${it.id}|${it.day}|${it.time}` + (it.lead ? `|${it.lead}` : "");
     if (it.at > now || now - it.at > REM_WINDOW_MS || rem.sent[k]) continue;
     rem.sent[k] = now; changed = true;                                          // marked first, so a slow push can't send twice
-    pushSend(`Reminder · ${it.time}`, it.name).catch((e) => { console.error("Reminder push failed:", e.message); delete rem.sent[k]; });
+    pushSend(it.lead ? `In ${it.leadLabel} · ${it.day === zonedParts(now).key ? "" : it.day + " "}${it.time}` : `Reminder · ${it.time}`, it.name).catch((e) => { console.error("Reminder push failed:", e.message); delete rem.sent[k]; });
   }
   if (changed) remSaveSent();
 }

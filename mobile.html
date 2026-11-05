@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.3.3">
+<meta name="version" content="1.3.6">
 <meta name="notes-name" content="WB-Notes">
 <meta name="theme-color" content="#2f6fed">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -356,7 +356,8 @@ function timeOf(text) {
   return { h, mi, token: m[0].trim() };
 }
 const fmtTime = (h, mi) => new Date(2000, 0, 1, h, mi).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-const stripTime = (s) => s.replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
+const LEAD_RE = /(^|\s)!(1[hdw])(?=$|[\s.,;!?)])/gi;                       // early alerts (!1h !1d !1w): set on the desktop board, shown here only as part of the text
+const stripTime = (s) => s.replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
 
 /* ---------- WorkFlowy through the board's proxy ---------- */
 function err(msg) { const e = $("err"); e.textContent = msg || ""; e.style.display = msg ? "block" : "none"; }
@@ -1097,7 +1098,7 @@ function openReminder(n) {
     const set = async (hhmm) => {
       closeSheet();
       const old = n.name, base = plain(old).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
-      const name = hhmm ? `${base} @${hhmm}`.trim() : base;
+      const name = hhmm ? `${base} @${hhmm}`.trim() : base.replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();      // removing the reminder removes its early alerts too
       try {
         await call("POST", `/nodes/${n.id}`, { name }); n.name = name; err(""); draw();
         pushUndo(hhmm ? `Reminder set for ${fmtTime(+hhmm.slice(0, 2), +hhmm.slice(3))}` : "Reminder removed", async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; });
