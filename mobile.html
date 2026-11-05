@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.3.6">
+<meta name="version" content="1.3.7">
 <meta name="notes-name" content="WB-Notes">
 <meta name="theme-color" content="#2f6fed">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -48,6 +48,11 @@
   #err { flex: none; margin: 0 14px 6px; padding: 8px 10px; border-radius: 8px; background: var(--late); font-size: 14px; display: none; }
   #list { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 10px 12px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
   .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+  .notes { margin: 0 0 8px; padding: 6px 10px; border-radius: 10px; background: var(--card); border: 1px dashed var(--border); }
+  .notes .nl { padding: 6px 2px; font-size: 14px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .notes .nl:last-of-type { border-bottom: none; }
+  .notes .na { background: none; border: none; color: var(--muted); text-decoration: underline; font-size: 13px; padding: 6px 2px; cursor: pointer; }
+  .wtag { color: var(--muted); text-decoration: underline; cursor: pointer; }
   .card { display: flex; align-items: flex-start; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
   .card.done .t { text-decoration: line-through; color: var(--muted); }
   .card input[type=checkbox] { flex: none; width: 24px; height: 24px; margin: 1px 0 0; accent-color: var(--accent); }
@@ -69,6 +74,7 @@
   #addhint { flex: 0 0 100%; text-align: left; padding: 2px 4px 0; border: none; background: none; font-size: 13px; color: var(--accent); cursor: pointer; }
   #addhint[hidden] { display: none; }
   .srow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--border); font-size: 16px; }
+  .srow[hidden], .sub[hidden] { display: none; }
   .srow small { display: block; color: var(--muted); font-size: 12px; }
   .srow select { font: inherit; font-size: 15px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
   .srow input[type=checkbox] { flex: none; width: 24px; height: 24px; accent-color: var(--accent); }
@@ -172,6 +178,7 @@ let sel = key(today());
 let showDone = store.get("m.showDone", "0") === "1";
 let showLate = store.get("m.showLate", "1") === "1", showSoon = store.get("m.showSoon", "1") === "1";
 const cache = {};                       // day key -> tasks, in outline order
+const dayNotes = {}, noteBul = {};        // day key -> its all-day note lines (the children of the WB-Notes bullet), and that bullet
 const bullets = {};                     // day key -> bullets/headings of that day (candidates for groups)
 const nest = {};                        // bullet id -> { todos: [...] }
 const sect = {};                        // Inbox heading id -> every child, any type (a heading in the Inbox is a section)
@@ -357,7 +364,36 @@ function timeOf(text) {
 }
 const fmtTime = (h, mi) => new Date(2000, 0, 1, h, mi).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 const LEAD_RE = /(^|\s)!(1[hdw])(?=$|[\s.,;!?)])/gi;                       // early alerts (!1h !1d !1w): set on the desktop board, shown here only as part of the text
-const stripTime = (s) => s.replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
+const DOW_PAT = "mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?";
+const REPEAT_RE = new RegExp(`(^|\\s)!every\\s+(weekdays|month-end|(?:\\d+\\s*)?(?:day|week|month|year)s?|(?:${DOW_PAT})(?:\\s*,\\s*(?:${DOW_PAT}))*)(?:\\s+until\\s+(\\d{4}-\\d{2}-\\d{2}))?(?:\\s+x(\\d+))?(?=$|[\\s.,;!?)<])`, "i");
+const stripTime = (s) => s.replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
+const LEADS = [["1h", "1 hour"], ["1d", "1 day"], ["1w", "1 week"]];
+const parseLeads = (t) => { const o = new Set(); for (const m of String(t || "").matchAll(LEAD_RE)) o.add(m[2].toLowerCase()); return LEADS.map((x) => x[0]).filter((c) => o.has(c)); };
+const dropLeads = (t) => String(t || "").replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
+const DOW3 = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+function parseRepeat(text) {
+  const m = REPEAT_RE.exec(String(text || ""));
+  if (!m) return null;
+  const spec = m[2].toLowerCase().replace(/\s+/g, " ");
+  let kind, nn = 1, days = null;
+  if (spec === "weekdays") kind = "weekdays";
+  else if (spec === "month-end") kind = "month-end";
+  else if (/^(\d+)?\s*(day|week|month|year)s?$/.test(spec)) { const q = /^(\d+)?\s*(day|week|month|year)s?$/.exec(spec); nn = Math.max(1, Number(q[1] || 1)); kind = q[2]; }
+  else { kind = "dows"; days = [...new Set(spec.split(/\s*,\s*/).map((d) => DOW3.indexOf(d.slice(0, 3))))].sort((x, y) => x - y); }
+  return { kind, n: nn, days, spec: m[2], until: m[3] || null, count: m[4] ? Number(m[4]) : null, token: m[0] };
+}
+function repeatLabel(r) {
+  let t;
+  if (r.kind === "weekdays") t = "weekdays";
+  else if (r.kind === "month-end") t = "last day of the month";
+  else if (r.kind === "dows") t = "every " + r.days.map((d) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]).join(", ");
+  else if (r.n === 1) t = { day: "daily", week: "weekly", month: "monthly", year: "yearly" }[r.kind];
+  else t = `every ${r.n} ${r.kind}s`;
+  if (r.until) t += ", until " + r.until;
+  if (r.count) t += `, ${r.count} left`;
+  return t;
+}
+const dropRepeat = (t) => String(t || "").replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim();
 
 /* ---------- WorkFlowy through the board's proxy ---------- */
 function err(msg) { const e = $("err"); e.textContent = msg || ""; e.style.display = msg ? "block" : "none"; }
@@ -380,6 +416,7 @@ async function loadDay(k) {
   const nodes = data && data.nodes ? data.nodes : [];
   cache[k] = nodes.filter((n) => n.data && n.data.layoutMode === "todo").sort((a, b) => a.priority - b.priority);
   allOf[k] = nodes.slice().sort((a, b) => a.priority - b.priority);
+  delete dayNotes[k];
   bullets[k] = nodes.filter((n) => /^(bullets|h[1-3])$/.test((n.data && n.data.layoutMode) || "bullets") && plain(n.name).trim().toLowerCase() !== NOTES).sort((a, b) => a.priority - b.priority);
 }
 async function loadNest(k, force) {
@@ -491,6 +528,112 @@ function updateUnlockBar() {
   const n = document.querySelectorAll("#list .dec").length;
   $("unlockText").textContent = "🔓 Unlocked · " + (n === 1 ? "1 item" : n + " items") + " opened here";
 }
+
+
+// #tags and @people: grey and underlined like in WorkFlowy; a tap searches your outline for the word. (@2:30pm and @9 are reminder times.)
+const WTAG_RE = /(^|[\s(])([#@][A-Za-z_][\w-]*)/g;
+function linkTags(el, text) {
+  el.textContent = ""; let last = 0, any = false;
+  for (const m of String(text).matchAll(WTAG_RE)) {
+    const st = m.index + m[1].length;
+    if (st > last) el.appendChild(document.createTextNode(text.slice(last, st)));
+    const a = document.createElement("span"); a.className = "wtag"; a.textContent = m[2];
+    a.onclick = (e) => { e.stopPropagation(); openSearch(m[2]); };
+    el.appendChild(a); last = st + m[2].length; any = true;
+  }
+  if (!any) { el.textContent = text; return; }
+  if (last < text.length) el.appendChild(document.createTextNode(text.slice(last)));
+}
+// Search the whole outline (the same server search the desktop uses). Tap a result to open it.
+let searchSeq = 0;
+function openSearch(term) {
+  openSheet((s) => {
+    head(s, "Search", "Words match anywhere in a task or its note. Use “quotes” for a phrase.");
+    const inp = document.createElement("input"); inp.type = "search"; inp.value = term || ""; inp.placeholder = "Search your outline"; inp.setAttribute("autocapitalize", "off"); inp.setAttribute("aria-label", "Search");
+    inp.style.cssText = "width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:inherit";
+    const out = document.createElement("div"); out.style.cssText = "max-height:50vh;overflow:auto;margin-top:8px";
+    const done = document.createElement("button"); done.type = "button"; done.className = "sbtn cancel"; done.textContent = "Close"; done.onclick = closeSheet;
+    s.append(inp, out, done);
+    let timer = null;
+    const run = async () => {
+      const q = inp.value.trim(), my = ++searchSeq; out.textContent = "";
+      if (!q) return;
+      const m = document.createElement("div"); m.className = "sub"; m.textContent = "Searching…"; out.appendChild(m);
+      try {
+        const r = await getJson("/search?" + new URLSearchParams({ q, limit: "30", done: "0", todos: "0", notes: "1" }));
+        if (my !== searchSeq) return; out.textContent = "";
+        if (!r.total) { const e = document.createElement("div"); e.className = "sub"; e.textContent = "No matches."; out.appendChild(e); return; }
+        for (const h of r.hits) {
+          const row = document.createElement("div"); row.className = "sbtn"; row.style.cssText = "text-align:left;white-space:normal";
+          const t = document.createElement("div"); t.textContent = (h.todo ? (h.done ? "☑ " : "☐ ") : "") + (shown(dropRepeat(dropLeads(h.name))) || "(empty)");
+          const pth = document.createElement("div"); pth.className = "sub"; pth.textContent = (h.path || []).map(shown).join(" › ") || "Top level";
+          row.append(t, pth); row.onclick = () => zoomInto({ id: h.id, name: h.name });
+          out.appendChild(row);
+        }
+        if (r.total > r.hits.length) { const e = document.createElement("div"); e.className = "sub"; e.textContent = `Showing ${r.hits.length} of ${r.total}. Add more words to narrow it down.`; out.appendChild(e); }
+      } catch (e) { if (my === searchSeq) { out.textContent = ""; const x = document.createElement("div"); x.className = "sub"; x.textContent = "Couldn't search: " + e.message; out.appendChild(x); } }
+    };
+    inp.oninput = () => { clearTimeout(timer); timer = setTimeout(run, 350); };
+    inp.onkeydown = (e) => { if (e.key === "Enter") { clearTimeout(timer); run(); } };
+    if (term) run();
+    setTimeout(() => { if (!term) inp.focus(); }, 50);
+  });
+}
+// All-day notes: the lines under the day's WB-Notes bullet, shown above the tasks.
+async function loadNotesFor(k) {
+  const b = (allOf[k] || []).find((n) => plain(n.name).trim().toLowerCase() === NOTES) || null;
+  noteBul[k] = b;
+  if (!b) { dayNotes[k] = []; return; }
+  const d = await call("GET", `/nodes?parent_id=${b.id}`);
+  dayNotes[k] = ((d && d.nodes) || []).slice().sort((x, y) => x.priority - y.priority);
+}
+async function noteEnsureBullet(k) {
+  if (noteBul[k]) return noteBul[k];
+  const r = await call("POST", "/nodes", { parent_id: k, name: "WB-Notes", layoutMode: "bullets", position: "top" });
+  noteBul[k] = { id: r.item_id, name: "WB-Notes" }; return noteBul[k];
+}
+function openNote(k, n) {
+  openSheet((s) => {
+    head(s, n ? "Edit note" : "New all-day note", dayText(k));
+    const was = n ? visibleText(n.name) : "";
+    const ta = document.createElement("textarea"); ta.value = was; ta.placeholder = "Note"; s.appendChild(ta);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Save";
+    g.onclick = async () => {
+      const v = ta.value.replace(/\s*\n\s*/g, " ").trim();
+      if (n && (!v || v === was)) { closeSheet(); return; }
+      if (!n && !v) { closeSheet(); return; }
+      g.disabled = true;
+      try {
+        if (n) { const old = n.name, next = applyEdit(old, v); await call("POST", `/nodes/${n.id}`, { name: next }); n.name = next; pushUndo("Note edited", async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; draw(); }); }
+        else { const b = await noteEnsureBullet(k); const r = await call("POST", "/nodes", { parent_id: b.id, name: v, layoutMode: "bullets", position: "bottom" }); (dayNotes[k] || (dayNotes[k] = [])).push({ id: r.item_id, name: v, priority: 1e9 }); }
+        err(""); closeSheet(); draw();
+      } catch (e) { err(e.message); closeSheet(); }
+    };
+    row.append(c, g); s.appendChild(row);
+    if (n) sbtn(s, "Delete note", async () => {
+      closeSheet();
+      const old = n.name, b = noteBul[k];
+      try {
+        await call("DELETE", `/nodes/${n.id}`); dayNotes[k] = (dayNotes[k] || []).filter((x) => x.id !== n.id); err(""); draw();
+        pushUndo("Note deleted", async () => { if (!b) return; await call("POST", "/nodes", { parent_id: b.id, name: old, layoutMode: "bullets", position: "bottom" }); delete dayNotes[k]; draw(); });
+      } catch (e) { err(e.message); }
+    }, "danger");
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 50);
+  });
+}
+function notesBand(k) {
+  if (!(k in dayNotes)) { dayNotes[k] = []; loadNotesFor(k).then(draw).catch(() => {}); }
+  const box = document.createElement("div"); box.className = "notes"; box.setAttribute("aria-label", "All-day notes");
+  for (const n of dayNotes[k] || []) {
+    const d = document.createElement("div"); d.className = "nl"; linkTags(d, shown(n.name) || "(empty)");
+    d.onclick = () => { if (plainEditable(n)) openNote(k, n); else toast("Encrypted notes are edited on the desktop page."); };
+    box.appendChild(d);
+  }
+  const a = document.createElement("button"); a.type = "button"; a.className = "na"; a.textContent = "+ All-day note"; a.onclick = () => openNote(k, null); box.appendChild(a);
+  return box;
+}
 function drawView() {
   const wk = weekKeys();
   if (!wk.includes(sel)) sel = wk[0];
@@ -523,6 +666,7 @@ function drawView() {
   $("dayname").textContent = keyToDate(sel).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) + (sel === tk ? " · Today" : "");
   $("showDone").checked = showDone;
   if (!(sel in cache)) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
+  list.appendChild(notesBand(sel));
   const ents = entriesOf(sel).filter((e) => e.kind !== "task" || showDone || !e.n.completedAt);
   if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = (cache[sel] || []).length || openCount(sel) ? "All done 🎉" : "Nothing yet"; list.appendChild(m); }
   for (const e of ents) list.appendChild(e.kind === "group" ? groupEl(e) : cardEl(e.n, e.kind === "nested" ? e.b : null));
@@ -747,12 +891,15 @@ function cardEl(n, bullet, inZoom) {
   const body = document.createElement("div"); body.className = "body";
   const tm = timeOf(plain(n.name));
   if (bullet) { const gt = document.createElement("span"); gt.className = "gtag"; gt.textContent = "▸ " + (shown(bullet.name) || "(untitled)"); body.appendChild(gt); }
-  const t = document.createElement("div"); t.className = "t" + (/^h[1-3]$/.test(ty) ? " hd" : ""); t.textContent = shown(tm && isTask ? stripTime(plain(n.name)) : n.name) || "(empty)";
+  const t = document.createElement("div"); t.className = "t" + (/^h[1-3]$/.test(ty) ? " hd" : ""); linkTags(t, shown((tm || REPEAT_RE.test(plain(n.name)) || parseLeads(plain(n.name)).length) && isTask ? stripTime(plain(n.name)) : n.name) || "(empty)");
   if (isOpened(n)) { el.classList.add("dec"); const dm = document.createElement("span"); dm.className = "decmark"; dm.setAttribute("aria-label", "Decrypted"); dm.textContent = "🔓"; t.prepend(dm); }
   body.appendChild(t);
   const note = plain(n.note || "").trim();
   if (note) { const nn = document.createElement("div"); nn.className = "n"; nn.textContent = showNote(note); body.appendChild(nn); }
   if (tm && isTask) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "🔔 " + fmtTime(tm.h, tm.mi); body.appendChild(c); }
+  { const lds = parseLeads(plain(n.name)), rp = parseRepeat(plain(n.name));
+    if (isTask && lds.length) { const c = document.createElement("span"); c.className = "chip"; c.textContent = (tm ? "" : "🔔 early ") + "· " + lds.join(" "); body.appendChild(c); }
+    if (isTask && rp) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "🔁 " + repeatLabel(rp); body.appendChild(c); } }
   const menu = inZoom ? openZoomMenu : openMenu;
   body.onclick = () => menu(n);
   const more = document.createElement("button"); more.type = "button"; more.className = "more"; more.textContent = "⋯"; more.setAttribute("aria-label", "Task options");
@@ -842,6 +989,7 @@ function openZoomMenu(n) {
     if (plainEditable(n)) {
       sbtn(s, "✎ Edit", () => openEdit(n));
       if (isTask) sbtn(s, timeOf(plain(n.name)) ? "⏰ Change reminder…" : "⏰ Set reminder…", () => openReminder(n));
+      if (isTask) sbtn(s, parseRepeat(plain(n.name)) ? "🔁 Change repeat…" : "🔁 Repeat…", () => openRepeat(n));
     } else { const p = document.createElement("div"); p.className = "sub"; p.textContent = "Encrypted text can only be edited on the desktop page."; s.appendChild(p); }
     sbtn(s, "› Open", () => zoomInto(n));
     if (up) sbtn(s, "⇤ Out one level", () => zoomMove(n, up, "out one level"));
@@ -897,6 +1045,7 @@ function openMenu(n) {
     if (editable) {
       sbtn(s, "✎ Edit", () => openEdit(n));
       if (isTask) sbtn(s, timeOf(plain(n.name)) ? "⏰ Change reminder…" : "⏰ Set reminder…", () => openReminder(n));
+      if (isTask) sbtn(s, parseRepeat(plain(n.name)) ? "🔁 Change repeat…" : "🔁 Repeat…", () => openRepeat(n));
     } else { const p = document.createElement("div"); p.className = "sub"; p.textContent = "Encrypted text can only be edited on the desktop page."; s.appendChild(p); }
     if (w && w.day && w.day !== tk) sbtn(s, "↦ Move to today", () => moveTo(n, tk));
     sbtn(s, "→ Move to another day…", () => openMove(n));
@@ -1095,13 +1244,18 @@ function openReminder(n) {
   openSheet((s) => {
     const cur = timeOf(plain(n.name)), w = whereIs(n.id), tk = key(today());
     head(s, cur ? "Change reminder" : "Set a reminder", shown(n.name));
-    const set = async (hhmm) => {
+    const curLeads = parseLeads(plain(n.name));
+    const lead = document.createElement("div"); lead.className = "sub"; lead.textContent = "Also remind me before:"; 
+    const lcs = LEADS.map(([c, label]) => { const l = document.createElement("label"), cb = document.createElement("input"); cb.type = "checkbox"; cb.value = c; cb.checked = curLeads.includes(c); l.style.cssText = "display:inline-flex;gap:4px;align-items:center;margin-right:14px"; l.append(cb, label); lead.appendChild(document.createElement("br")); lead.appendChild(l); return cb; });
+    const picked = () => lcs.filter((c) => c.checked).map((c) => c.value);
+    const set = async (hhmm, leadsOv) => {
       closeSheet();
-      const old = n.name, base = plain(old).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
-      const name = hhmm ? `${base} @${hhmm}`.trim() : base.replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();      // removing the reminder removes its early alerts too
+      const leads = leadsOv !== undefined ? leadsOv : picked();
+      const old = n.name, rep = parseRepeat(plain(old)), base = dropRepeat(dropLeads(plain(old).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim()));
+      const name = `${base}${hhmm ? " @" + hhmm : ""}${leads.map((c) => " !" + c).join("")}${rep ? " " + rep.token.trim() : ""}`.trim();      // removing the reminder removes its early alerts too (the caller passes none)
       try {
         await call("POST", `/nodes/${n.id}`, { name }); n.name = name; err(""); draw();
-        pushUndo(hhmm ? `Reminder set for ${fmtTime(+hhmm.slice(0, 2), +hhmm.slice(3))}` : "Reminder removed", async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; });
+        pushUndo(hhmm ? `Reminder set for ${fmtTime(+hhmm.slice(0, 2), +hhmm.slice(3))}` : leads.length ? "Early alerts saved" : "Reminder removed", async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; });
       } catch (e) { err(e.message); }
     };
     if (w && w.day === tk) for (const [label, mins] of [["In 30 minutes", 30], ["In 1 hour", 60]]) sbtn(s, label, () => { const d = new Date(Date.now() + mins * 60000); set(`${pad(d.getHours())}:${pad(d.getMinutes())}`); });
@@ -1111,8 +1265,65 @@ function openReminder(n) {
     const row = document.createElement("div"); row.className = "row";
     const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
     const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Set"; g.onclick = () => { if (ti.value) set(ti.value); };
+    s.appendChild(lead);
     row.append(c, g); s.appendChild(row);
-    if (cur) sbtn(s, "Remove reminder", () => set(""), "danger");
+    if (!cur) sbtn(s, "Save early alerts only", () => set("", picked()));
+    else sbtn(s, "Save early alerts only", () => set(`${pad(cur.h)}:${pad(cur.mi)}`, picked()));
+    if (cur || curLeads.length) sbtn(s, "Remove reminder", () => set("", []), "danger");
+  });
+}
+
+// Repeat…: how often a task comes back. The marker stays in the task's text ("!every week"); the server makes the next copy ahead of time.
+function openRepeat(n) {
+  openSheet((s) => {
+    const cur = parseRepeat(plain(n.name));
+    head(s, "Repeat", shown(n.name));
+    const PRESETS = [["day", "Every day"], ["weekdays", "Every weekday (Mon–Fri)"], ["week", "Every week"], ["2 weeks", "Every 2 weeks"], ["dows", "Chosen weekdays…"], ["month", "Every month (same date)"], ["month-end", "Every month (last day)"], ["year", "Every year"]];
+    const sel = document.createElement("select"); sel.setAttribute("aria-label", "How often");
+    const opts = [["", "Does not repeat"], ...PRESETS]; let curKey = "";
+    if (cur) { curKey = cur.kind === "dows" ? "dows" : cur.kind === "weekdays" ? "weekdays" : cur.kind === "month-end" ? "month-end" : cur.n === 1 ? cur.kind : cur.kind === "week" && cur.n === 2 ? "2 weeks" : "keep"; if (curKey === "keep") opts.push(["keep", "Keep: every " + cur.n + " " + cur.kind + "s"]); }
+    for (const [v, t] of opts) { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); }
+    sel.value = curKey; s.appendChild(sel);
+    const dayBox = document.createElement("div"); dayBox.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;margin:10px 0";
+    const dcs = [1, 2, 3, 4, 5, 6, 0].map((d) => { const l = document.createElement("label"), cb = document.createElement("input"); cb.type = "checkbox"; cb.value = d; cb.checked = !!(cur && cur.days && cur.days.includes(d)); l.style.cssText = "display:inline-flex;gap:3px;align-items:center"; l.append(cb, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]); dayBox.appendChild(l); return cb; });
+    s.appendChild(dayBox);
+    const endSel = document.createElement("select"); endSel.setAttribute("aria-label", "When it stops");
+    for (const [v, t] of [["never", "Never ends"], ["until", "Ends on a date"], ["count", "Ends after a number of times"]]) { const o = document.createElement("option"); o.value = v; o.textContent = t; endSel.appendChild(o); }
+    const untilIn = document.createElement("input"); untilIn.type = "date"; untilIn.setAttribute("aria-label", "Last date");
+    const countIn = document.createElement("input"); countIn.type = "number"; countIn.min = "2"; countIn.max = "999"; countIn.setAttribute("aria-label", "Times in all, counting this one"); countIn.placeholder = "Times in all";
+    if (cur && cur.until) { endSel.value = "until"; untilIn.value = cur.until; } else if (cur && cur.count) { endSel.value = "count"; countIn.value = String(cur.count); } else countIn.value = "5";
+    s.append(endSel, untilIn, countIn);
+    const sync = () => { dayBox.hidden = sel.value !== "dows"; endSel.hidden = !sel.value; untilIn.hidden = !sel.value || endSel.value !== "until"; countIn.hidden = !sel.value || endSel.value !== "count"; };
+    sel.onchange = sync; endSel.onchange = sync; sync();
+    const note = document.createElement("div"); note.className = "sub"; note.textContent = "The next one is made ahead of time on the server, counted from the due date."; s.appendChild(note);
+    const token = () => {
+      let v = sel.value; if (!v) return "";
+      if (v === "keep") v = cur.spec;
+      else if (v === "dows") { const picked = dcs.filter((c) => c.checked).map((c) => Number(c.value)); if (!picked.length) return null; v = [1, 2, 3, 4, 5, 6, 0].filter((d) => picked.includes(d)).map((d) => DOW3[d]).join(","); }
+      let t = "!every " + v;
+      if (endSel.value === "until") { if (!/^\d{4}-\d{2}-\d{2}$/.test(untilIn.value)) return null; t += " until " + untilIn.value; }
+      else if (endSel.value === "count") { const c = Math.floor(Number(countIn.value)); if (!(c >= 2)) return null; t += " x" + c; }
+      return t;
+    };
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Save";
+    g.onclick = async () => {
+      const tok = token();
+      if (tok === null) { toast(sel.value === "dows" && !dcs.some((x) => x.checked) ? "Pick at least one weekday." : endSel.value === "until" ? "Pick the last date." : "Enter 2 or more times."); return; }
+      closeSheet();
+      const old = n.name, bare = dropRepeat(plain(old)), name = `${bare}${tok ? " " + tok : ""}`.trim();
+      try {
+        await call("POST", `/nodes/${n.id}`, { name }); n.name = name; err(""); draw();
+        pushUndo(tok ? "Repeat: " + repeatLabel(parseRepeat(tok)) : "Repeat removed", async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; draw(); });
+        if (tok) {
+          try { const res = await fetch("/recurring/run", { method: "POST" }), j = await res.json().catch(() => ({})); if (!res.ok) toast(j.error || "This server can't make repeating tasks yet."); else if (j.made) reloadDays(Object.keys(cache)); }
+          catch (e) { toast("Saved, but the server couldn't be reached to make the next copy."); }
+        }
+      } catch (e) { err(e.message); }
+    };
+    row.append(c, g); s.appendChild(row);
+    if (cur) sbtn(s, "Remove repeat", async () => { sel.value = ""; sync(); g.onclick(); }, "danger");
   });
 }
 function openDelete(n) {
@@ -1199,6 +1410,8 @@ function openSettings() {
     const sc = document.createElement("input"); sc.type = "checkbox"; sc.checked = sync;
     sr.append(st, sc); s.appendChild(sr);
     const sm = document.createElement("div"); sm.className = "sub"; sm.style.margin = "0 0 8px"; s.appendChild(sm);
+    sr.hidden = true; sm.hidden = true;                      // shown only when the server allows sharing (MOBILE_SYNC is not off)
+    fetchShared().then((j) => { if (j && j.enabled) { sr.hidden = false; sm.hidden = false; } });
     sc.onchange = async () => {
       if (!sc.checked) { sync = false; store.set("m.sync", "0"); head2(); return; }
       sm.textContent = "Checking the server…";
@@ -1252,8 +1465,9 @@ function openUnlock() {
 }
 function openMainMenu() {
   openSheet((s) => {
-    head(s, "Week Board", "Phone view");
+    head(s, "Week Board", "Phone view · v" + ((document.querySelector('meta[name="version"]') || {}).content || "?"));
     if (view === "day" || view === "inbox") sbtn(s, "＋ Add group…", openAddGroup);
+    sbtn(s, "🔍 Search…", () => openSearch(""));
     sbtn(s, "⚙ Settings", openSettings);
     sbtn(s, pass === null ? "🔓 Unlock encryption…" : "🔒 Lock encryption", pass === null ? openUnlock : () => { closeSheet(); lockCrypto("Locked"); });
     if (undoStack.length) sbtn(s, `↶ Undo: ${undoStack[undoStack.length - 1].label}`, () => { closeSheet(); doUndo(); });

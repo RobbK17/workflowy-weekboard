@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.3.6">
+<meta name="version" content="1.3.7">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -202,11 +202,14 @@
   .card:hover .rm, .card:focus-within .rm { opacity: 1; }
   @media (hover: hover) {   /* the hover buttons sit on the card's top edge, half outside it, so they never cover the text or the lock */
     .card .rm, .card .mv, .card .del { position: absolute; top: -12px; width: 26px; height: 22px; padding: 0; background: var(--card); border: 1px solid var(--border); border-left-width: 0; border-radius: 0; z-index: 3; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
-    .card .del { right: 8px; border-radius: 0 6px 6px 0; } .card .mv { right: 34px; } .card .rm { right: 60px; border-left-width: 1px; border-radius: 6px 0 0 6px; }
+    .card .del { right: 8px; border-radius: 0 6px 6px 0; } .card .mv { right: 34px; } .card .rm { right: 60px; } .card .rp { right: 86px; border-left-width: 1px; border-radius: 6px 0 0 6px; }
     .card:not(:hover):not(:focus-within) .rm, .card:not(:hover):not(:focus-within) .mv, .card:not(:hover):not(:focus-within) .del { pointer-events: none; }
     .card:has(textarea:focus) .rm, .card:has(textarea:focus) .mv, .card:has(textarea:focus) .del { opacity: 0; pointer-events: none; }   /* while you are typing in a card the buttons are hidden */
   }
   .bellb { white-space: nowrap; }
+  .cd-hl { position: absolute; left: 0; top: 0; width: 100%; box-sizing: border-box; font: inherit; line-height: inherit; padding: 0; margin: 0; white-space: pre-wrap; overflow-wrap: break-word; color: transparent; pointer-events: none; }
+  .cd-hl .wtagu { text-decoration: underline; text-decoration-color: var(--muted); }
+  .wtag { color: var(--muted); text-decoration: underline; cursor: pointer; } .wtag:hover { color: var(--accent); }
   .rm:hover { color: var(--accent); }
   @media (hover: none) { .rm { opacity: 1; } }
   body.selmode .card .rm { visibility: hidden; }
@@ -771,7 +774,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.6</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.7</span></div>
   </div>
 </footer>
 
@@ -825,6 +828,7 @@
         </div>
         <div id="inboxMsg" role="status"></div>
       </div>
+      <label><input type="checkbox" id="optShare"><span>Share these settings between browsers<small id="shareNote">Your layout and options are kept on the server, so every browser you turn this on in shows the same ones.</small></span></label>
       </div>
       <div class="set-pane setpane" data-sec="remind" hidden>
       <label><input type="checkbox" id="optRemind"><span>Reminder popups<small>Show a popup in the board when a task's time arrives</small></span></label>
@@ -962,6 +966,63 @@
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button id="toastUndo" type="button">Undo</button><button id="toastX" type="button" title="Dismiss">&#10005;</button></div>
 
 <script>
+// ---- Shared settings: with "Share these settings between browsers" on, this browser's preference keys are kept on the server (/d/settings) and read back by the others.
+const dsync = (() => {
+  const KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind"]);
+  const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { Storage.prototype.setItem.call(localStorage, k, v); } catch (e) {} }, del: (k) => { try { Storage.prototype.removeItem.call(localStorage, k); } catch (e) {} } };
+  let timer = null, applying = false;
+  const on = () => ls.get("dsync") === "1";
+  const snapshot = () => { const o = {}; for (const k of KEYS) { const v = ls.get(k); o[k] = v === null ? null : v; } return o; };
+  async function push() {
+    if (!on() || applying) return;
+    try {
+      const r = await fetch("/d/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ settings: snapshot() }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.updated) ls.set("dsyncAt", j.updated);
+    } catch (e) { /* the next change tries again */ }
+  }
+  const later = () => { clearTimeout(timer); timer = setTimeout(push, 800); };
+  try {
+    const rawSet = Storage.prototype.setItem, rawDel = Storage.prototype.removeItem;
+    Storage.prototype.setItem = function (k, v) { rawSet.call(this, k, v); if (this === localStorage && KEYS.has(k) && on() && !applying) later(); };
+    Storage.prototype.removeItem = function (k) { rawDel.call(this, k); if (this === localStorage && KEYS.has(k) && on() && !applying) later(); };
+  } catch (e) { /* no sharing in this browser */ }
+  function apply(settings) {                                   // copy the server's values here; true when something changed
+    let changed = false; applying = true;
+    for (const k of KEYS) {
+      const v = Object.prototype.hasOwnProperty.call(settings, k) ? settings[k] : null, cur = ls.get(k);
+      if (v === null) { if (cur !== null) { ls.del(k); changed = true; } }
+      else if (cur !== v) { ls.set(k, v); changed = true; }
+    }
+    applying = false; return changed;
+  }
+  async function pull(force) {
+    if (!on()) return;
+    if (!force && document.activeElement && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)) return;     // not while you're typing
+    try {
+      const r = await fetch("/d/settings"); const j = await r.json().catch(() => null);
+      if (!j || !j.enabled || !j.updated || j.updated === ls.get("dsyncAt")) return;
+      ls.set("dsyncAt", j.updated);
+      if (apply(j.settings || {})) { try { sessionStorage.setItem("dsyncReload", String(Date.now())); } catch (e) {} location.reload(); }
+    } catch (e) { /* offline: keep what we have */ }
+  }
+  async function enable() {                                    // returns a message for the note under the switch
+    const r = await fetch("/d/settings"); const j = await r.json().catch(() => null);
+    if (!j || !j.enabled) throw new Error("This server has settings sharing turned off (MOBILE_SYNC=off).");
+    ls.set("dsync", "1");
+    if (j.updated && Object.keys(j.settings || {}).length && window.confirm("Other browsers already share their settings.\n\nOK = use those settings here (the page reloads)\nCancel = replace them with this browser's settings")) {
+      ls.set("dsyncAt", j.updated);
+      if (apply(j.settings)) location.reload();
+      return;
+    }
+    await push();
+  }
+  function disable() { ls.del("dsync"); }
+  window.addEventListener("focus", () => pull(false));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(false); });
+  setTimeout(() => pull(false), 1500);
+  return { on, enable, disable, pull };
+})();
 const API = "/api/v1";
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MAX_MONTHS_BACK = 60;  // Past due "All" looks back at most this many months (5 years)
@@ -1086,8 +1147,25 @@ async function call(method, path, body) {
   if (res.status === 404 && method === "GET") return null;   // day not created yet = empty column
   if (res.status === 429) { const t = await res.text(); const e = new Error(busyMessage(t)); try { e.retryAfter = Number(JSON.parse(t).retry_after) || 2; } catch (x) { e.retryAfter = 2; } throw e; }
   if (!res.ok) throw new Error(`${method} ${path} failed (${res.status}): ${await res.text()}`);
+  if (method !== "GET") xtabTell();
   return res.json();
 }
+// Two tabs open: when one saves, the other re-reads the board once it is idle (not while you're typing in it).
+let xtabChan = null, xtabStale = false, xtabTimer = null, xtabTold = null;
+try { xtabChan = new BroadcastChannel("weekboard-changes"); xtabChan.onmessage = () => { xtabStale = true; xtabSoon(1200); }; } catch (e) { /* no BroadcastChannel: single-tab behaviour */ }
+function xtabTell() { if (!xtabChan || xtabTold) return; xtabTold = setTimeout(() => { xtabTold = null; try { xtabChan.postMessage(Date.now()); } catch (e) {} }, 500); }
+function xtabSoon(ms) { clearTimeout(xtabTimer); xtabTimer = setTimeout(xtabTry, ms); }
+function xtabTry() {
+  if (!xtabStale) return;
+  if (document.hidden) return;                                              // done when the tab comes back (visibilitychange)
+  if (editorOpen() || kbSaving > 0) { xtabSoon(2000); return; }
+  xtabStale = false;
+  for (const id in kids) delete kids[id]; for (const id in nest) delete nest[id];
+  if (planMode) loadPlan(true); else loadWeek(true);
+  if (typeof loadPage === "function" && !viewItem) loadPage();
+  if (typeof kbRefreshIfOpen === "function") kbRefreshIfOpen();
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && xtabStale) xtabSoon(300); });
 
 /* ----- all-day notes: the lines under a day's notes bullet, shown at the top of the day's column ----- */
 const noteBullet = {};          // day key -> the notes bullet node (or null)
@@ -1752,7 +1830,7 @@ function groupCard(e, showDate) {
       const gMode = cardMode(t), gLive = gMode === "live";
       if (gLive) txt.appendChild(cardField(t, k, el, b, true));
       else if (gMode === "locked") cardLockedBox(t, txt, el);
-      else txt.textContent = (ttm && !ttag ? dropTime(shownVisible(t.name)) : dropLeads(shownVisible(t.name))) || "(empty)";
+      else setLinked(txt, (ttm && !ttag ? dropTime(shownVisible(t.name)) : dropLeads(shownVisible(t.name))) || "(empty)");
       if (gMode === "plain" && kbReadEdit) txt.title = "Double-click to edit";
       txt.addEventListener("dblclick", () => {         // edit a task inside the group in place
         if (selMode || gMode !== "plain" || !kbReadEdit) return;
@@ -1912,7 +1990,7 @@ function card(n, k, showDate, opts) {
   let cta = null;
   if (liveOk) { cta = cardField(n, k, el, nested ? opts.bullet : null); txt.appendChild(cta); }
   else if (cmode === "locked") cardLockedBox(n, txt, el);
-  else txt.textContent = tag ? dropLeads(shownName(n.name)) : tm ? dropTime(shownName(n.name)) : dropLeads(shownName(n.name));
+  else setLinked(txt, tag ? dropLeads(shownName(n.name)) : tm ? dropTime(shownName(n.name)) : dropLeads(shownName(n.name)));
   const earlyL = parseLeads(plain(n.name));
   if ((tm || earlyL.length) && !n.completedAt && !liveOk) {
     const bb = document.createElement("button");
@@ -1920,6 +1998,13 @@ function card(n, k, showDate, opts) {
     bb.title = tag ? "Reminder from the date tag" : "Reminder: click to change";
     bb.addEventListener("click", (e) => { e.stopPropagation(); openRemPop(bb, n, k, nested ? opts.bullet : null, tm); });
     txt.appendChild(bb);
+  }
+  const repL = parseRepeat(plain(n.name));
+  if (repL && !liveOk) {
+    const rbg = document.createElement("button");
+    rbg.type = "button"; rbg.className = "bellb"; rbg.textContent = "🔁 " + repeatLabel(repL); rbg.title = "Repeats: click to change";
+    rbg.addEventListener("click", (e) => { e.stopPropagation(); openRepeatPop(rbg, n, k, nested ? opts.bullet : null); });
+    txt.appendChild(rbg);
   }
   if (nested) {                                          // which bullet it belongs to
     const via = document.createElement("span");
@@ -1981,7 +2066,11 @@ function card(n, k, showDate, opts) {
   rb.className = "rm"; rb.innerHTML = BELL_ICON; rb.title = "Set a reminder…";
   rb.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => { const t = parseTime(plain(n.name)); openRemPop(rb, n, k, nested ? opts.bullet : null, parseTag(n.name) || t); }); });
 
-  el.append(cb, txt, rb, mv, del);
+  const rp = document.createElement("button");
+  rp.className = "rm rp"; rp.innerHTML = REPEAT_ICON; rp.title = "Repeat…"; rp.setAttribute("aria-label", "Repeat…");
+  rp.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => openRepeatPop(rp, n, k, nested ? opts.bullet : null)); });
+
+  el.append(cb, txt, rp, rb, mv, del);
   return el;
 }
 
@@ -2077,7 +2166,7 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
   let base = ta.value, timer = null, saved = false, busy = null;
   const fit = autoFit(ta);
   ta._flush = () => {
-    clearTimeout(timer); timer = null;
+    clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
     const shown = cardClean(ta);
     if (!shown || shown === base.trim()) return busy || Promise.resolve();
     const lp = lockPrepare(ta, shown); if (!lp) return busy || Promise.resolve();
@@ -2094,7 +2183,9 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
             n.id = r.item_id; n.pending = false; n.name = t2; el.dataset.id = n.id; ta.dataset.id = n.id; ta.placeholder = "";
             (cache[k] || (cache[k] = [])).push(n);
           } else {
-            const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name;
+            const theirs = await guardFresh(n, "name");
+            if (theirs != null) { base = visibleText(theirs); ta.value = base; saved = true; }
+            else { const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; n._chk = Date.now(); }
           }
           base = ta._enc ? next : ta._lock ? shown : visibleText(n.name); saved = true;
           const re = lockAfterSave(ta, n); if (re != null) base = re;
@@ -2104,7 +2195,7 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
     })();
     return busy;
   };
-  ta.addEventListener("input", () => { fit(); if (ta._enc) ta._enc.text = ta.value; clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
+  ta.addEventListener("input", () => { fit(); if (ta._enc) ta._enc.text = ta.value; kbUnsaved.add(ta); kbStat("Unsaved…"); clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
   ta.addEventListener("focus", () => { el.draggable = false; });
   ta.addEventListener("mousedown", (e) => { if (selMode) e.preventDefault(); });
   ta.addEventListener("blur", () => {
@@ -2158,12 +2249,13 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
     const cb = (ta.closest(".si") || el).querySelector("input[type=checkbox]");
     if (cb && !cb.disabled) add(n.completedAt ? "Mark not done" : "Mark done", () => cb.click());
     add("Edit the note…", () => ta.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true })), "Shift+Enter");
+    add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, bullet), 0));
     if (window.wbcryptLive && window.wbcryptLive.ready()) add("Encrypt, or remove encryption", () => cardCryptKey(n, ta), kbK("Alt+Shift+E", "Option+Shift+E"));
     kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(ev.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px";
   };
   ta.addEventListener("contextmenu", cardMenu);
   if (!group && !el._cm) { el._cm = true; el.addEventListener("contextmenu", (ev) => { if (ev.defaultPrevented || ev.target.closest("button, a, input, textarea")) return; cardMenu(ev); }); }       // anywhere else on the card
-  requestAnimationFrame(fit); setTimeout(fit, 0);
+  requestAnimationFrame(fit); setTimeout(fit, 0); requestAnimationFrame(() => cardTagLinks(ta));
   if (cardFocusId === n.id) { cardFocusId = null; setTimeout(() => { if (ta.isConnected) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }, 0); }
   return ta;
 }
@@ -2204,7 +2296,7 @@ function adLine(k, n) {                                       // n: a note node,
   if (n) { const lk = lockChips(visibleText(n.name)); if (lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } else ta.value = visibleText(n.name); }
   let base = ta.value, timer = null, busy = null, saved = false; const fit = autoFit(ta);
   ta._flush = () => {
-    clearTimeout(timer); timer = null;
+    clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
     const shown = ta.value.replace(/\s*\n\s*/g, " ").trim();
     if (!shown || shown === base.trim()) return busy || Promise.resolve();
     const lp = lockPrepare(ta, shown); if (!lp) return busy || Promise.resolve();
@@ -2224,7 +2316,7 @@ function adLine(k, n) {                                       // n: a note node,
     })();
     return busy;
   };
-  ta.addEventListener("input", () => { fit(); clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
+  ta.addEventListener("input", () => { fit(); kbUnsaved.add(ta); kbStat("Unsaved…"); clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
   ta.addEventListener("blur", () => {
     ta._flush().then(() => setTimeout(() => {
       if (document.activeElement === ta) return;
@@ -2259,7 +2351,7 @@ function adLine(k, n) {                                       // n: a note node,
       kbMenu.hidden = true;
       const below = (n.children || []).length;
       if (!confirm(`Delete this note permanently?\n\n"${(shownVisible(n.name) || "(empty)").slice(0, 80)}"` + (below ? `\n\nThe lines under it will be deleted too.` : ""))) return;
-      try { await kbQueued(async () => { await call("DELETE", `/nodes/${n.id}`); dayNotes[k] = (dayNotes[k] || []).filter((x) => x.id !== n.id); }); ta.blur(); render(); } catch (e) { /* kbQueued showed it */ }
+      try { ta.blur(); const sibs = (dayNotes[k] || []).map((x) => x.id), pid = noteBullet[k] && noteBullet[k].id; await deleteWithUndo(n, pid, sibs, async () => { dayNotes[k] = (dayNotes[k] || []).filter((x) => x.id !== n.id); await loadDay(k); await loadNotes([k]); render(); }); } catch (e) { showError(e.message); }
     };
     kbMenu.appendChild(b);
     kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(ev.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px";
@@ -2289,21 +2381,23 @@ function cardNoteField(n, k, el, nameTa) {
   let base = ta.value, timer = null, saved = false, busy = null;
   const fit = autoFit(ta);
   ta._flush = () => {
-    clearTimeout(timer); timer = null;
+    clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
     const next = ta.value.replace(/\s+$/, "");
     if (next === base.replace(/\s+$/, "")) return busy || Promise.resolve();
     busy = (async () => {
       try {
         await kbQueued(async () => {
           const t2 = await boardHooks.pipe("beforeSave", next, { node: n, field: "note" });
+          const theirs = await guardFresh(n, "note");
+          if (theirs != null) { base = visibleText(theirs); ta.value = base; saved = true; return; }
           const note = t2 === "" ? "" : applyEdit(n.note || "", t2);
-          await call("POST", `/nodes/${n.id}`, { note }); n.note = note; base = next; saved = true;
+          await call("POST", `/nodes/${n.id}`, { note }); n.note = note; n._chk = Date.now(); base = next; saved = true;
         });
       } catch (e) { /* kbQueued showed it */ }
     })();
     return busy;
   };
-  ta.addEventListener("input", () => { fit(); clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
+  ta.addEventListener("input", () => { fit(); kbUnsaved.add(ta); kbStat("Unsaved…"); clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
   ta.addEventListener("focus", () => { el.draggable = false; });
   ta.addEventListener("blur", () => {
     el.draggable = !el.classList.contains("nested") && !selMode;     // (a group card is not "nested", so it stays draggable)
@@ -3077,8 +3171,10 @@ function pageLine(n, level, prev, removable, fold, out) {
       const label = shownName(n.name) || "(empty)";
       if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
       minus.disabled = true;
-      try { await call("DELETE", `/nodes/${n.id}`); if (viewItem) await reloadItem(); else await loadPage(); }
-      catch (e) { showError(e.message); minus.disabled = false; }
+      try {
+        const top = viewItem ? itemNodes : pageNodes, pi = kbParentInfo(top, viewItem ? null : pageKey(), n.id);
+        await deleteWithUndo(n, pi ? pi.parentId : null, pi ? pi.list.map((y) => y.id) : [], async () => { if (viewItem) await reloadItem(); else await loadPage(); });
+      } catch (e) { showError(e.message); minus.disabled = false; }
     });
     row.appendChild(minus);
   }
@@ -3497,6 +3593,51 @@ const dayLabel = (k) => (ISO_DAY.test(k) ? keyToDate(k).toLocaleDateString(undef
 
 /* ---------- Reminders ----------
    A time in a task's text ("Call dentist @2:30pm" or "@14:30") is a reminder for the day the task sits on. */
+// #tags and @people in a task's text: grey and underlined like in WorkFlowy; a click searches for the word. (@2:30pm and @9 are reminder times, not people.)
+const WTAG_RE = /(^|[\s(])([#@][A-Za-z_][\w-]*)/g;
+function setLinked(el, text) {
+  el.textContent = "";
+  let last = 0, any = false;
+  for (const m of String(text).matchAll(WTAG_RE)) {
+    const start = m.index + m[1].length;
+    if (start > last) el.appendChild(document.createTextNode(text.slice(last, start)));
+    const a = document.createElement("span"); a.className = "wtag"; a.textContent = m[2]; a.title = "Search for " + m[2]; a.setAttribute("role", "link");
+    a.addEventListener("click", (e) => { e.stopPropagation(); searchInput.value = m[2]; openSearch(); });
+    a.addEventListener("dblclick", (e) => e.stopPropagation());
+    el.appendChild(a); last = start + m[2].length; any = true;
+  }
+  if (!any) { el.textContent = text; return; }
+  if (last < text.length) el.appendChild(document.createTextNode(text.slice(last)));
+}
+// The same grey underline on #tags and @people inside a live text box: a copy of the text sits behind the box with only the underline showing.
+// A click on a tag searches for it while the box isn't being edited; once you're typing, clicks place the cursor as usual.
+function cardTagLinks(ta) {
+  if (!ta.isConnected || ta._hl) return;
+  const host = ta.parentNode; if (!host) return;
+  if (getComputedStyle(host).position === "static") host.style.position = "relative";
+  const hl = document.createElement("div"); hl.className = "cd-hl"; hl.setAttribute("aria-hidden", "true");
+  host.insertBefore(hl, ta); ta.style.position = "relative"; ta.style.zIndex = "1"; ta._hl = hl;
+  let last = null;
+  const paint = () => {
+    hl.style.top = ta.offsetTop + "px"; hl.style.left = ta.offsetLeft + "px"; hl.style.width = ta.offsetWidth + "px";
+    const v = ta.value; if (v === last) return; last = v; hl.textContent = "";
+    let at = 0;
+    for (const m of v.matchAll(WTAG_RE)) {
+      const st = m.index + m[1].length;
+      if (st > at) hl.appendChild(document.createTextNode(v.slice(at, st)));
+      const sp = document.createElement("span"); sp.className = "wtagu"; sp.textContent = m[2]; sp.dataset.t = m[2]; hl.appendChild(sp); at = st + m[2].length;
+    }
+    hl.appendChild(document.createTextNode(v.slice(at) + "\u200b"));
+  };
+  const hit = (e) => { for (const sp of hl.querySelectorAll(".wtagu")) for (const r of sp.getClientRects()) if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return sp; return null; };
+  ta.addEventListener("mousedown", (e) => { if (e.button !== 0 || document.activeElement === ta || ta.readOnly) return; const sp = hit(e); if (sp) { e.preventDefault(); searchInput.value = sp.dataset.t; openSearch(); } });
+  ta.addEventListener("mousemove", (e) => { ta.style.cursor = document.activeElement !== ta && hit(e) ? "pointer" : ""; });
+  for (const ev of ["input", "focus", "blur", "change"]) ta.addEventListener(ev, paint);
+  try { new ResizeObserver(paint).observe(ta); } catch (e) {}
+  setInterval(() => { if (!ta.isConnected) return; paint(); }, 1500);
+  paint();
+}
+const REPEAT_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V6a2 2 0 0 1 2-2h8"/><path d="M11 2l2 2-2 2"/><path d="M13 9v1a2 2 0 0 1-2 2H3"/><path d="M5 14l-2-2 2-2"/></svg>';
 const BELL_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M4 11V7a4 4 0 018 0v4l1 1.5H3zM6.5 14a1.5 1.5 0 003 0"/></svg>';
 const TIME_RE = /(^|\s)@(\d{1,2})(?::(\d{2}))?\s?([ap])\.?m\.?(?=$|[\s.,;!?)])|(^|\s)@(\d{1,2}):(\d{2})(?=$|[\s.,;!?)])/i;
 function parseTime(text) {
@@ -3519,15 +3660,43 @@ function parseTag(raw) {                                  // WorkFlowy's own dat
 const LEAD_RE = /(^|\s)!(1[hdw])(?=$|[\s.,;!?)])/gi;
 const LEADS = [["1h", "1 hour"], ["1d", "1 day"], ["1w", "1 week"]];
 function parseLeads(text) { const o = new Set(); for (const m of String(text || "").matchAll(LEAD_RE)) o.add(m[2].toLowerCase()); return LEADS.map((x) => x[0]).filter((c) => o.has(c)); }
-function dropLeads(s) { return String(s || "").replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim(); }
+// Repeating tasks: "!every week" (see the server) makes the next copy ahead of time. Shown as a badge, not as text.
+const DOW_PAT = "mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?";
+const REPEAT_RE = new RegExp(`(^|\\s)!every\\s+(weekdays|month-end|(?:\\d+\\s*)?(?:day|week|month|year)s?|(?:${DOW_PAT})(?:\\s*,\\s*(?:${DOW_PAT}))*)(?:\\s+until\\s+(\\d{4}-\\d{2}-\\d{2}))?(?:\\s+x(\\d+))?(?=$|[\\s.,;!?)<])`, "i");
+const DOW3 = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+function parseRepeat(text) {
+  const m = REPEAT_RE.exec(String(text || ""));
+  if (!m) return null;
+  const spec = m[2].toLowerCase().replace(/\s+/g, " ");
+  let kind, nn = 1, days = null;
+  if (spec === "weekdays") kind = "weekdays";
+  else if (spec === "month-end") kind = "month-end";
+  else if (/^(\d+)?\s*(day|week|month|year)s?$/.test(spec)) { const q = /^(\d+)?\s*(day|week|month|year)s?$/.exec(spec); nn = Math.max(1, Number(q[1] || 1)); kind = q[2]; }
+  else { kind = "dows"; days = [...new Set(spec.split(/\s*,\s*/).map((d) => DOW3.indexOf(d.slice(0, 3))))].sort((x, y) => x - y); }
+  return { kind, n: nn, days, spec: m[2], until: m[3] || null, count: m[4] ? Number(m[4]) : null, token: m[0] };
+}
+function repeatLabel(r) {
+  let t;
+  if (r.kind === "weekdays") t = "weekdays";
+  else if (r.kind === "month-end") t = "last day of the month";
+  else if (r.kind === "dows") t = "every " + r.days.map((d) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]).join(", ");
+  else if (r.n === 1) t = { day: "daily", week: "weekly", month: "monthly", year: "yearly" }[r.kind];
+  else t = `every ${r.n} ${r.kind}s`;
+  if (r.until) t += ", until " + r.until;
+  if (r.count) t += `, ${r.count} left`;
+  return t;
+}
+function dropRepeat(s) { return String(s || "").replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim(); }
+function dropLeads(s) { return dropRepeat(String(s || "").replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim()); }
 function dropTime(s) { return dropLeads(s.replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim()); }
 function fmtTime(h, mi) { return new Date(2000, 0, 1, h, mi).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
 const pad2 = (n) => String(n).padStart(2, "0");
 
 async function setReminder(n, k, bullet, hhmm, after, leads) {       // leads: the early alerts to keep, like ["1d"]; left out = keep the ones already there
   const keep = leads === undefined ? parseLeads(plain(n.name)) : leads;
+  const rep = parseRepeat(plain(n.name));
   const base = dropLeads((n.name || "").replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim());
-  const name = `${base}${hhmm ? " @" + hhmm : ""}${keep.map((c) => " !" + c).join("")}`.trim();
+  const name = `${base}${hhmm ? " @" + hhmm : ""}${keep.map((c) => " !" + c).join("")}${rep ? " " + rep.token.trim() : ""}`.trim();
   await act(async () => {
     await call("POST", `/nodes/${n.id}`, { name });
     if (after) await after(); else if (bullet) await reloadBullet(bullet.id); else await loadDay(k);
@@ -3601,6 +3770,80 @@ function openRemPop(anchor, n, k, bullet, cur, after) {
   inp.focus({ preventScroll: true });
 }
 
+
+// Repeat… : pick how often a task comes back. The marker is written into the task's text; the server makes the next copy ahead of time.
+async function setRepeat(n, k, bullet, token, after) {
+  const bare = (n.name || "").replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim();
+  const name = `${bare}${token ? " " + token : ""}`.trim();
+  await act(async () => {
+    await call("POST", `/nodes/${n.id}`, { name }); n.name = name;
+    if (after) await after(); else if (bullet) await reloadBullet(bullet.id); else await loadDay(k);
+  });
+  if (token) {
+    try {
+      const res = await fetch("/recurring/run", { method: "POST" }), j = await res.json().catch(() => ({}));
+      if (!res.ok) showToast(j.error || "This server can't make repeating tasks yet. Update and restart it.", false);
+      else if (j.made) { await loadWeek(true); if (typeof kbRefreshIfOpen === "function") kbRefreshIfOpen(); }
+    } catch (e) { showToast("Saved, but the server couldn't be reached to make the next copy.", false); }
+  }
+}
+function openRepeatPop(anchor, n, k, bullet, after) {
+  const wasMine = movePop && movePop._anchor === anchor;
+  closeMovePop();
+  if (wasMine) return;
+  const cur = parseRepeat(plain(n.name));
+  const pop = document.createElement("div");
+  pop.className = "movepop rpop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Repeat"); pop._anchor = anchor; pop._t = Date.now();
+  pop.addEventListener("click", (e) => e.stopPropagation());
+  const row = (label, ...els) => { const d = document.createElement("div"); d.className = "rln"; d.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0"; if (label) { const l = document.createElement("span"); l.textContent = label; l.style.minWidth = "48px"; d.appendChild(l); } d.append(...els); return d; };
+  const sel = document.createElement("select"); sel.setAttribute("aria-label", "How often");
+  const PRESETS = [["day", "Every day"], ["weekdays", "Every weekday (Mon–Fri)"], ["week", "Every week"], ["2 weeks", "Every 2 weeks"], ["dows", "Chosen weekdays…"], ["month", "Every month (same date)"], ["month-end", "Every month (last day)"], ["year", "Every year"]];
+  const opts = [["", "Does not repeat"], ...PRESETS];
+  let curKey = "";
+  if (cur) {
+    curKey = cur.kind === "dows" ? "dows" : cur.kind === "weekdays" ? "weekdays" : cur.kind === "month-end" ? "month-end" : cur.n === 1 ? cur.kind : cur.kind === "week" && cur.n === 2 ? "2 weeks" : "keep";
+    if (curKey === "keep") opts.push(["keep", "Keep: every " + cur.n + " " + cur.kind + "s"]);
+  }
+  for (const [v, t] of opts) { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); }
+  sel.value = curKey;
+  const dayBox = document.createElement("div"); dayBox.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;margin:6px 0";
+  const dcs = [1, 2, 3, 4, 5, 6, 0].map((d) => { const l = document.createElement("label"), cb = document.createElement("input"); cb.type = "checkbox"; cb.value = d; cb.checked = !!(cur && cur.days && cur.days.includes(d)); l.append(cb, " " + ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]); l.style.cssText = "display:inline-flex;gap:2px;align-items:center"; dayBox.appendChild(l); return cb; });
+  const endSel = document.createElement("select"); endSel.setAttribute("aria-label", "When it stops");
+  for (const [v, t] of [["never", "Never ends"], ["until", "Ends on a date"], ["count", "Ends after a number of times"]]) { const o = document.createElement("option"); o.value = v; o.textContent = t; endSel.appendChild(o); }
+  const untilIn = document.createElement("input"); untilIn.type = "date"; untilIn.setAttribute("aria-label", "Last date");
+  const countIn = document.createElement("input"); countIn.type = "number"; countIn.min = "2"; countIn.max = "999"; countIn.style.width = "64px"; countIn.setAttribute("aria-label", "Times in all");
+  const countNote = document.createElement("span"); countNote.textContent = "times in all, counting this one";
+  if (cur && cur.until) { endSel.value = "until"; untilIn.value = cur.until; } else if (cur && cur.count) { endSel.value = "count"; countIn.value = String(cur.count); } else { countIn.value = "5"; }
+  const sync = () => { dayBox.hidden = sel.value !== "dows"; endRow.hidden = !sel.value; untilIn.hidden = endSel.value !== "until"; countIn.hidden = countNote.hidden = endSel.value !== "count"; save.disabled = false; };
+  const endRow = row("", endSel, untilIn, countIn, countNote);
+  const note = document.createElement("div"); note.className = "rln"; note.textContent = "The next one is made ahead of time, counted from the due date. Done tasks stay as they are.";
+  const save = document.createElement("button"); save.type = "button"; save.className = "go"; save.textContent = "Save";
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel"; cancel.textContent = "Cancel"; cancel.addEventListener("click", closeMovePop);
+  const buildToken = () => {
+    let v = sel.value;
+    if (!v) return "";
+    if (v === "keep") v = cur.spec;
+    else if (v === "dows") { const picked = dcs.filter((c) => c.checked).map((c) => Number(c.value)); if (!picked.length) return null; v = [1, 2, 3, 4, 5, 6, 0].filter((d) => picked.includes(d)).map((d) => DOW3[d]).join(","); }
+    let t = "!every " + v;
+    if (endSel.value === "until") { if (!/^\d{4}-\d{2}-\d{2}$/.test(untilIn.value)) return null; t += " until " + untilIn.value; }
+    else if (endSel.value === "count") { const c = Math.floor(Number(countIn.value)); if (!(c >= 2)) return null; t += " x" + c; }
+    return t;
+  };
+  save.addEventListener("click", () => {
+    const tok = buildToken();
+    if (tok === null) { showToast(sel.value === "dows" && !dcs.some((c) => c.checked) ? "Pick at least one weekday." : endSel.value === "until" ? "Pick the last date." : "Enter 2 or more times.", false); return; }
+    closeMovePop();
+    setRepeat(n, k, bullet, tok, after);
+    showToast(tok ? "Repeats: " + repeatLabel(parseRepeat(tok)) : "Repeat removed", false);
+  });
+  sel.addEventListener("change", sync); endSel.addEventListener("change", sync);
+  pop.append(row("Repeat", sel), dayBox, endRow, note, save, cancel);
+  sync();
+  document.body.appendChild(pop);
+  placeCardPop(pop, anchor);
+  movePop = pop;
+  sel.focus({ preventScroll: true });
+}
 let remItems = [], remInfo = { push: {} };
 const remFired = (() => { try { return JSON.parse(localStorage.getItem("remFired") || "{}"); } catch (e) { return {}; } })();
 const remSnooze = {};
@@ -3689,6 +3932,15 @@ document.getElementById("remPushTest").onclick = async (ev) => {
   } catch (e) { showToast("Test failed: " + e.message, false); }
   b.disabled = false;
 };
+{ const el = document.getElementById("optShare"), note = document.getElementById("shareNote"), base = note.textContent;
+  el.checked = dsync.on();
+  const row = el.closest("label"); row.hidden = true;                  // only offered when the server allows sharing (MOBILE_SYNC is not off)
+  fetch("/d/settings").then((r) => r.json()).then((j) => { if (j && j.enabled) row.hidden = false; }).catch(() => {});
+  el.onchange = async () => {
+    if (!el.checked) { dsync.disable(); note.textContent = base; return; }
+    try { await dsync.enable(); note.textContent = base; }
+    catch (e) { el.checked = false; dsync.disable(); note.textContent = e.message; }
+  }; }
 { const el = document.getElementById("optRemind"); el.checked = getBool("remind", true); el.onchange = () => setPref("remind", el.checked); }
 remNotifyState();
 remPoll(false);
@@ -4624,7 +4876,7 @@ function kbLaneCardsEl(list, cards, parent, level, ctx, col) {
     minus.onclick = async (ev) => {
       ev.stopPropagation(); const below = countBelow(card);
       if (!confirm(`Delete this card permanently?\n\n"${shownName(card.name) || "(empty)"}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} inside will be deleted too.` : ""))) return;
-      minus.disabled = true; try { await call("DELETE", `/nodes/${card.id}`); await ctx.reload(); } catch (e) { showError(e.message); minus.disabled = false; }
+      minus.disabled = true; try { const pi = kbParentInfo(ctx.top || [], ctx.rootId, card.id); await deleteWithUndo(card, pi ? pi.parentId : ctx.rootId, pi ? pi.list.map((y) => y.id) : [], () => ctx.reload()); } catch (e) { showError(e.message); minus.disabled = false; }
     };
     act.append(plus, minus); el.insertBefore(act, el.querySelector(".kopen"));
     // dropping on a card makes the dropped card or line a child of it
@@ -4744,7 +4996,9 @@ function kbCalBar(n, ctx) {
     if (!confirm(`Delete this task permanently?` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
     try { await kbDeleteNodes(ctx, [kbFindNode(ctx.top, n.id) || n]); kbDirty = true; await ctx.reload(); } catch (x) { /* already shown */ }
   });
-  bar.append(rb, mv, dl);
+  const rp = mk("rm rp", REPEAT_ICON, "Repeat…");
+  rp.addEventListener("click", async (e) => { e.stopPropagation(); if (!(await settle(rp))) return; openRepeatPop(rp, n, k, null, async () => { await ctx.reload(); }); });
+  bar.append(rp, rb, mv, dl);
   return bar;
 }
 /* ----- outline: lines you can edit where they are (the same behaviour as the Daily page) ----- */
@@ -4779,7 +5033,7 @@ function kbTableCell(c) {
   const lk = lockChips(visibleText(c.name)); if (lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } else ta.value = visibleText(c.name);
   let base = ta.value, timer = null; const fit = autoFit(ta);
   ta._flush = async () => {
-    clearTimeout(timer); timer = null;
+    clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
     const shown = ta.value.replace(/\s*\n\s*/g, " ").trim();
     if (shown === base.trim()) return;
     const lp = lockPrepare(ta, shown); if (!lp) return;
@@ -4789,7 +5043,7 @@ function kbTableCell(c) {
       const re = lockAfterSave(ta, c); if (re != null) base = re;
     });
   };
-  ta.addEventListener("input", () => { fit(); clearTimeout(timer); timer = setTimeout(() => ta._flush().catch(() => {}), KB_PAUSE); });
+  ta.addEventListener("input", () => { fit(); kbUnsaved.add(ta); kbStat("Unsaved…"); clearTimeout(timer); timer = setTimeout(() => ta._flush().catch(() => {}), KB_PAUSE); });
   ta.addEventListener("blur", () => { ta._flush().catch(() => {}).then(() => flushRedraws()); });
   ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ta.blur(); } else if (e.key === "Escape") { e.preventDefault(); ta.blur(); } });
   requestAnimationFrame(fit);
@@ -4872,10 +5126,36 @@ const KB_PAUSE = 1000;
 const kbRevealed = new Map();                                   // id -> { text, originals }: encrypted lines opened for editing; each closes again when you leave it
 let kbSaving = 0, kbStatTimer = null, kbQueue = Promise.resolve(), kbNewSeq = 0, kbPendingFocus = null; const kbUnsaved = new Set();
 function kbStat(msg, cls, ms) {
-  const el = document.getElementById(kbHostOn() ? (kbHost.kind === "item" ? "itemSave" : "pageSave") : "kbSave"); if (!el) return; el.textContent = msg; el.className = "kbsave" + (cls ? " " + cls : "");
+  let el = document.getElementById(kbHostOn() ? (kbHost.kind === "item" ? "itemSave" : "pageSave") : "kbSave");
+  if (!el || !el.offsetParent) {                                  // the week board has no save indicator of its own: a small pill at the bottom left
+    el = document.getElementById("wbSave");
+    if (!el) { el = document.createElement("div"); el.id = "wbSave"; el.setAttribute("role", "status"); el.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:50;padding:3px 10px;border-radius:12px;background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted);box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:none"; document.body.appendChild(el); }
+    el.hidden = !msg; el.style.color = cls === "err" ? "#de350b" : "";
+    el.textContent = msg; clearTimeout(kbStatTimer); if (ms) kbStatTimer = setTimeout(() => { el.textContent = ""; el.hidden = true; }, ms); return;
+  }
+  el.textContent = msg; el.className = "kbsave" + (cls ? " " + cls : "");
   clearTimeout(kbStatTimer); if (ms) kbStatTimer = setTimeout(() => { el.textContent = ""; el.className = "kbsave"; }, ms);
 }
 // One write at a time, in order. If WorkFlowy says it is busy, wait the time it asks for and try again.
+// Save check: before overwriting a card/note, see whether WorkFlowy changed it since we loaded it.
+// Returns null to go ahead, or the WorkFlowy text when the user chose to keep WorkFlowy's version.
+async function guardFresh(n, field) {
+  try {
+    if (!n || n.pending || !n.id) return null;
+    if (n._chk && Date.now() - n._chk < 45000) return null;
+    const one = await call("GET", `/nodes/${n.id}`);
+    n._chk = Date.now();
+    const srv = one && (one.node || one);
+    if (!srv || typeof srv !== "object") return null;
+    const theirs = srv[field] == null ? "" : String(srv[field]);
+    const mine = n[field] == null ? "" : String(n[field]);
+    if (theirs === mine) return null;
+    const keep = window.confirm("This " + (field === "note" ? "note" : "card") + " was changed in WorkFlowy (or another tab) since you opened it.\n\nOK = replace it with your version\nCancel = keep the WorkFlowy version and drop your edit");
+    if (keep) return null;
+    n[field] = theirs; kbDirty = true;
+    return theirs;
+  } catch (e) { return null; }
+}
 function kbQueued(fn) {
   kbSaving++; kbStat("Saving…");
   const run = async () => { for (let k = 0; ; k++) { try { return await fn(); } catch (e) { if (e.retryAfter && k < 3) { await new Promise((r) => setTimeout(r, Math.min(15, e.retryAfter) * 1000 + 200)); continue; } throw e; } } };
@@ -4905,7 +5185,11 @@ function kbLiveField(n, ctx, sib, prev, out) {
       if (n.pending) {
         const r = await call("POST", "/nodes", { parent_id: sib.parentId, name: t2, layoutMode: kbType(n), position: "bottom" });
         n.id = r.item_id; n.pending = false; n._made = true; n.name = t2; ta.dataset.id = n.id; const row = ta.closest(".pl"); if (row) row.dataset.id = n.id;
-      } else { const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; const o = kbFindNode(ctx.top, n.id); if (o) o.name = name; }
+      } else {
+        const theirs = await guardFresh(n, "name");
+        if (theirs != null) { const o = kbFindNode(ctx.top, n.id); if (o) o.name = theirs; base = visibleText(theirs); ta.value = base; return; }
+        const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; n._chk = Date.now(); const o = kbFindNode(ctx.top, n.id); if (o) o.name = name;
+      }
       base = ta._enc ? next : ta._lock ? shown : visibleText(n.name); kbDirty = true;
       const re = lockAfterSave(ta, n); if (re != null) base = re;
     });
@@ -4964,6 +5248,19 @@ const kbK = (win, mac) => (kbMac ? mac : win);                     // the key na
 function kbParentInfo(top, rootId, id) {
   const walk = (list, pid) => { for (const x of list || []) { if (x.id === id) return { parentId: pid, list }; const f = walk(x.children, x.id); if (f) return f; } return null; };
   return walk(top, rootId);
+}
+// Deletes one line (with everything under it) and offers Undo: the line comes back with its sub-lines, new link, and later siblings are moved after it to keep the order.
+async function deleteWithUndo(node, parentId, sibIds, reload) {
+  const sn = await kbQueued(() => snapshotTree(node));
+  await kbQueued(() => call("DELETE", `/nodes/${node.id}`));
+  kbDirty = true;
+  const tail = (sibIds || []).slice(Math.max(0, (sibIds || []).indexOf(node.id) + 1)).filter((id) => id !== node.id);
+  pushUndo(`Deleted “${shortName(node)}”` + (sn.truncated ? " (very large: part of it can't be restored)" : ""), async () => {
+    await restoreTree(parentId, sn, kbQueued);
+    if (parentId && tail.length && tail.length <= 60) for (const id of tail) { try { await kbQueued(() => call("POST", `/nodes/${id}/move`, { parent_id: parentId, position: "bottom" })); } catch (e) { /* that line is gone: skip it */ } }
+    kbDirty = true; await reload();
+  });
+  await reload();
 }
 async function kbDeleteNodes(ctx, nodes) {
   if (nodes.some((x) => kbIsNotesLine(x) || kbIsRootLine(x))) { nodes = nodes.filter((x) => !kbIsNotesLine(x) && !kbIsRootLine(x)); kbStat("That line can't be deleted here.", "err", 4000); if (!nodes.length) return false; }
@@ -5232,8 +5529,10 @@ function kbNoteField(n, ctx) {
     if (next === base.replace(/\s+$/, "")) return;
     await kbQueued(async () => {
       const t2 = await boardHooks.pipe("beforeSave", next, { node: n, field: "note" });
+      const theirs = await guardFresh(n, "note");
+      if (theirs != null) { const o2 = kbFindNode(ctx.top, n.id); if (o2) o2.note = theirs; base = visibleText(theirs); ta.value = base; return; }
       const note = t2 === "" ? "" : applyEdit(n.note || "", t2);
-      await call("POST", `/nodes/${n.id}`, { note }); n.note = note; const o = kbFindNode(ctx.top, n.id); if (o) o.note = note;
+      await call("POST", `/nodes/${n.id}`, { note }); n.note = note; n._chk = Date.now(); const o = kbFindNode(ctx.top, n.id); if (o) o.note = note;
       base = next; kbDirty = true;
     });
   };
@@ -5302,6 +5601,7 @@ function kbLineMenu(e, n, ta, sib, ctx) {
   if (ctx.col.kind !== "calendar") for (const [ty, label] of [["bullets", "Bullet"], ["todo", "Task"], ["numbered", "Numbered"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]]) if (type !== ty) add("Make it " + (ty === "todo" ? "a task" : ty === "bullets" ? "a bullet" : ty === "numbered" ? "a numbered line" : label.toLowerCase()), () => kbSetLineType(n, ta, ctx, ty));
   if (ctx.col.kind !== "calendar") add("Change the type (next one)", () => kbCycleType(n, ta, ctx), kbK("Alt+Shift+T", "Option+Shift+T"));
   if (window.wbcryptLive && window.wbcryptLive.ready()) add("Encrypt, or remove encryption", () => kbCryptKey(n, ta, ctx), kbK("Alt+Shift+E", "Option+Shift+E"));
+  if (ctx.col.kind === "calendar" && !n.pending && type === "todo") add("Repeat…", () => setTimeout(() => openRepeatPop(ta, n, kbCalState(ctx.col).sel, null, async () => { await ctx.reload(); }), 0));
   if (ctx.col.kind !== "calendar" && !n.pending && sib && sib.parentId && !kbIsRootLine(n)) add("Move to a day…", () => kbMoveToDay(n, ta, sib, ctx));
   if (ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline") add("Zoom into this line", () => kbZoomLine(n, ta, ctx, true), "Ctrl+Shift+→");
   if (ctx.lane && sib.real === ctx.top) for (const t of (kbData[ctx.col.id] || {}).cards || []) if (t.id !== ctx.lane.id) add("Move to “" + (shownVisible(t.name) || "(empty)").slice(0, 30) + "”", () => kbMoveToTitle(n, ta, ctx, t));
@@ -5339,7 +5639,7 @@ function kbToggleKeys() {
 }
 document.getElementById("kbKeysBtn").onclick = (e) => { e.stopPropagation(); kbToggleKeys(); };
 document.addEventListener("click", (e) => { if (!kbKeysEl.hidden && !kbKeysEl.contains(e.target) && e.target.id !== "kbKeysBtn") kbKeysEl.hidden = true; });
-window.addEventListener("beforeunload", (e) => { if (kbUnsaved.size || kbSaving) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", (e) => { if ([...kbUnsaved].some((t) => t.isConnected) || kbSaving) { e.preventDefault(); e.returnValue = ""; } });
 async function kbMoveToTitle(n, ta, ctx, t) {
   try { await ta._flush(); } catch (e) { return; }
   ta.blur();
@@ -5431,7 +5731,7 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
     const below = countBelow(n), label = shownName(n.name) || "(empty)";
     if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
     minus.disabled = true;
-    try { await call("DELETE", `/nodes/${n.id}`); await ctx.reload(); } catch (e) { showError(e.message); minus.disabled = false; }
+    try { const pi = kbParentInfo(ctx.top || [], ctx.rootId, n.id); await deleteWithUndo(n, pi ? pi.parentId : ctx.rootId, pi ? pi.list.map((y) => y.id) : [], () => ctx.reload()); } catch (e) { showError(e.message); minus.disabled = false; }
   });
   row.appendChild(minus);
   return row;

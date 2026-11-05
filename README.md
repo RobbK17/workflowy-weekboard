@@ -4,7 +4,19 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.3.6**
+**Version 1.3.7**
+
+### What's new in 1.3.7
+
+- **Repeating tasks.** Hover a card and press **🔁** (next to 🔔 and 📅), or right-click it and choose **Repeat…**. Pick every day, every weekday (Mon–Fri), every week, every 2 weeks, chosen weekdays (for example Mon, Wed, Fri), every month (same date or last day) or every year, and optionally an end date or a number of times. The server makes the next copy ahead of time, counted from the due date; if that date has already passed, it lands on the next date still ahead. See "Repeating tasks" below.
+- **Undo for deletes.** Deleting a card, a line, a Daily page item or an all-day note shows a toast with **Undo**. It puts the item back with everything inside it, in its old place.
+- **Save check.** Before a card or note is saved, the board checks that it hasn't been changed in WorkFlowy (or another tab) since you opened it. If it has, you choose: **OK** replaces it with your version, **Cancel** keeps the WorkFlowy version.
+- **Unsaved status and leave-page warning.** Cards, notes, all-day notes and table cells show **Unsaved…** while a change waits to be saved (in the Daily page's save indicator, or a small pill at the bottom left), then **Saved ✓**. Closing or reloading the tab with a change waiting shows the browser's warning.
+- **Tags and people are clickable.** `#tag` and `@person` in a card show with a grey underline, like in WorkFlowy, and a click searches your outline for that word. In a card you are editing, a click on a tag just places the cursor. `@2:30pm` and `@9` are reminder times, not people. WorkFlowy's API stores tags and mentions as plain text in the task, so nothing extra is saved.
+- **Share settings between browsers.** **Settings > Week board > Share these settings between browsers** keeps your layout and options (columns, views, week start, all-day notes, panels and so on) on the server, so every browser with it switched on shows the same ones. A browser picks up changes when you return to its tab; turning it on in a second browser asks whether to use the shared settings or replace them. Window sizes and what is folded open stay per browser. It is a separate file from the phone's shared settings, and `MOBILE_SYNC=off` switches both off.
+- **Phone page parity.** All-day notes, early-alert checkboxes, Repeat…, clickable tags and a Search screen (see "Using it on a phone or tablet").
+- **Two tabs stay in step.** When you change something in one tab, the other refreshes by itself once you stop typing in it.
+- **Tables** show as tables (with *Show as outline* and back), **Move to a day…** in the right-click menu, **early reminders** (`!1h`, `!1d`, `!1w`), a **weekend column** in the 5-day view, a **week start** choice (Monday or Sunday) for 7 days, **all-day notes** on each day, and the right-click menu on cards in the week board. Menus no longer show key hints, and the error bar has a **Dismiss** button.
 
 ### What's new in 1.3.6
 
@@ -279,7 +291,10 @@ All settings are environment variables, set the same way as the key above.
 | `PUSHOVER_TOKEN` + `PUSHOVER_USER` | No | none | Push reminders through Pushover instead of (or as well as) ntfy. |
 | `REMINDER_NESTED` | No | on | Set to `0` so push reminders ignore tasks nested under a bullet (saves a WorkFlowy request per bullet). |
 | `REMINDER_STATE` | No | a file in the system temp folder | Where the server remembers which push reminders it already sent. |
-| `MOBILE_SYNC` | No | on | Set to `off` to disable the phone page's "Share settings across my devices" switch for everyone. |
+| `DESKTOP_SETTINGS_FILE` | No | `desktop-settings.json` next to `server.js` | Where the desktop board's shared settings are kept. |
+| `RECURRING` | No | on | Set to `0` to stop the server making copies of repeating tasks. |
+| `RECURRING_STATE` | No | a file in the system temp folder | Where the server remembers which repeating tasks it already copied. |
+| `MOBILE_SYNC` | No | on | Set to `off` to remove the sharing switches for everyone: the phone page's "Share settings across my devices" and the desktop's "Share these settings between browsers" are hidden. |
 | `MOBILE_SETTINGS_FILE` | No | `mobile-settings.json` next to `server.js` | Where the shared phone-page settings are saved. |
 | `NODE_USE_SYSTEM_CA` | No | off | Set to `1` on Windows to use the Windows certificate store (fixes certificate errors on networks that inspect HTTPS). Needs Node 22.15+ or 23.8+. |
 
@@ -377,6 +392,25 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 - The version label at the bottom right of the sidebar shows **⬆ vX.Y.Z available** (a link to the GitHub page) when GitHub has a newer version than the one you're running. To update, download the new `server.js` and `index.html`, replace yours, and restart.
 - The server makes the check (at most once every 6 hours, only reading the version number) and stays quiet if it's offline. Turn it off with `UPDATE_CHECK=0`.
 
+### Repeating tasks
+
+Add `!every …` to a task, or use the **🔁 Repeat…** button on a card (also in the right-click menu). The marker stays in the task's text and the board shows it as a 🔁 badge:
+
+| Write | Meaning |
+|-------|---------|
+| `!every day` · `!every 3 days` | every day · every 3 days |
+| `!every weekdays` | Monday to Friday |
+| `!every week` · `!every 2 weeks` | same weekday, every week or two |
+| `!every mon,wed,fri` | the chosen weekdays |
+| `!every month` · `!every month-end` | same date each month (the last day when the month is shorter) · the last day of each month |
+| `!every year` | same date each year |
+
+End it with `until 2027-06-30` or `x10` (10 times in all, counting this one), for example `Pay rent !every month x12`.
+
+- The server looks at the pages from a week back to today every 10 minutes and, for each repeating task, makes the next copy on the next date after its due date (the date tag if it has one, otherwise the page it sits on). If that date has passed, it picks the next one still ahead. The copy keeps the note and a date tag's time, and carries the marker with its counter reduced, so the chain goes on by itself.
+- A task is copied once. Completing it, or deleting the future copy, does not make another. Sub-items are not copied.
+- The server must be running (it does this even with the board closed). Set `RECURRING=0` to switch it off, and `RECURRING_STATE` to a permanent file path (default: the system temp folder) so a restart cannot make copies twice.
+
 ### Reminders
 
 A task becomes a reminder in either of two ways:
@@ -456,6 +490,14 @@ The board is a web page, so a phone only needs to reach the server in its browse
 - **Home Wi-Fi without Tailscale:** the plain `local` mode only answers on this computer, so another device on your Wi-Fi can't use it. Use the Tailscale option above.
 
 Phones open the phone page (`/m`); tablets 820px wide or narrower do too, while wider tablets (landscape) get the desktop board. Use **⋯ > Open the desktop page** on the phone page to switch.
+
+**On the phone page (1.3.7):**
+
+- **All-day notes.** Each day shows its notes in a box above the tasks (they are the lines under that day's `WB-Notes` bullet). Tap a note to edit or delete it, or tap **+ All-day note**.
+- **Early alerts.** The reminder sheet has **1 hour / 1 day / 1 week** checkboxes (`!1h`, `!1d`, `!1w`), plus **Save early alerts only**. A task without a time counts as 9:00 am. Removing the reminder removes its early alerts.
+- **Repeat.** **🔁 Repeat…** in a task's menu opens the same choices as the desktop (every day, weekdays, week, 2 weeks, chosen weekdays, month, last day of the month, year, with an optional end date or number of times). The server makes the next copy, so it must be running.
+- **Tags and people.** `#tag` and `@person` are grey and underlined; a tap opens **Search**, which is also in **⋯ > 🔍 Search…**. Tap a result to open it.
+- Still desktop only: tables and the weekend column. The Sunday start is **Settings > Week length > 7 days (Sun–Sat)**.
 
 ## Encryption (optional crypt add-on)
 

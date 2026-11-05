@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.3.6
+// Version 1.3.7
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.3.6";
+const VERSION = "1.3.7";
 
 const http = require("http");
 const fs = require("fs");
@@ -666,7 +666,7 @@ async function guard(req, res, url) {
   }
   if (APP_ASSETS.has(url.pathname)) return true;          // the manifest and icons are fetched without the sign-in cookie
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -705,7 +705,7 @@ const APP_MANIFEST = {
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
   icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
 };
-const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/m/settings", "/colors", "/targets", "/resolve-target"]);
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
    (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
@@ -742,6 +742,32 @@ async function serveMobileSettings(req, res) {
     fs.writeFileSync(tmp, JSON.stringify(doc, null, 2));
     fs.renameSync(tmp, MOBILE_SETTINGS_FILE);
   } catch (e) { console.error("Could not save the phone settings:", e.message); return sendJson(res, 500, { error: "The server could not write " + path.basename(MOBILE_SETTINGS_FILE) + " (is the board folder writable?)" }); }
+  return sendJson(res, 200, { enabled: true, settings: merged, updated: doc.updated });
+}
+/* ---------- Desktop board settings shared between browsers (optional, per browser, off by default) ----------
+   GET /d/settings -> { enabled, settings: { key: "value" }, updated }.  POST { settings: { key: "value" | null } } merges (null removes).
+   Only the board's preference keys are accepted (never window sizes or what is folded open). Uses the same MOBILE_SYNC switch. */
+const DESKTOP_SETTINGS_FILE = process.env.DESKTOP_SETTINGS_FILE || path.join(__dirname, "desktop-settings.json");
+const DESKTOP_KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind"]);
+async function serveDesktopSettings(req, res) {
+  if (!MOBILE_SYNC) return sendJson(res, req.method === "GET" ? 200 : 403, { enabled: false, error: req.method === "GET" ? undefined : "Settings sharing is turned off on this server (MOBILE_SYNC=off)." });
+  let saved = null;
+  try { saved = JSON.parse(fs.readFileSync(DESKTOP_SETTINGS_FILE, "utf8")); } catch (e) { /* none saved yet */ }
+  if (req.method === "GET") return sendJson(res, 200, { enabled: true, settings: saved ? saved.settings || {} : {}, updated: saved ? saved.updated || null : null });
+  let body;
+  try { body = JSON.parse((await readBody(req, 128 * 1024)).toString() || "{}"); } catch (e) { return sendJson(res, 400, { error: "bad request" }); }
+  const x = body && body.settings;
+  if (!x || typeof x !== "object" || Array.isArray(x)) return sendJson(res, 400, { error: "settings must be an object" });
+  const merged = { ...((saved && saved.settings) || {}) };
+  for (const [k, v] of Object.entries(x)) {
+    if (!DESKTOP_KEYS.has(k)) continue;
+    if (v === null) delete merged[k];
+    else if (typeof v === "string" && v.length <= 20000) merged[k] = v;
+    else return sendJson(res, 400, { error: "bad value for " + k });
+  }
+  const doc = { settings: merged, updated: new Date().toISOString() };
+  try { const tmp = DESKTOP_SETTINGS_FILE + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(doc, null, 2)); fs.renameSync(tmp, DESKTOP_SETTINGS_FILE); }
+  catch (e) { console.error("Could not save the desktop settings:", e.message); return sendJson(res, 500, { error: "The server could not write " + path.basename(DESKTOP_SETTINGS_FILE) + " (is the board folder writable?)" }); }
   return sendJson(res, 200, { enabled: true, settings: merged, updated: doc.updated });
 }
 /* ---------- Card colours (the Board's coloured cards) ----------
@@ -922,7 +948,7 @@ function remItem(n, pageKey) {                              // returns a list: t
   const raw = n.name || "";
   const tag = parseTag(raw);
   const text0 = stripHtml(raw.replace(/<time\b[^>]*>.*?<\/time>/gi, ""));
-  const leads = parseLeads(text0), text = dropLeads(text0);
+  const leads = parseLeads(text0), text = dropRepeat(dropLeads(text0));
   const t = tag || parseTime(text);
   if (!t && !leads.length) return [];
   const day = tag ? tag.key : pageKey, h = t ? t.h : NO_TIME_H, mi = t ? t.mi : 0;
@@ -997,6 +1023,123 @@ async function remTick() {
 }
 setInterval(() => { remTick().catch(() => {}); }, 30 * 1000).unref();
 setTimeout(() => { remTick().catch(() => {}); }, 5000).unref();
+
+/* ---------- Repeating tasks ----------
+   A task with "!every week" (and friends) in its text gets its next copy made ahead of time, on the next date after its due date.
+   Patterns: !every day | weekdays | week | month | month-end | year | 2 weeks | 3 days | mon,wed,fri   then optionally  until 2027-06-30  and/or  x10 (that many in all).
+   The server looks at the pages from a week back to today every few minutes. The copy carries the same marker (with x counted down),
+   so the chain goes on by itself. A date that has passed is skipped: the copy lands on the next date that is still ahead. */
+const DOW_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const DOW_PAT = "mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?";
+const REPEAT_RE = new RegExp(`(^|\\s)!every\\s+(weekdays|month-end|(?:\\d+\\s*)?(?:day|week|month|year)s?|(?:${DOW_PAT})(?:\\s*,\\s*(?:${DOW_PAT}))*)(?:\\s+until\\s+(\\d{4}-\\d{2}-\\d{2}))?(?:\\s+x(\\d+))?(?=$|[\\s.,;!?)<])`, "i");
+function parseRepeat(text) {
+  const m = REPEAT_RE.exec(String(text || ""));
+  if (!m) return null;
+  const spec = m[2].toLowerCase().replace(/\s+/g, " ");
+  let kind, n = 1, days = null;
+  if (spec === "weekdays") kind = "weekdays";
+  else if (spec === "month-end") kind = "month-end";
+  else if (/^(\d+\s*)?(day|week|month|year)s?$/.test(spec)) { const q = /^(\d+)?\s*(day|week|month|year)s?$/.exec(spec); n = Math.max(1, Number(q[1] || 1)); kind = q[2]; }
+  else { kind = "dows"; days = [...new Set(spec.split(/\s*,\s*/).map((d) => DOW_NAMES.indexOf(d.slice(0, 3))))].sort((a, b) => a - b); }
+  return { kind, n, days, spec: m[2], until: m[3] || null, count: m[4] ? Number(m[4]) : null, token: m[0], lead: m[1] };
+}
+function keyDate(key) { const [y, mo, d] = key.split("-").map(Number); return new Date(Date.UTC(y, mo - 1, d)); }
+function dateKey(d) { return d.toISOString().slice(0, 10); }
+function addDaysKey(key, k) { const d = keyDate(key); d.setUTCDate(d.getUTCDate() + k); return dateKey(d); }
+function addMonthsKey(key, k, endOfMonth) {
+  const d = keyDate(key), day = d.getUTCDate();
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + k, 1));
+  const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+  t.setUTCDate(endOfMonth ? last : Math.min(day, last));
+  return dateKey(t);
+}
+function nextRepeatKey(rep, from) {
+  switch (rep.kind) {
+    case "day": return addDaysKey(from, rep.n);
+    case "week": return addDaysKey(from, 7 * rep.n);
+    case "month": return addMonthsKey(from, rep.n, false);
+    case "month-end": return addMonthsKey(from, 1, true);
+    case "year": return addMonthsKey(from, 12 * rep.n, false);
+    case "weekdays": { let k = addDaysKey(from, 1); while ([0, 6].includes(keyDate(k).getUTCDay())) k = addDaysKey(k, 1); return k; }
+    case "dows": { let k = addDaysKey(from, 1); for (let i = 0; i < 7 && !rep.days.includes(keyDate(k).getUTCDay()); i++) k = addDaysKey(k, 1); return k; }
+  }
+  return null;
+}
+function dropRepeat(s) { return String(s || "").replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim(); }
+function repeatTarget(rep, due, today) {                    // the next date after the due date; when that has passed already, the first one still ahead
+  let k = nextRepeatKey(rep, due);
+  for (let i = 0; k && k <= today && i < 800; i++) k = nextRepeatKey(rep, k);
+  return k;
+}
+function shiftTag(raw, key) {                               // move WorkFlowy's own date tag to another day, keeping its time
+  return raw.replace(/<time\b([^>]*)>[^<]*<\/time>/i, (all, attrs) => {
+    const hasT = /startHour="\d+"/.test(attrs) && /startMinute="\d+"/.test(attrs);
+    const [y, mo, d] = key.split("-").map(Number);
+    let a = attrs.replace(/startYear="\d+"/, `startYear="${y}"`).replace(/startMonth="\d+"/, `startMonth="${mo}"`).replace(/startDay="\d+"/, `startDay="${d}"`);
+    const dt = keyDate(key), mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][mo - 1];
+    let label = `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getUTCDay()]}, ${mon} ${d}`;
+    if (hasT) { const h = Number(/startHour="(\d+)"/.exec(a)[1]), mi = Number(/startMinute="(\d+)"/.exec(a)[1]); label += `, ${((h + 11) % 12) + 1}:${String(mi).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; }
+    return `<time ${a.trim()}>${label}</time>`;
+  });
+}
+const REC_STATE = process.env.RECURRING_STATE || path.join(require("os").tmpdir(), "weekboard-recurring.json");
+const RECURRING_ON = process.env.RECURRING !== "0";
+const rec = { done: {}, running: null, last: 0, made: 0, error: "" };
+try { rec.done = JSON.parse(fs.readFileSync(REC_STATE, "utf8")) || {}; } catch (e) { rec.done = {}; }
+function recSave() { try { const keep = Object.keys(rec.done).slice(-2000); const o = {}; for (const k of keep) o[k] = rec.done[k]; fs.writeFileSync(REC_STATE, JSON.stringify(o)); } catch (e) {} }
+function recSame(name) {                                    // what makes two copies "the same task": text without the date tag, the time, the counter
+  return stripHtml(String(name || "").replace(/<time\b[^>]*>.*?<\/time>/gi, "")).replace(/\s+x\d+(?=$|\s)/gi, "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+async function recMake(parentKey, body) {
+  const r = await fetch(`${BASE}/nodes`, { method: "POST", headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ parent_id: parentKey, ...body, layoutMode: "todo", position: "bottom" }), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  if (!r.ok) throw new Error(`WorkFlowy answered ${r.status} while creating a repeat`);
+  return r.json().catch(() => ({}));
+}
+async function recurringRun() {
+  if (rec.running) return rec.running;
+  rec.running = (async () => {
+    let made = 0;
+    try {
+      const today = zonedParts(Date.now()).key;
+      const cache = new Map(); const kids = async (k) => { if (!cache.has(k)) cache.set(k, await remKids(k).catch(() => [])); return cache.get(k); };
+      for (let i = -7; i <= 0; i++) {                       // pages from a week back to today: a copy then waits for its date, one step ahead
+        const page = addDaysKey(today, i);
+        let list = (await kids(page)).slice();
+        if (REMINDER_NESTED) {
+          const bullets = list.filter((n) => !(n.data && n.data.layoutMode === "todo") && !/^WB-Notes$/i.test(stripHtml(n.name || "").trim())).slice(0, REM_MAX_BULLETS);
+          for (const b of bullets) { try { list.push(...(await remKids(b.id))); } catch (e) {} }
+        }
+        for (const n of list) {
+          if (!(n.data && n.data.layoutMode === "todo")) continue;
+          const raw = n.name || "", rep = parseRepeat(stripHtml(raw.replace(/<time\b[^>]*>.*?<\/time>/gi, "")) || raw);
+          if (!rep || rec.done[n.id]) continue;
+          const tag = parseTag(raw) || (/<time\b/i.test(raw) ? (() => { const a = /startYear="(\d+)"[^>]*startMonth="(\d+)"[^>]*startDay="(\d+)"/.exec(raw); return a ? { key: `${a[1]}-${String(a[2]).padStart(2, "0")}-${String(a[3]).padStart(2, "0")}` } : null; })() : null);
+          const due = tag ? tag.key : page;
+          if (rep.count !== null && rep.count <= 1) { rec.done[n.id] = "end"; continue; }
+          const target = repeatTarget(rep, due, today);
+          if (!target || (rep.until && target > rep.until)) { rec.done[n.id] = "end"; continue; }
+          const same = recSame(raw);
+          if ((await kids(target)).some((o) => o.id !== n.id && recSame(o.name) === same)) { rec.done[n.id] = target; continue; }   // already there
+          let name = tag ? shiftTag(raw, target) : raw;
+          const tok = rep.lead + "!every " + rep.spec + (rep.until ? " until " + rep.until : "") + (rep.count !== null ? " x" + (rep.count - 1) : "");
+          name = name.replace(rep.token, tok);
+          await recMake(target, { name, ...(n.note ? { note: n.note } : {}) });
+          cache.delete(target); rec.done[n.id] = target; made++; rec.made++;
+        }
+      }
+      rec.error = "";
+    } catch (e) { rec.error = e.message; console.error("Repeating tasks:", e.message); }
+    finally { rec.last = Date.now(); rec.running = null; if (made) recSave(); }
+    return made;
+  })();
+  return rec.running;
+}
+if (RECURRING_ON) { setInterval(() => { recurringRun().catch(() => {}); }, 10 * 60 * 1000).unref(); setTimeout(() => { recurringRun().catch(() => {}); }, 20000).unref(); }
+async function serveRecurringRun(res) {
+  if (!RECURRING_ON) return sendJson(res, 400, { error: "Repeating tasks are switched off on this server (RECURRING=0)." });
+  const made = await recurringRun();
+  sendJson(res, 200, { made, error: rec.error });
+}
 async function serveReminders(url, res) {
   rem.lastClient = Date.now();
   if (url.searchParams.get("fresh") === "1" || Date.now() - rem.scannedAt > 90 * 1000 || rem.key !== zonedParts(Date.now()).key) await remScan();
@@ -1023,7 +1166,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/encrypted") return serveEncrypted(url, res);
   if (req.method === "GET" && url.pathname === "/reminders") return serveReminders(url, res);
   if (req.method === "POST" && url.pathname === "/reminders/test") return serveReminderTest(res);
+  if (req.method === "POST" && url.pathname === "/recurring/run") return serveRecurringRun(res);
   if (url.pathname === "/m/settings" && (req.method === "GET" || req.method === "POST")) return serveMobileSettings(req, res);
+  if (url.pathname === "/d/settings" && (req.method === "GET" || req.method === "POST")) return serveDesktopSettings(req, res);
   if (url.pathname === "/colors" && (req.method === "GET" || req.method === "POST")) return serveColors(req, res);
   if (req.method === "GET" && url.pathname === "/addons") return sendJson(res, 200, { addons });
   const addonHandler = addonRoutes.get(`${req.method} ${url.pathname}`);
