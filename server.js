@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.3.7
+// Version 1.3.8
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.3.7";
+const VERSION = "1.3.8";
 
 const http = require("http");
 const fs = require("fs");
@@ -77,8 +77,8 @@ if (REMOTE) {
 }
 // local: always this computer. vps: this machine (Caddy talks to it locally). fly: all interfaces (Fly's proxy needs that).
 // ASSUME_HTTPS=1: for a proxy on this same computer that doesn't send X-Forwarded-Proto (for example `tailscale serve`). Only honoured while the board listens on this computer alone.
-const ASSUME_HTTPS = process.env.ASSUME_HTTPS === "1" && REMOTE && isLoopback(process.env.HOST || "127.0.0.1");
 const HOST = REMOTE ? (process.env.HOST || (MODE === "fly" ? "0.0.0.0" : "127.0.0.1")) : "127.0.0.1";
+const ASSUME_HTTPS = process.env.ASSUME_HTTPS === "1" && REMOTE && isLoopback(HOST);
 
 // Only the node endpoints the board needs. The browser never gets the full export: search runs here (see below).
 // Ids are letters, digits, "-" and "_" only (no slashes, dots or %-escapes), so a path can't be bent toward another endpoint.
@@ -102,7 +102,7 @@ const REFRESH_MIN_GAP_MS = 60 * 1000;
 const ITEM_DEPTH = 12;
 
 let idx = null;            // { byId: Map, kids: Map(parentId -> [nodes]), at }
-let lastDownloadAt = 0;
+let lastAttemptAt = 0;     // failed attempts count too, so a 429 isn't retried on every search
 let lastUse = Date.now();
 let loading = null;
 
@@ -154,6 +154,7 @@ function fetchFailure(e) {
 
 async function downloadIndex() {
   let upstream;
+  lastAttemptAt = Date.now();
   try {
     upstream = await fetch(BASE + "/nodes-export", { headers: { Authorization: `Bearer ${KEY}` }, signal: AbortSignal.timeout(EXPORT_TIMEOUT_MS) });
   } catch (e) {
@@ -166,7 +167,6 @@ async function downloadIndex() {
   }
   const data = await upstream.json();
   idx = buildIndex(Array.isArray(data.nodes) ? data.nodes : []);
-  lastDownloadAt = Date.now();
 }
 
 // Makes sure there is a copy to search. Returns { throttled } where throttled means a fresh copy was asked for
@@ -175,7 +175,7 @@ async function ensureIndex(wantFresh) {
   lastUse = Date.now();
   if (loading) { try { await loading; } catch (e) { if (!idx) throw e; } }
   const age = idx ? Date.now() - idx.at : Infinity;
-  const tooSoon = Date.now() - lastDownloadAt < REFRESH_MIN_GAP_MS;
+  const tooSoon = Date.now() - lastAttemptAt < REFRESH_MIN_GAP_MS;
   if (idx && !wantFresh && age < INDEX_MAX_AGE_MS) return { throttled: false };
   if (idx && tooSoon) return { throttled: wantFresh };
   try {
@@ -622,7 +622,8 @@ async function handleLogin(req, res) {
     sessions.set(token, Date.now() + SESSION_DAYS * 86400000);
     return sendHtml(res, 303, "", { Location: "/", "Set-Cookie": sessionCookie(token, SESSION_DAYS * 86400) });
   }
-  const next = { count: (rec ? rec.count : 0) + 1, until: 0 };
+  const fresh = !rec || Date.now() - (rec.at || 0) > LOCKOUT_MS;    // old misses from another day don't count toward a lockout
+  const next = { count: (fresh ? 0 : rec.count) + 1, until: 0, at: Date.now() };
   if (next.count >= MAX_FAILS) { next.until = Date.now() + LOCKOUT_MS; next.count = 0; }
   failures.set(ip, next);
   console.warn(`Failed sign-in from ${ip}${next.until ? " (locked out for 15 minutes)" : ""}`);
@@ -666,7 +667,7 @@ async function guard(req, res, url) {
   }
   if (APP_ASSETS.has(url.pathname)) return true;          // the manifest and icons are fetched without the sign-in cookie
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -676,8 +677,9 @@ if (REMOTE) {
   setInterval(() => {                                       // forget expired sessions and old lockouts
     const now = Date.now();
     for (const [t, exp] of sessions) if (exp < now) sessions.delete(t);
-    for (const [ip, r] of failures) if (r.until < now && r.count === 0) failures.delete(ip);
-    if (failures.size > 5000) failures.clear();
+    // Keep active lockouts. Everything else goes once its last miss is older than the lockout, so the map can't fill up
+    // with stale entries, and a flood of new addresses can't wipe the lockouts.
+    for (const [ip, r] of failures) if (r.until < now && now - (r.at || 0) > LOCKOUT_MS) failures.delete(ip);
   }, 10 * 60 * 1000).unref();
 }
 
@@ -705,7 +707,7 @@ const APP_MANIFEST = {
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
   icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
 };
-const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
    (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
@@ -727,14 +729,15 @@ function cleanMobileSettings(x) {
 }
 async function serveMobileSettings(req, res) {
   if (!MOBILE_SYNC) return sendJson(res, req.method === "GET" ? 200 : 403, { enabled: false, error: req.method === "GET" ? undefined : "Settings sharing is turned off on this server (MOBILE_SYNC=off)." });
-  let saved = null;
-  try { saved = JSON.parse(fs.readFileSync(MOBILE_SETTINGS_FILE, "utf8")); } catch (e) { /* none saved yet */ }
-  if (req.method === "GET") return sendJson(res, 200, { enabled: true, settings: saved ? saved.settings || null : null, updated: saved ? saved.updated || null : null });
+  const load = () => { try { return JSON.parse(fs.readFileSync(MOBILE_SETTINGS_FILE, "utf8")); } catch (e) { return null; /* none saved yet */ } };
+  if (req.method === "GET") { const saved = load(); return sendJson(res, 200, { enabled: true, settings: saved ? saved.settings || null : null, updated: saved ? saved.updated || null : null }); }
   let body;
   try { body = JSON.parse((await readBody(req, 16 * 1024)).toString() || "{}"); }
   catch (e) { return sendJson(res, 400, { error: "bad request" }); }
   let settings;
   try { settings = cleanMobileSettings(body.settings); } catch (e) { return sendJson(res, 400, { error: e.message }); }
+  // Read, merge and write with no await in between, so two saves at once can't drop each other's changes.
+  const saved = load();
   const merged = { ...((saved && saved.settings) || {}), ...settings };
   const doc = { settings: merged, updated: new Date().toISOString() };
   try {
@@ -748,16 +751,17 @@ async function serveMobileSettings(req, res) {
    GET /d/settings -> { enabled, settings: { key: "value" }, updated }.  POST { settings: { key: "value" | null } } merges (null removes).
    Only the board's preference keys are accepted (never window sizes or what is folded open). Uses the same MOBILE_SYNC switch. */
 const DESKTOP_SETTINGS_FILE = process.env.DESKTOP_SETTINGS_FILE || path.join(__dirname, "desktop-settings.json");
-const DESKTOP_KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind"]);
+const DESKTOP_KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters"]);
 async function serveDesktopSettings(req, res) {
   if (!MOBILE_SYNC) return sendJson(res, req.method === "GET" ? 200 : 403, { enabled: false, error: req.method === "GET" ? undefined : "Settings sharing is turned off on this server (MOBILE_SYNC=off)." });
-  let saved = null;
-  try { saved = JSON.parse(fs.readFileSync(DESKTOP_SETTINGS_FILE, "utf8")); } catch (e) { /* none saved yet */ }
-  if (req.method === "GET") return sendJson(res, 200, { enabled: true, settings: saved ? saved.settings || {} : {}, updated: saved ? saved.updated || null : null });
+  const load = () => { try { return JSON.parse(fs.readFileSync(DESKTOP_SETTINGS_FILE, "utf8")); } catch (e) { return null; /* none saved yet */ } };
+  if (req.method === "GET") { const saved = load(); return sendJson(res, 200, { enabled: true, settings: saved ? saved.settings || {} : {}, updated: saved ? saved.updated || null : null }); }
   let body;
   try { body = JSON.parse((await readBody(req, 128 * 1024)).toString() || "{}"); } catch (e) { return sendJson(res, 400, { error: "bad request" }); }
   const x = body && body.settings;
   if (!x || typeof x !== "object" || Array.isArray(x)) return sendJson(res, 400, { error: "settings must be an object" });
+  // Read, merge and write with no await in between, so two saves at once can't drop each other's changes.
+  const saved = load();
   const merged = { ...((saved && saved.settings) || {}) };
   for (const [k, v] of Object.entries(x)) {
     if (!DESKTOP_KEYS.has(k)) continue;
@@ -779,14 +783,14 @@ const CARD_COLORS = ["red", "orange", "yellow", "green", "blue", "purple"];
 const COLORS_MAX = 5000;
 function readColors() { try { const d = JSON.parse(fs.readFileSync(COLORS_FILE, "utf8")); return d && typeof d.colors === "object" && d.colors ? d : { colors: {} }; } catch (e) { return { colors: {} }; } }
 async function serveColors(req, res) {
-  const saved = readColors();
-  if (req.method === "GET") return sendJson(res, 200, { colors: saved.colors, updated: saved.updated || null, palette: CARD_COLORS });
+  if (req.method === "GET") { const saved = readColors(); return sendJson(res, 200, { colors: saved.colors, updated: saved.updated || null, palette: CARD_COLORS }); }
   let body;
   try { body = JSON.parse((await readBody(req, 64 * 1024)).toString() || "{}"); }
   catch (e) { return sendJson(res, 400, { error: "bad request" }); }
   const set = body && body.set;
   if (!set || typeof set !== "object" || Array.isArray(set)) return sendJson(res, 400, { error: "expected { set: { id: colour|null } }" });
-  const colors = { ...saved.colors };
+  // Read, merge and write with no await in between, so two saves at once can't drop each other's changes.
+  const colors = { ...readColors().colors };
   for (const [id, c] of Object.entries(set)) {
     if (typeof id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return sendJson(res, 400, { error: "bad id" });
     if (c === null) delete colors[id];
@@ -876,6 +880,203 @@ function withAddons(page) {
   return page.split("<!--@addons:script-->").join(addonScripts.map((t) => `<script>\n${t}\n</script>`).join("\n"));
 }
 
+/* ---------- Priorities, time estimates and saved filters ----------
+   "!p1" to "!p4" in a task's text is its priority (1 urgent, 2 high, 3 medium, 4 low; none is normal), and "~45m", "~1h",
+   "~1h30m" or "~1.5h" its time estimate. Like reminder times they live in the task text, so nothing else is stored.
+   GET /filter?q=…&today=YYYY-MM-DD&ws=mon runs a saved filter over the whole outline (the same copy Search uses). */
+const PRIO_RE = /(^|\s)!p([1-4])(?=$|[\s.,;!?)<])/i;
+const EST_RE = /(^|\s)~(?:(\d{1,2}(?:\.\d{1,2})?)h(?:(\d{1,2})m)?|(\d{1,3})m)(?=$|[\s.,;!?)<])/i;
+function parsePrio(text) { const m = PRIO_RE.exec(String(text || "")); return m ? Number(m[2]) : 0; }
+function parseEst(text) {
+  const m = EST_RE.exec(String(text || ""));
+  if (!m) return 0;
+  return m[4] ? Number(m[4]) : Math.round(Number(m[2]) * 60) + Number(m[3] || 0);
+}
+function dropMeta(s) {
+  const cut = (re) => (t) => t.replace(new RegExp(re.source, "gi"), (m, lead) => (lead ? " " : ""));
+  return cut(EST_RE)(cut(PRIO_RE)(String(s || ""))).replace(/\s{2,}/g, " ").trim();
+}
+const PRIO_RANK = [3.5, 1, 2, 3, 4];                      // by priority number; no priority sorts between medium and low
+
+// Which calendar day a task sits on. The API turns "2026-11" or "2026-11-04" into the real calendar node, so each month is
+// looked up once; its day pages are then read from the outline copy by the day number in their names. A month whose names
+// can't be read safely is looked up one day at a time instead.
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const calIds = new Map();                                  // "calendar" | "YYYY-MM" | "YYYY-MM-DD" -> { id, at }
+const CAL_MISS_MS = 10 * 60 * 1000;                        // a page that didn't exist yet is asked about again after this long
+const DUE_MAX_DAYS = 120, OVERDUE_DAYS = 60, FILTER_LIMIT = 500;
+const FILTER_MAX_TERMS = 50;                               // words, phrases and under: values in one filter; thousands of #tag words would keep the server busy
+async function calId(key) {
+  const c = calIds.get(key);
+  if (c && (c.id || Date.now() - c.at < CAL_MISS_MS)) return c.id;
+  const r = await wfGet("/nodes/" + encodeURIComponent(key));
+  if (!r.ok && r.status !== 404) throw new Error(`WorkFlowy answered ${r.status} for the calendar page ${key}`);
+  const node = r.ok && r.json ? (r.json.node || r.json) : null;
+  const id = node && node.id ? node.id : null;
+  calIds.set(key, { id, at: Date.now() });
+  return id;
+}
+function dayNumber(name) {
+  const raw = String(name || "");
+  const t = /<time\b[^>]*\bstartDay="(\d+)"/i.exec(raw); if (t) return Number(t[1]);
+  const s = stripHtml(raw);
+  const iso = /\b\d{4}-\d{2}-(\d{2})\b/.exec(s); if (iso) return Number(iso[1]);
+  const m = /(?:^|\D)(\d{1,2})(?=\D|$)/.exec(s); return m ? Number(m[1]) : 0;
+}
+async function calDays(keys) {                             // day node id -> "YYYY-MM-DD", for the days asked about that have a page
+  const out = new Map(), want = new Set(keys);
+  for (const mk of [...new Set(keys.map((k) => k.slice(0, 7)))]) {
+    const mid = await calId(mk);
+    if (!mid) continue;
+    const [y, mo] = mk.split("-").map(Number), last = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+    const seen = new Map();
+    let readable = true;
+    for (const c of idx.kids.get(mid) || []) {
+      const d = dayNumber(c.name);
+      if (!d || d > last || seen.has(d)) { readable = false; break; }
+      seen.set(d, c.id);
+    }
+    if (readable && seen.size) {                           // check one against the API before trusting the names
+      const [d0, id0] = seen.entries().next().value;
+      if ((await calId(`${mk}-${String(d0).padStart(2, "0")}`)) !== id0) readable = false;
+    }
+    if (readable) { for (const [d, id] of seen) { const k = `${mk}-${String(d).padStart(2, "0")}`; if (want.has(k)) out.set(id, k); } continue; }
+    for (const k of keys) if (k.startsWith(mk)) { const id = await calId(k); if (id) out.set(id, k); }
+  }
+  return out;
+}
+function dayOf(n, dayIds) {
+  let p = n;
+  for (let i = 0; p && i < 60; i++) {
+    const pid = p.parent_id;
+    if (!pid) return null;
+    if (ISO_DAY.test(pid)) return pid;                     // added through the board since the last download: kept under the date key
+    const k = dayIds.get(pid); if (k) return k;
+    p = idx.byId.get(pid);
+  }
+  return null;
+}
+function underNode(n, rootId) {
+  let p = n;
+  for (let i = 0; p && i < 60; i++) {
+    const pid = p.parent_id;
+    if (!pid) return false;
+    if (pid === rootId || ISO_DAY.test(pid)) return true;
+    p = idx.byId.get(pid);
+  }
+  return false;
+}
+
+// ---- filter words: p:1-2  due:week  est:<30m  is:done  under:"Project"  plus ordinary search words, "phrases" and -words ----
+function minutesOf(v) {
+  const m = /^(?:(\d+(?:\.\d+)?)h)?(?:(\d+)m)?$/.exec(v);
+  return m && (m[1] || m[2]) ? Math.round(Number(m[1] || 0) * 60) + Number(m[2] || 0) : null;
+}
+function dueRange(v, today, ws) {
+  const dow = keyDate(today).getUTCDay(), wk = addDaysKey(today, -(ws === "sun" ? dow : (dow + 6) % 7));
+  const named = { today: [0, 0], tomorrow: [1, 1], yesterday: [-1, -1], overdue: [-OVERDUE_DAYS, -1] }[v];
+  if (named) return [addDaysKey(today, named[0]), addDaysKey(today, named[1])];
+  if (v === "week") return [wk, addDaysKey(wk, 6)];
+  if (v === "nextweek") return [addDaysKey(wk, 7), addDaysKey(wk, 13)];
+  if (v === "lastweek") return [addDaysKey(wk, -7), addDaysKey(wk, -1)];
+  let m = /^(\d{1,3})d$/.exec(v); if (m) return [today, addDaysKey(today, Math.max(1, Number(m[1])) - 1)];
+  if (ISO_DAY.test(v)) return [v, v];
+  m = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(v); if (m && m[1] <= m[2]) return [m[1], m[2]];
+  return null;
+}
+function parseFilter(q, today, ws) {
+  const f = { prio: null, est: null, due: null, state: "open", types: "todo", under: [], notUnder: [], errors: [] };
+  const text = String(q || "").replace(/(^|\s)(-?)(p|due|est|is|under):(?:"([^"]*)"?|(\S*))/gi, (all, lead, neg, key, quoted, bare) => {
+    const v = (quoted !== undefined ? quoted : bare || "").trim().toLowerCase();
+    key = key.toLowerCase();
+    if (key === "under") { if (v) (neg ? f.notUnder : f.under).push(v); return lead || " "; }
+    if (key === "p") {
+      const m = /^([1-4])(?:-([1-4]))?$/.exec(v);
+      if (v === "none" || v === "any") f.prio = v;
+      else if (m) f.prio = [Number(m[1]), Number(m[2] || m[1])].sort();
+      else f.errors.push(`p:${v} (use p:1, p:1-2, p:none or p:any)`);
+    } else if (key === "est") {
+      const m = /^(<=|>=|<|>)?(.+)$/.exec(v), mins = m ? minutesOf(m[2]) : null;
+      if (v === "none" || v === "any") f.est = v;
+      else if (mins !== null) f.est = { op: m[1] || "<=", mins };
+      else f.errors.push(`est:${v} (use est:none, est:any, est:<30m or est:>=1h)`);
+    } else if (key === "due") {
+      if (v === "none" || v === "any") f.due = v;
+      else {
+        const r = dueRange(v, today, ws);
+        if (!r) f.errors.push(`due:${v} (use today, tomorrow, overdue, week, nextweek, 7d, a date like 2026-11-04, or a range like 2026-11-01..2026-11-15)`);
+        else if ((keyDate(r[1]) - keyDate(r[0])) / 86400000 >= DUE_MAX_DAYS) f.errors.push(`due:${v} covers more than ${DUE_MAX_DAYS} days`);
+        else f.due = r;
+      }
+    } else if (key === "is") {
+      if (["open", "done", "any"].includes(v)) f.state = v;
+      else if (v === "todo") f.types = "todo";
+      else if (v === "all") f.types = "all";
+      else f.errors.push(`is:${v} (use is:open, is:done, is:any or is:all)`);
+    }
+    return lead || " ";
+  });
+  f.text = text.trim();
+  return f;
+}
+async function runFilter(q, today, ws) {
+  const f = parseFilter(q, today, ws);
+  if (f.errors.length) return { error: "Didn't understand " + f.errors.join("; ") };
+  const { include, exclude } = parseQuery(f.text);
+  if (include.length + exclude.length + f.under.length + f.notUnder.length > FILTER_MAX_TERMS) return { error: `That filter has too many words (the limit is ${FILTER_MAX_TERMS}).` };
+  const whole = (t) => /^[#@]/.test(t);                   // #tag and @person match whole words ("#work" isn't "#workshop")
+  let dayIds = null, calRoot = null;
+  if (Array.isArray(f.due)) {
+    const keys = [];
+    for (let k = f.due[0]; k <= f.due[1]; k = addDaysKey(k, 1)) keys.push(k);
+    dayIds = await calDays(keys);
+  } else if (f.due) calRoot = await calId("calendar");      // due:none / due:any: is it anywhere in the calendar?
+  if (!idx) throw Object.assign(new Error("The outline copy was cleared; try again."), { status: 503 });
+  const found = [];
+  for (const n of idx.byId.values()) {
+    if (f.types === "todo" && n.layoutMode !== "todo") continue;
+    if (f.state === "open" ? n.completedAt : f.state === "done" ? !n.completedAt : false) continue;
+    const pr = parsePrio(n.lname), est = parseEst(n.lname);
+    if (f.prio === "none" ? pr : f.prio === "any" ? !pr : f.prio ? !(pr >= f.prio[0] && pr <= f.prio[1]) : false) continue;
+    if (f.est === "none" ? est : f.est === "any" ? !est : false) continue;
+    if (f.est && f.est.op && !(est && { "<": est < f.est.mins, "<=": est <= f.est.mins, ">": est > f.est.mins, ">=": est >= f.est.mins }[f.est.op])) continue;
+    if (exclude.some((t) => hasTerm(n.lname, t, whole(t)) || hasTerm(n.lnote, t, whole(t)))) continue;
+    if (!include.every((t) => hasTerm(n.lname, t, whole(t)) || hasTerm(n.lnote, t, whole(t)))) continue;
+    if (f.under.length || f.notUnder.length) {
+      const lp = pathNames(n).map((x) => x.toLowerCase());
+      if (!f.under.every((u) => lp.some((x) => x.includes(u))) || f.notUnder.some((u) => lp.some((x) => x.includes(u)))) continue;
+    }
+    let day = null;
+    if (dayIds) { day = dayOf(n, dayIds); if (!day) continue; }
+    else if (f.due) { const on = underNode(n, calRoot); if (f.due === "none" ? on : !on) continue; }
+    found.push({ n, pr, est, day });
+  }
+  found.sort((a, b) => PRIO_RANK[a.pr] - PRIO_RANK[b.pr] || (a.day || "9999").localeCompare(b.day || "9999") || b.n.modifiedAt - a.n.modifiedAt);
+  const open = found.filter((x) => !x.n.completedAt);
+  return {
+    total: found.length,
+    estTotal: open.reduce((s, x) => s + x.est, 0),
+    noEst: open.filter((x) => !x.est).length,
+    hits: found.slice(0, FILTER_LIMIT).map(({ n, pr, est, day }) => ({
+      id: n.id, name: maskTokens(stripHtml(n.name)), path: pathNames(n).map(maskTokens),
+      todo: n.layoutMode === "todo", done: !!n.completedAt, prio: pr, est, day,
+    })),
+    limit: FILTER_LIMIT,
+  };
+}
+async function serveFilter(url, res) {
+  const p = url.searchParams;
+  const today = ISO_DAY.test(p.get("today") || "") ? p.get("today") : zonedParts(Date.now()).key;
+  try {
+    const { throttled } = await ensureIndex(p.get("refresh") === "1");
+    const r = await runFilter(p.get("q") || "", today, p.get("ws") === "sun" ? "sun" : "mon");
+    if (r.error) return sendJson(res, 400, { error: r.error });
+    sendJson(res, 200, { ...r, count: idx.byId.size, indexTime: idx.at, throttled });
+  } catch (e) {
+    sendJson(res, e.status && e.status >= 400 ? e.status : 502, { error: e.message || fetchFailure(e) });
+  }
+}
+
 /* ---------- Reminders ----------
    A task with a time in its text, like "Call dentist @2:30pm" or "@14:30", is a reminder for the day page it sits on.
    Nothing extra is stored in WorkFlowy: the time is part of the task. The board shows a bell badge and a popup,
@@ -953,7 +1154,7 @@ function remItem(n, pageKey) {                              // returns a list: t
   if (!t && !leads.length) return [];
   const day = tag ? tag.key : pageKey, h = t ? t.h : NO_TIME_H, mi = t ? t.mi : 0;
   const time = `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
-  const name = maskTokens(((t && t.token) ? text.replace(t.token, "") : text).replace(/\s{2,}/g, " ").trim()) || "(task)";
+  const name = maskTokens(dropMeta((t && t.token) ? text.replace(t.token, "") : text)) || "(task)";
   const out = [];
   if (t) out.push({ id: n.id, day, time, at: zonedEpoch(day, h, mi), name, lead: null });
   for (const c of leads) {
@@ -1065,6 +1266,17 @@ function nextRepeatKey(rep, from) {
   }
   return null;
 }
+// The marker is read from the plain text, but the copy is made from the stored name, which may wrap it in formatting
+// (<b>!every week x3</b>) or put &nbsp; before it. Returns null when a counter can't be found there, so a counted
+// series is never copied with its count unchanged (which would repeat it forever).
+function nextRepeatName(name, rep, tok) {
+  if (name.includes(rep.token)) return name.replace(rep.token, tok);
+  if (rep.count === null) return name;                       // nothing to count down: the marker can stay as it is
+  const re = /(!every\b[\s\S]*?(?:\s|&nbsp;|>)x)(\d+)(?=$|[\s.,;!?)<&])/i;
+  const m = re.exec(name);
+  if (!m || Number(m[2]) !== rep.count) return null;
+  return name.replace(re, (all, pre) => pre + (rep.count - 1));
+}
 function dropRepeat(s) { return String(s || "").replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim(); }
 function repeatTarget(rep, due, today) {                    // the next date after the due date; when that has passed already, the first one still ahead
   let k = nextRepeatKey(rep, due);
@@ -1120,9 +1332,9 @@ async function recurringRun() {
           if (!target || (rep.until && target > rep.until)) { rec.done[n.id] = "end"; continue; }
           const same = recSame(raw);
           if ((await kids(target)).some((o) => o.id !== n.id && recSame(o.name) === same)) { rec.done[n.id] = target; continue; }   // already there
-          let name = tag ? shiftTag(raw, target) : raw;
           const tok = rep.lead + "!every " + rep.spec + (rep.until ? " until " + rep.until : "") + (rep.count !== null ? " x" + (rep.count - 1) : "");
-          name = name.replace(rep.token, tok);
+          const name = nextRepeatName(tag ? shiftTag(raw, target) : raw, rep, tok);
+          if (name === null) { rec.done[n.id] = "unparsed"; console.warn(`Repeating task ${n.id}: couldn't find its x${rep.count} counter in the stored text, so no copy was made.`); continue; }
           await recMake(target, { name, ...(n.note ? { note: n.note } : {}) });
           cache.delete(target); rec.done[n.id] = target; made++; rec.made++;
         }
@@ -1163,6 +1375,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/targets") return serveTargets(res);
   if (req.method === "GET" && url.pathname === "/resolve-target") return serveResolveTarget(url, res);
   if (req.method === "GET" && url.pathname === "/done") return serveDone(url, res);
+  if (req.method === "GET" && url.pathname === "/filter") return serveFilter(url, res);
   if (req.method === "GET" && url.pathname === "/encrypted") return serveEncrypted(url, res);
   if (req.method === "GET" && url.pathname === "/reminders") return serveReminders(url, res);
   if (req.method === "POST" && url.pathname === "/reminders/test") return serveReminderTest(res);
@@ -1203,9 +1416,8 @@ const server = http.createServer(async (req, res) => {
         try { patchIndex(req.method, url.pathname, body && body.length ? JSON.parse(body.toString()) : null, text ? JSON.parse(text) : null); }
         catch (e) { /* the copy just stays as it was until the next refresh */ }
       }
-      res.writeHead(upstream.status, {
-        "Content-Type": upstream.headers.get("content-type") || "application/json",
-      });
+      // Always JSON: an HTML error page from upstream must never be served as a page from the board's own address.
+      res.writeHead(upstream.status, { "Content-Type": "application/json; charset=utf-8" });
       return res.end(text);
     } catch (e) {
       // Node's fetch hides the real reason in e.cause (DNS, TLS, proxy, timeout...)

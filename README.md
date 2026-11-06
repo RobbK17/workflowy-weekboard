@@ -4,7 +4,24 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.3.7**
+**Version 1.3.8**
+
+### What's new in 1.3.8
+
+Replace `server.js`, `index.html` and `mobile.html`, then **restart the server** (it has a new `/filter` route). Full details are in `CHANGELOG.md`.
+
+- **Priorities.** Put `!p1` (urgent), `!p2` (high), `!p3` (medium) or `!p4` (low) in a task, or right-click a card and pick one. Cards get a coloured edge, and **Sort by priority** (on by default) puts urgent work at the top of each day. See "Priorities, time estimates and saved filters" below.
+- **Time estimates.** Put `~30m` or `~1h30m` in a task, or pick one from the right-click menu. Each day's header shows the time estimated ("4 open · 2h 15m"). Set **Plan day hours** and the Plan day meter measures time instead of counting tasks.
+- **Saved filters.** **Reports > Saved filters** finds tasks anywhere in your outline by priority, date, estimate or words, for example `p:1-2 due:week #work`, and totals their estimated time. Save the ones you use; four starters are included.
+- **Counted repeats stop when they should.** A repeat like `!every week x3` now counts down even when the marker is bold or otherwise formatted. Before, such a series could go on making copies forever.
+- **Fewer wasted calls when WorkFlowy is busy.** After WorkFlowy refuses an outline download, search keeps using its copy and waits a minute before asking again.
+- **Hosted-mode hardening.**
+  - `ASSUME_HTTPS=1` is now ignored on Fly, as intended.
+  - Old failed sign-ins are cleared properly, and a flood of sign-in attempts from many addresses can no longer reset the lockouts.
+  - The phone page's **Sign out** now clears the browser's storage, like the desktop page.
+- **Shared settings and card colours** no longer lose a change when two saves arrive at the same moment.
+- **Easier to use with a keyboard and in dark mode.** The report windows put the keyboard focus inside when they open and return it when they close. Priority and warning colours have dark-mode versions and readable contrast.
+- **Consistent wording.** The phone page says "Show completed", like the desktop page.
 
 ### What's new in 1.3.7
 
@@ -52,7 +69,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 ### What's new in 1.3.0 (since 1.2.1)
 
-- **A phone page.** Open `/m` on your phone for a version built for small screens, while the desktop board stays exactly as it was. A strip of Mon–Sun chips at the top shows how many tasks are open each day; tap a day to see its tasks full width, or swipe the list left and right to change day. Tick a task to complete it, tap it (or its **⋯**) to edit it, move it to another day, or delete it, and type in the bar at the bottom to add a task to the day. **Show done** reveals finished tasks, the **‹ ›** buttons change week, **⌂** jumps to today. Phones that open the main address are sent to `/m` automatically; **⋯ > Open the desktop page** in the phone page goes the other way for that session (or add `?desktop=1` to the address).
+- **A phone page.** Open `/m` on your phone for a version built for small screens, while the desktop board stays exactly as it was. A strip of Mon–Sun chips at the top shows how many tasks are open each day; tap a day to see its tasks full width, or swipe the list left and right to change day. Tick a task to complete it, tap it (or its **⋯**) to edit it, move it to another day, or delete it, and type in the bar at the bottom to add a task to the day. **Show completed** reveals finished tasks, the **‹ ›** buttons change week, **⌂** jumps to today. Phones that open the main address are sent to `/m` automatically; **⋯ > Open the desktop page** in the phone page goes the other way for that session (or add `?desktop=1` to the address).
 - **Install it like an app.** The board now has a web app manifest and icons, so on Android (Chrome menu > **Install app** / **Add to Home screen**) and iPhone (Safari Share > **Add to Home Screen**) it opens full-screen with its own icon and starts on the phone page. The install option only appears on an `https://` address (Option 3 or a Tailscale address; see "Using it on a phone" below).
 - **Groups.** Tasks indented under a plain bullet show as a collapsible group (the bullet's name, an open count and its tasks), each with its own **+ Add task** that adds under that bullet. **⋯ > Settings > Tasks under bullets** chooses Group, Flatten (tasks listed in order, each tagged with its bullet) or Off. The WB-Notes bullet is never treated as a group. Moving a grouped task puts it on the other day's top level. Each group header has its own **⋯** button: **Move group to top** (one request; Undo puts it back), **Move group to today**, and **Move group to another day…**. The group's tasks move with it. Creating or renaming groups stays on the desktop page.
 - **Inbox button (desktop).** A **📥 Inbox** button sits just left of **Reports** under the Daily page, with a count of the open items directly in your Inbox. Click it, or press **I** when you're not typing, to open the Inbox in the item window, where you can edit everything in it (any item type); **← Panes** (or Esc) returns. Drag a task or group card onto the button to send it to the end of the Inbox (Undo puts it back). Set it in **Settings > Week board > Inbox** by pasting the node's WorkFlowy link or id, or by picking one of your Plan day sources. It is saved in this browser. Plan day is unchanged.
@@ -61,7 +78,7 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 - **Date words.** The add bar understands `tomorrow`, `fri`, `next mon`, `11/5`, `Nov 5`, `in 3 days` and `next week` at the end of the text: "Call dentist fri" adds "Call dentist" to Friday, and a hint under the box shows where it will go. Tap the hint to add the text to the current day exactly as typed.
 - **Undo.** Completing or reopening a task, adding, editing, moving (including Move all to today) and reminder changes show a toast with **Undo** for a few seconds. **⋯ > Undo: …** in the main menu undoes the latest one later. Deleting can't be undone.
 - **Reminders.** A task's **⋯** menu has **Set reminder…** / **Change reminder…**: pick a time (or In 30 minutes / In 1 hour for a task on today), or remove it. The time is stored in the task's text as `@HH:MM`, the same as on the desktop board, so push and popup reminders work from it. A reminder that comes from a WorkFlowy date tag, and any formatted or encrypted task, is changed on the desktop page.
-- **Settings.** **⋯ > Settings** has: Tasks under bullets (Group / Flatten / Off), Show Past due, Show Upcoming (turning one off removes its button and skips its background loading), Show completed tasks, and Week length (7 days Mon–Sun, 7 days Sun–Sat, or 5 days Mon–Fri). They are saved in that browser.
+- **Settings.** **⋯ > Settings** has: Tasks under bullets (Group / Flatten / Off), Show Past due, Show Upcoming (turning one off removes its button and skips its background loading), Show completed, and Week length (7 days Mon–Sun, 7 days Sun–Sat, or 5 days Mon–Fri). They are saved in that browser.
 - **Unlock encryption (read-only).** Text made with the Encryption add-on shows as 🔒. **⋯ > Unlock encryption…** asks for your passphrase and then shows the decrypted text between ⟦ ⟧ in names and notes, for the day, the Inbox and its sections. The passphrase is checked against real encrypted text on screen, and a wrong one is refused. While unlocked, a green bar above the list says how many items on screen were opened (with a **Lock** button), and each opened item has a green left edge and a 🔓 so it stands out from plain items; items that stay locked are not marked. It is read-only: encrypted items still have no Edit on the phone, and nothing is ever re-encrypted or written back. The passphrase and the decrypted text stay in the page's memory only (never in browser storage, never sent anywhere); **⋯ > Lock encryption**, a reload, or five minutes away forgets them. It needs an `https://` address (or `localhost`), like the add-on. Text made with a different passphrase stays 🔒. Each token takes a moment to open (the key is derived 600,000 times), so a long list fills in a few items at a time.
 - **Inbox sections.** In the Inbox, a heading (H1, H2 or H3) is a **section** that holds anything: tasks (with checkboxes), bullets and numbered lines, shown as a small outline under the heading and collapsible like a group. Every Inbox item's **⋯** menu has **⇥ Move under…** (lists the headings; the item goes to the end of the one you pick), and an item inside a section has **⇤ Out of section** (back to the end of the Inbox). Every item in the Inbox (bullets, numbered lines and headings, as well as tasks) has **✎ Edit** on its ⋯ menu, and a section or group header has **✎ Rename…**; Formatted text (a date, a link, bold) is edited as its visible words and keeps its tags where they are, the same way the desktop board does; only encrypted text has no Edit on the phone. A section has its own add row, **[type] [+ Add item] [Add]**: the type picker on the left (shows ☐, • or 1.; Task, Bullet or Numbered; your choice is remembered on that device), the text box, and an **Add** button (Enter does the same, and the box stays focused for the next item). A plain group has the same row without the picker (**+ Add task**), and its **⋯** menu moves the whole section to the top or to a day, changes its type, or deletes it while it is empty. Sections show one level, always (they ignore **Tasks under bullets**); plain bullets that hold tasks stay groups, and days are unchanged (a heading with tasks there is still a group). The Inbox count counts the items inside sections, not the headings. Phone page only; the desktop board is unchanged.
 - **Add groups, move tasks in and out of groups, change types.** **⋯ > Add group…** (on a day or in the Inbox) asks for a name and a type (Bullet or Heading 1–3) and adds it at the end of that list. A group you add here shows even while it has no tasks (other bullets without tasks stay hidden, as before), and its **⋯** menu has **Delete group** while it is empty. A task's **⋯** menu has **Move to group…** (lists the groups on the same day or Inbox; the task goes to the end of the group) and, for a task already in a group, **Out of group** (back to the end of the day). These are for tasks only. When an Inbox is set, every item's **⋯** menu also has **📥 Move to <Inbox name>** (to the end of the Inbox; Undo puts it back). **Change type…** is on the ⋯ menu of items in the Inbox (and of Inbox groups), since days list only tasks and groups: Task, Bullet, Numbered, Heading 1, 2 or 3 (the Inbox keeps showing it as a line). Undo works for all of these.
@@ -97,6 +114,8 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 | `index.html` | The board itself (a single page, no build step, no dependencies). |
 | `mobile.html`, `icon-180.png`, `icon-192.png`, `icon-512.png` | The phone page (served at `/m`) and the app icons. Optional: without them the board still works and `/m` says it isn't installed. |
 | `addons/` | Optional extras (see `addons/ADDONS.md`). Included: `crypt` (Encryption, see `addons/crypt/README.md`). Delete the folder and the board is the plain board. |
+| `CHANGELOG.md` | What changed in each version, with upgrade notes. |
+| `.gitignore` | Keeps secrets and the settings files the server writes out of git. |
 | `Dockerfile`, `fly.toml`, `.dockerignore` | Only for Option 3 (Fly.io). |
 | `deploy/weekboard.service`, `deploy/weekboard.env.example`, `deploy/Caddyfile` | Only for Option 2 (your own server). |
 
@@ -286,7 +305,7 @@ All settings are environment variables, set the same way as the key above.
 | `UPDATE_URL` | No | this project's `server.js` on GitHub (`main` branch) | Raw address of a `server.js` to compare versions against (useful for a fork). |
 | `IDLE_PURGE_MINUTES` | No | `10` | Minutes without a search before the server clears its copy of your outline from memory. `0` turns the purge off. |
 | `REMINDER_TZ` | No | the server's time zone | Time zone for reminder times, for example `America/New_York`. **Set it on `vps` and `fly`**, whose servers run in UTC. |
-| `NTFY_TOPIC` | No | none | Turns on push reminders through [ntfy](https://ntfy.sh). Use a long random topic name; anyone who knows it can read it. |
+| `NTFY_TOPIC` | No | none | Turns on push reminders through [ntfy](https://ntfy.sh). On ntfy.sh a topic is public: anyone who knows or guesses the name can subscribe and read every reminder (the task text). Use a long random name and treat it like a password, or set `NTFY_TOKEN` with a reserved topic or your own ntfy server. |
 | `NTFY_URL` / `NTFY_TOKEN` | No | `https://ntfy.sh` / none | Your own ntfy server, and its access token if it needs one. |
 | `PUSHOVER_TOKEN` + `PUSHOVER_USER` | No | none | Push reminders through Pushover instead of (or as well as) ntfy. |
 | `REMINDER_NESTED` | No | on | Set to `0` so push reminders ignore tasks nested under a bullet (saves a WorkFlowy request per bullet). |
@@ -320,8 +339,9 @@ All settings are environment variables, set the same way as the key above.
 - **Move to a date:** hover a task and click the calendar icon for a small menu: Today, Tomorrow, next Monday, or any date (type it or use the date picker). Cancel, Esc, or a click elsewhere closes it. The task moves to the bottom of that day's page, even a day outside the days shown. (Dragging a card onto a day column still works for days on the board.) In Group mode, the calendar icon on a group moves the whole bullet with all its tasks.
 - The day header and add box stay in place while the task list scrolls.
 
-**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day sources) and **Reminders** (popups, browser notifications, push status; see "Reminders" below), plus one section for each installed add-on that has settings (the crypt add-on adds **Encryption**). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
+**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Sort by priority, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day hours, Plan day sources) and **Reminders** (popups, browser notifications, push status; see "Reminders" below), plus one section for each installed add-on that has settings (the crypt add-on adds **Encryption**). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
 - **Hide completed:** hides checked-off tasks, on the board and in the sidebar's Daily page (a ticked task there is hidden along with anything indented under it; the item editor opened from search still shows everything). Deleting a line with **−** still warns about the lines underneath, hidden or not.
+- **Sort by priority:** on by default. Each day lists urgent tasks (`!p1`) first, then high, medium, tasks with no priority, and low (`!p4`) last. Within each level the outline order is kept, and a group card sorts by its most urgent open task. Off shows the plain outline order. See "Priorities, time estimates and saved filters" below.
 - **Past due:** adds a panel of open tasks from *before* the days on screen. Choose how far back with **Past due range** just below it in Settings: 1, 2, 3 or 4 weeks, or All (default 2 weeks). The panel's title shows the range, for example **Past due (2 weeks)**, and a small **→ Today** button next to the count opens a preview to move the open ones to today.
 - **Upcoming:** adds a panel of tasks in the 14 days *after* the days on screen. Both panels have a **▾ 3 open** button next to the title: click it to fold the panel up to just its header (it becomes **▸ 3 open**), and click again to open it. Whether each is folded is remembered in your browser.
 - **Nested:** `Off`, `Group` or `Flatten`. It decides what the board does with a plain bullet that has tasks indented under it (for example a "Project Alpha" bullet with three todos beneath it). **Off** is the default and ignores such bullets, as earlier versions did. The choice is remembered in your browser.
@@ -332,6 +352,7 @@ All settings are environment variables, set the same way as the key above.
   - Only **one level down** is read: tasks directly under a plain bullet or heading that sits directly under a day. The notes bullet (WB-Notes) is skipped on purpose, so todos added to the notes bullet stay off the board.
   - **Cost:** the board makes one small request per plain bullet to find its tasks. They load in the background, are remembered until you press ↻, and the board redraws a moment later (never while you're typing in a box). With Past due on, and especially with "All", a long history means more requests. Leave Nested on Off if you don't use indented tasks.
 - **Plan day limit:** how many open tasks fill the meter in Plan day (default 8). `0` turns the meter off.
+- **Plan day hours:** the hours you have for tasks in a day (0 by default, which keeps the task-count meter above). When set, the meter adds up the day's time estimates instead, for example "5h 30m of 6h planned". It turns amber at 90% and red when over, and says how many open tasks have no estimate yet.
 - **Plan day sources:** other WorkFlowy nodes, such as an Inbox or quick-capture bullet, whose open todos appear in Plan day's **Bring in** side. Type a name (optional), paste the node's link (WorkFlowy's address-bar link, `https://workflowy.com/#/<12 characters>`, or just the id) and click **Add**. Up to 6, saved in this browser, so each person adds their own node. How it works: the link ends in only the last 12 characters of the node's id, but the API wants the full id, so the board's server looks the full id up in the same in-memory copy of your outline that Search uses. The first time that reads your whole outline, which can take a moment, and the node has to exist in it. If you leave the name blank, it uses the node's own name from WorkFlowy (otherwise "Inbox"). The name is saved when you add the node, so rename it here if you rename it in WorkFlowy. Only open **todos directly under** the node are listed (plain bullets and completed tasks are left out). ✕ removes a source.
 - **Sub-items:** shows the sub-item button on tasks (on by default). The counts are loaded in the background with one small request per visible task, remembered until you press ↻, and cards in Past due and Upcoming get them too. If you have a lot of open tasks and want fewer requests to WorkFlowy, turn this off. Which cards you've opened is remembered in your browser. With Hide completed on, completed sub-items are left out of the checklist (the count still includes them).
 
@@ -372,10 +393,11 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 - **Selector (☑ Selector, on the bottom row of the Daily page panel).** Click cards to pick several (they get a blue outline; clicking doesn't tick or edit them). A bar appears at the bottom: **Select all open**, **Move to…** (Today, Tomorrow, next Monday, or any date), **Complete**, **Delete** (asks first), and **Done selecting** (or press Esc). A **group card** is picked as a whole (click anywhere on it except the fold arrow): moving it moves the bullet with its tasks, and deleting it deletes the bullet and everything under it. **Complete** skips groups (a group is a bullet, not a task) and says so; **Select all open** includes groups. Everything done from the bar can be undone in one step.
 - **Move open tasks forward.** The **→ Today** button in the Past due panel opens a preview of those tasks. Untick any you want to leave, pick the date (it starts on today), and press **Move**. Plan day uses the same preview for **Send the rest to tomorrow…** and **Add all…**. It moves tasks that sit directly under a day. Tasks inside plain bullets (the Nested setting) stay where they are, so nothing leaves its bullet by surprise.
 - **Date words in the Add task box.** End the text with a day and the task goes to that day instead of the column you typed in, for example `Call dentist fri`, `Pay rent in 3 days`, `Report 11/5`, `Party Nov 5th`, `Plan next week`. A grey hint under the box shows where it will go. It understands: `today`, `tomorrow` (`tmrw`), weekday names (`fri` is the next Friday coming up, `next fri` is the Friday of next week), `next week` (Monday), `in N days/weeks`, `M/D` and `M/D/YY`, and `Nov 5` / `5 Nov` (the next time that date comes round, or add a year). A trailing `on`, `by` or `due` is dropped (`Call mom on fri`). Text that's only a date word stays a normal task. **Shift+Enter** adds the text exactly as typed.
-- **Plan day (📅 Plan day in the bottom bar).** Replaces the columns with one day in focus, today to start with. Left: that day's tasks as normal cards (tick, edit, move, delete, select), a count of open and done tasks, a meter against your **Plan day limit** (amber at the limit, red above it), **Send the rest to tomorrow…**, and an Add task box. Right: **Bring in**, listing your past-due open tasks (as far back as the Past due range, at most 4 weeks) and the next three days' open tasks, each with a **+ Add** button that moves it to the day you're planning, and **Add all…** for the past-due list. Use ‹ › to plan another day. Click Plan day again to go back to the columns. Day pages that aren't loaded yet are fetched when you open it, so the first time takes a moment.
+- **Plan day (📅 Plan day in the bottom bar).** Replaces the columns with one day in focus, today to start with. Left: that day's tasks as normal cards (tick, edit, move, delete, select), a count of open and done tasks, a meter against your **Plan day limit** (amber at the limit, red above it), or against your **Plan day hours** when you've set them, **Send the rest to tomorrow…**, and an Add task box. Right: **Bring in**, listing your past-due open tasks (as far back as the Past due range, at most 4 weeks) and the next three days' open tasks, each with a **+ Add** button that moves it to the day you're planning, and **Add all…** for the past-due list. Use ‹ › to plan another day. Click Plan day again to go back to the columns. Day pages that aren't loaded yet are fetched when you open it, so the first time takes a moment.
   - Plan day (and the day you're on) is remembered for the browser tab, so a reload brings you back to it instead of the board.
   - **Extra sources:** each node added under *Plan day sources* in Settings gets its own list (name and open count) on the Bring in side, below Past due. **+ Add** moves the task out of that node onto the planned day, and **Add all…** opens the same preview as Past due. Undo moves it back to the bottom of the node.
 - **Reports ▸ Completed tasks (the Reports button, next to Selector).** Reports opens a small menu, and Completed tasks lists the tasks you finished, grouped by the **day you completed them** (not the day they sit on), newest first, with the time and where they live in your outline. Choose Today, Yesterday, This week, Last week, Last 7 days or Last 30 days. **Copy as text** puts a plain list on your clipboard for a stand-up or weekly review. It uses the same server copy of your outline as search, so it shows tasks anywhere in your outline, and **Refresh index** downloads a fresh copy (once a minute at most). Shows up to 1000 tasks.
+- **Reports ▸ Saved filters.** Finds tasks anywhere in your outline by priority, date, estimate or words, and totals their estimated time. See "Saved filters" below.
 
 **Search (🔍 Search nodes button in the header, or Ctrl+K)**
 - Opens a search window over your **whole outline**. The search runs in `server.js`, not in the browser. The first time, the server downloads your outline through WorkFlowy's export (this can take a few seconds on a big outline) and keeps that one copy in its memory. Your browser only ever receives the 50 matches it asks for, and the item you open, never the whole outline.
@@ -391,6 +413,66 @@ Both panels are relative to the view. If you're looking at last week, Past due s
 **Update notice**
 - The version label at the bottom right of the sidebar shows **⬆ vX.Y.Z available** (a link to the GitHub page) when GitHub has a newer version than the one you're running. To update, download the new `server.js` and `index.html`, replace yours, and restart.
 - The server makes the check (at most once every 6 hours, only reading the version number) and stays quiet if it's offline. Turn it off with `UPDATE_CHECK=0`.
+
+### Priorities, time estimates and saved filters
+
+Like reminder times, priorities and estimates are short markers in the task's own text, so they travel with the task in WorkFlowy and nothing extra is stored.
+
+**Priorities**
+
+| Marker | Priority | Card edge and badge |
+|--------|----------|---------------------|
+| `!p1` | Urgent | Red, **P1** |
+| `!p2` | High | Orange, **P2** |
+| `!p3` | Medium | Blue, **P3** |
+| (none) | Normal | None |
+| `!p4` | Low | Grey, **P4** |
+
+- **Set one** by typing the marker anywhere in the task (`Call the bank !p1`), or by right-clicking a card and clicking **P1**–**P4** in the **Priority** row. Click the highlighted one again, or **✕**, to remove it. The toast has Undo.
+- **On the card:** a priority shows as a coloured left edge. When you type on cards (**Edit cards in place**, the default) the marker stays visible in the text. With that setting off, the marker is hidden and a **P1**–**P4** badge shows instead.
+- **Order:** with **Sort by priority** on (Settings > Week board, on by default), each day lists urgent first and low last. Tasks without markers keep their outline order, so nothing moves until you use them.
+
+**Time estimates**
+
+- **Set one** by typing `~15m`, `~45m`, `~1h`, `~1h30m` or `~1.5h` in the task, or by right-clicking a card and picking from the **Estimate** row (15m to 3h, or **✕** to remove it). The toast has Undo.
+- **Day totals:** each day's header adds up the estimates of its open tasks, for example "4 open · 2h 15m". Hover over the time to see how many open tasks have no estimate.
+- **Plan day:** set **Plan day hours** (Settings > Plan day) and the Plan day meter compares the estimated time with the hours you have, instead of counting tasks.
+- **Add task box:** markers can follow the date words, so `Call Bob fri !p1 ~30m` adds "Call Bob !p1 ~30m" to Friday.
+- Push reminders leave the markers out of the message.
+
+**Saved filters (Reports ▸ Saved filters)**
+
+The window lists tasks from your whole outline that match a filter, most urgent first, then by date. Each row shows the task's priority, estimate, day and where it sits in your outline, and the footer totals the estimated time.
+- Tick a task to complete it.
+- Click its name to open it in the item window.
+- **↗** opens it in WorkFlowy.
+- **Copy as text** puts the list on your clipboard.
+
+Pick a saved filter from the list, or type one and press **Enter**. **?** shows what you can type:
+
+| Type | Finds |
+|------|-------|
+| `call dentist` | Tasks containing every word, in the name or the note. `"exact phrase"` keeps words together; `-word` leaves matches out. |
+| `#work`, `@alex` | Tags and people, as whole words (`#work` doesn't match `#workshop`). |
+| `p:1`, `p:1-2`, `p:none`, `p:any` | By priority. |
+| `due:today`, `due:tomorrow`, `due:week`, `due:nextweek`, `due:lastweek` | By the calendar day the task sits on. Weeks follow your week-start setting. |
+| `due:overdue` | Open tasks on the last 60 days. |
+| `due:7d`, `due:2026-11-04`, `due:2026-11-01..2026-11-15` | The next 7 days, one date, or a range (up to 120 days). |
+| `due:none`, `due:any` | Not on any calendar day, or on any day. |
+| `est:none`, `est:any`, `est:<30m`, `est:>=1h` | By time estimate. |
+| `is:done`, `is:any`, `is:all` | Completed tasks, open and completed, or bullets as well as tasks. Open tasks only is the default. |
+| `under:"Project Alpha"`, `-under:Archive` | Tasks with (or without) that text in any line above them. |
+
+Combine them freely, for example `p:1-2 due:week #work` or `due:week est:none`.
+- **Save…** stores the current filter under a name.
+- **Delete** removes the chosen one.
+- Saved filters are kept in your browser, and shared when **Share these settings between browsers** is on.
+- Four starters are included: Urgent and high, Overdue, This week, and This week with no estimate.
+
+**Limits and how it works**
+- Filters read the same in-memory copy of your outline as Search. **Refresh index** downloads a fresh copy, at most once a minute.
+- A filter can hold up to 50 words, and up to 500 results are listed (the count and total time cover them all).
+- To know which day a task sits on, the server asks WorkFlowy once for each month it needs and remembers the answer. It then reads each day page's date from WorkFlowy's own date tag in its name. If a month's day names can't be read, it asks about each day instead, which is slower the first time.
 
 ### Repeating tasks
 
@@ -432,7 +514,7 @@ The server sends a push at the task's time even when no browser is open. Set up 
 *Option A: ntfy (free, easiest)*
 
 1. Install the ntfy app on your phone (App Store or Google Play/F-Droid). Allow notifications for it when asked (needed on iOS).
-2. In the app tap **+** and subscribe to a topic. Pick a long random name nobody could guess, such as `weekboard-k7q2x9m4zr81`. Leave the server as the default (ntfy.sh). On the public ntfy.sh service anyone who knows the topic name can read your reminders, so treat it like a password.
+2. In the app tap **+** and subscribe to a topic. Pick a long random name nobody could guess, such as `weekboard-k7q2x9m4zr81`. Leave the server as the default (ntfy.sh). **ntfy.sh topics are public, not private webhooks:** there is no sign-in, so anyone who knows or guesses the topic name can subscribe and read every reminder, including the task text. Treat the name like a password and never post it anywhere. For real privacy, reserve the topic with an ntfy account and set `NTFY_TOKEN`, or run your own ntfy server and set `NTFY_URL`.
 3. Give the same name to the server as `NTFY_TOPIC`:
    - **Localhost:** `DEPLOY_MODE=local NTFY_TOPIC=weekboard-k7q2x9m4zr81 WORKFLOWY_API_KEY=... node server.js` (on Windows set the variables first, as in Option 1).
    - **Your own server:** add `NTFY_TOPIC=...` and `REMINDER_TZ=America/New_York` to `/etc/weekboard.env`, then `sudo systemctl restart weekboard`.
@@ -584,8 +666,8 @@ Other easy changes:
 - Your API key can read and change your whole outline. The browser never sees it. Keep it out of git repositories, screenshots and shared folders. On a VPS keep it in `/etc/weekboard.env` (root only, `chmod 600`). On Fly use `fly secrets`.
 - **What the server will pass on to WorkFlowy (1.0.8).** Only `GET`, `POST` and `DELETE` on the node endpoints the board uses, with plain ids (letters, digits, `-` and `_`; no slashes, dots or escaped characters). Anything else is refused. Request bodies are capped at 1 MB, and a request to WorkFlowy is dropped after 30 seconds (the full export gets 2 minutes), so one stuck request can't tie the server up.
 - **Scripts need a one-time token (1.0.8).** The page's content-security policy no longer allows inline script in general. The server stamps each page load with a fresh random token and the browser only runs scripts that carry it, so script injected through some future bug would be refused.
-- **Signing out wipes this browser's copy (1.0.8).** In hosted modes, **Sign out** also clears the notes bullet name and every saved setting from the browser, so nothing is left behind on a shared computer. (You'll set your options again next time.)
-- Search and the Done window both read the server's in-memory copy of your outline, so the same rules apply (idle purge, login in hosted modes). The Done window only receives the completed tasks in the range you pick.
+- **Signing out wipes this browser's copy (1.0.8; phone page 1.3.8).** In hosted modes, the desktop page's **Sign out** also clears the notes bullet name, saved filters and every saved setting from the browser, and since 1.3.8 the phone page's **Sign out** does the same, so nothing is left behind on a shared device. (You'll set your options again next time.)
+- Search, the Done window and Saved filters all read the server's in-memory copy of your outline, so the same rules apply (idle purge, login in hosted modes). Each only receives the results it asks for. A saved filter is capped at 50 words, so a huge filter can't keep the server busy.
 - The browser can't reach WorkFlowy's full export. Only the server uses it, to build the search copy.
 - **Use a long, unique password** (`openssl rand -base64 24`). It is the only thing between the internet and your outline. There's no second step such as a one-time code, and the lockout is per address, so a very large distributed guessing attack is only limited by the password's strength.
 - **Your outline sits in the host's memory while search is in use,** unencrypted, and is cleared after 10 idle minutes (`IDLE_PURGE_MINUTES`). Use a host you trust. For `fly`, Fly staff and their infrastructure can in principle access a running machine.
@@ -607,8 +689,10 @@ Other easy changes:
 - Calendar day pages (such as 2026-10-23) can show up in results with their date as the path.
 - Dragging a card to another day is remembered by Undo too, but touch screens still can't drag: use the calendar icon or Selector there.
 - Settings, which lines you've collapsed, the last line type you picked for new lines, and the crypt add-on's switches and check value are stored in the browser (`localStorage`), so they're per browser.
+- Priorities and estimates show as colours, badges and day totals on the week board and in Plan day only. The phone page, the Panes, the Daily page and the item window show the markers as plain text, without sorting.
+- Saved filters' `due:` words go by the calendar day a task sits on, not by a WorkFlowy date tag inside the task. `due:overdue` looks back 60 days.
 - The line-type buttons don't appear on board cards, group titles, or on headings, quotes and code lines. A numbered list that starts from a number other than 1 in WorkFlowy shows from 1 on the board.
-- The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. It was tested against a mock of that API, so report anything that behaves differently on a real account.
+- The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. It is tested against a mock of that API (Saved filters' date lookups were also checked read-only on a real account), so report anything that behaves differently on yours.
 
 - **Calendar column (Panes):** always live, with no pencil/book button. Click a line and type. Lines are tasks: the type can't be changed there and new lines are created as tasks. **Enter** goes to the next line, like a card; on the last line of a day it starts a new one. Shift+Enter (note), Ctrl/Cmd+Shift+E (encrypt) and Tab work as in the other panes. Task lines show 🔔 (reminder), 📅 (move to a date, with Undo) and ✕ (delete) when you hover over them; they hide while you type in the line.
 

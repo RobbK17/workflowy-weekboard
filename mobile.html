@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.3.7">
+<meta name="version" content="1.3.8">
 <meta name="notes-name" content="WB-Notes">
 <meta name="theme-color" content="#2f6fed">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -145,7 +145,7 @@
 </header>
 <div id="strip"></div>
 <div id="extras"></div>
-<div id="dayhead"><h2 id="dayname"></h2><label id="doneLabel"><input type="checkbox" id="showDone"> Show done</label></div>
+<div id="dayhead"><h2 id="dayname"></h2><label id="doneLabel"><input type="checkbox" id="showDone"> Show completed</label></div>
 <div id="err"></div>
 <div id="list"></div>
 <form id="addbar" autocomplete="off">
@@ -668,7 +668,7 @@ function drawView() {
   if (!(sel in cache)) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
   list.appendChild(notesBand(sel));
   const ents = entriesOf(sel).filter((e) => e.kind !== "task" || showDone || !e.n.completedAt);
-  if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = (cache[sel] || []).length || openCount(sel) ? "All done 🎉" : "Nothing yet"; list.appendChild(m); }
+  if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = (cache[sel] || []).length || openCount(sel) ? "All done" : "Nothing yet"; list.appendChild(m); }
   for (const e of ents) list.appendChild(e.kind === "group" ? groupEl(e) : cardEl(e.n, e.kind === "nested" ? e.b : null));
   list.scrollTop = keep;
 }
@@ -1363,7 +1363,7 @@ function openSettings() {
     }));
     row("Show Past due", "The last 14 days", check(showLate, (v) => { showLate = v; store.set("m.showLate", v ? "1" : "0"); if (!v && view === "late") view = "day"; draw(); if (v) loadWeek(true); }));
     row("Show Upcoming", "The next 14 days", check(showSoon, (v) => { showSoon = v; store.set("m.showSoon", v ? "1" : "0"); if (!v && view === "soon") view = "day"; draw(); if (v) loadWeek(true); }));
-    row("Show completed tasks", "", check(showDone, (v) => { showDone = v; store.set("m.showDone", v ? "1" : "0"); draw(); }));
+    row("Show completed", "", check(showDone, (v) => { showDone = v; store.set("m.showDone", v ? "1" : "0"); draw(); }));
     // Inbox: a WorkFlowy node (an Inbox or quick-capture bullet) whose open tasks you can see and sort into days
     const ir = document.createElement("div"); ir.className = "srow"; ir.style.flexWrap = "wrap";
     const it = document.createElement("span"); it.innerHTML = "Inbox<small></small>"; ir.appendChild(it);
@@ -1472,7 +1472,11 @@ function openMainMenu() {
     sbtn(s, pass === null ? "🔓 Unlock encryption…" : "🔒 Lock encryption", pass === null ? openUnlock : () => { closeSheet(); lockCrypto("Locked"); });
     if (undoStack.length) sbtn(s, `↶ Undo: ${undoStack[undoStack.length - 1].label}`, () => { closeSheet(); doUndo(); });
     sbtn(s, "🖥 Open the desktop page", () => { store.set("m.desktop", "1"); location.href = "/?desktop=1"; });
-    sbtn(s, "Sign out", async () => { try { await fetch("/logout", { method: "POST" }); } catch (e) { /* leave anyway */ } location.href = "/login"; });
+    sbtn(s, "Sign out", async () => {
+      try { await fetch("/logout", { method: "POST" }); } catch (e) { /* leave anyway */ }
+      try { localStorage.clear(); sessionStorage.clear(); } catch (e) { /* blocked: nothing to clear */ }      // shared phone: leave no Inbox, settings or names behind, as the desktop page does
+      location.href = "/login";
+    });
     sbtn(s, "Close", closeSheet, "cancel");
   });
 }
