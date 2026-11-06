@@ -654,6 +654,7 @@
 
   /* Move-forward preview and the Done window */
   .modal-box.narrow { width: min(520px, 100%); }
+  @media (min-width: 821px) { #doneModal .modal-box, #fltModal .modal-box, #encModal .modal-box { height: min(82vh, 700px); } }   /* the three reports open at one size: one fixed size, tall enough for the longer reports */
   .modal-box h3 { margin: 0; font-size: 15px; flex: 1; align-self: center; }
   .roll-dest { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
   .roll-dest input[type=date] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
