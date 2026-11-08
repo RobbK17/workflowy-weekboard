@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.3.8">
+<meta name="version" content="1.3.9">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -34,6 +34,7 @@
             --accent: #6a9bff; --today: #3a3220; --border: #343942; --late: #3b2226; --soon: #202c42;
             --p1: #ff6b4a; --p2: #ff9f43; --p3: #6a9bff; --p4: #8b95a3;
             --danger: #ff6b4a; --caution: #f5b83d; --late-text: #f0a04b; }
+    :root { color-scheme: dark; }      /* the browser's own boxes, lists, spin arrows and scrollbars follow the dark theme */
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text);
@@ -208,7 +209,7 @@
   .card:hover .rm, .card:focus-within .rm { opacity: 1; }
   @media (hover: hover) {   /* the hover buttons sit on the card's top edge, half outside it, so they never cover the text or the lock */
     .card .rm, .card .mv, .card .del { position: absolute; top: -12px; width: 26px; height: 22px; padding: 0; background: var(--card); border: 1px solid var(--border); border-left-width: 0; border-radius: 0; z-index: 3; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
-    .card .del { right: 8px; border-radius: 0 6px 6px 0; } .card .mv { right: 34px; } .card .rm { right: 60px; } .card .rp { right: 86px; border-left-width: 1px; border-radius: 6px 0 0 6px; }
+    .card .del { right: 8px; border-radius: 0 6px 6px 0; } .card .mv { right: 34px; border-left-width: 1px; border-radius: 6px 0 0 6px; } .card .rm { right: 60px; } .card .rp { right: 86px; border-left-width: 1px; border-radius: 6px 0 0 6px; }
     .card:not(:hover):not(:focus-within) .rm, .card:not(:hover):not(:focus-within) .mv, .card:not(:hover):not(:focus-within) .del { pointer-events: none; }
     .card:has(textarea:focus) .rm, .card:has(textarea:focus) .mv, .card:has(textarea:focus) .del { opacity: 0; pointer-events: none; }   /* while you are typing in a card the buttons are hidden */
   }
@@ -243,6 +244,9 @@
   .movepop .mr input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
   .movepop .go { background: var(--accent); color: #fff; border-color: var(--accent); }
   .movepop .cancel { color: var(--muted); }
+  .movepop .rbtns { display: flex; gap: 4px; }
+  .movepop .rbtns button { flex: 1; padding: 5px 4px; font-size: 12px; white-space: nowrap; }
+  .rpop [hidden] { display: none !important; }
   .add { display: block; width: 100%; padding: 7px 8px; border: 1px dashed var(--border); border-radius: 6px;
          background: transparent; color: var(--text); font: inherit; }
   .empty { color: var(--muted); font-size: 12px; padding: 2px 4px 8px; }
@@ -627,6 +631,7 @@
 
   /* Header buttons */
   #planBtn.on, #selBtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .setpane input[type=number] { width: 66px; }      /* the browser sizes number boxes from their range (99 vs 24.5); keep them all as wide as Plan day limit */
   .pop input[type=number] { flex: none; width: 58px; font: inherit; font-size: 13px; padding: 2px 4px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; }
 
   /* Toast (undo) and the bulk-select bar */
@@ -654,7 +659,7 @@
 
   /* Move-forward preview and the Done window */
   .modal-box.narrow { width: min(520px, 100%); }
-  @media (min-width: 821px) { #doneModal .modal-box, #fltModal .modal-box, #encModal .modal-box { height: min(82vh, 700px); } }   /* the three reports open at one size: one fixed size, tall enough for the longer reports */
+  @media (min-width: 821px) { #doneModal .modal-box, #fltModal .modal-box, #encModal .modal-box { height: min(82vh, 700px); } }   /* the three reports open at one size, tall enough for the longer reports */
   .modal-box h3 { margin: 0; font-size: 15px; flex: 1; align-self: center; }
   .roll-dest { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
   .roll-dest input[type=date] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
@@ -699,11 +704,15 @@
   .mbar.over div { background: var(--danger); }
   .meter .mnote { font-size: 11px; color: var(--muted); margin-top: 3px; }
   /* Priorities (!p1 to !p4) and time estimates (~45m) */
-  .card.prio1, .dr.prio1 { box-shadow: inset 3px 0 0 var(--p1), 0 1px 1px rgba(0,0,0,.12); }
-  .card.prio2, .dr.prio2 { box-shadow: inset 3px 0 0 var(--p2), 0 1px 1px rgba(0,0,0,.12); }
-  .card.prio3, .dr.prio3 { box-shadow: inset 3px 0 0 var(--p3), 0 1px 1px rgba(0,0,0,.12); }
-  .card.prio4, .dr.prio4 { box-shadow: inset 3px 0 0 var(--p4), 0 1px 1px rgba(0,0,0,.12); }
+  .card.prio1, .dr.prio1, .kcard.prio1 { box-shadow: inset 3px 0 0 var(--p1), 0 1px 1px rgba(0,0,0,.12); }
+  .card.prio2, .dr.prio2, .kcard.prio2 { box-shadow: inset 3px 0 0 var(--p2), 0 1px 1px rgba(0,0,0,.12); }
+  .card.prio3, .dr.prio3, .kcard.prio3 { box-shadow: inset 3px 0 0 var(--p3), 0 1px 1px rgba(0,0,0,.12); }
+  .card.prio4, .dr.prio4, .kcard.prio4 { box-shadow: inset 3px 0 0 var(--p4), 0 1px 1px rgba(0,0,0,.12); }
+  .kcard[data-color].prio1, .kcard[data-color].prio2, .kcard[data-color].prio3, .kcard[data-color].prio4 { box-shadow: 0 1px 1px rgba(0,0,0,.12); }      /* a coloured card keeps its colour stripe; the badge shows the priority */
   .si.prio1 { box-shadow: inset 2px 0 0 var(--p1); } .si.prio2 { box-shadow: inset 2px 0 0 var(--p2); } .si.prio3 { box-shadow: inset 2px 0 0 var(--p3); } .si.prio4 { box-shadow: inset 2px 0 0 var(--p4); }
+  /* outline lines (Daily page, item window, Panes): the edge sits next to the text, at the line's own indent */
+  .pl.prio1 > .t, .pl.prio2 > .t, .pl.prio3 > .t, .pl.prio4 > .t { padding-left: 5px; border-left: 2px solid var(--p4); }
+  .pl.prio1 > .t { border-left-color: var(--p1); } .pl.prio2 > .t { border-left-color: var(--p2); } .pl.prio3 > .t { border-left-color: var(--p3); }
   .pbadge, .ebadge, .dbadge { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 8px; font-size: 11px; font-weight: 600; line-height: 16px; vertical-align: baseline; white-space: nowrap; }
   .pbadge.p1 { background: var(--pb1); color: #fff; } .pbadge.p2 { background: var(--pb2); color: #fff; } .pbadge.p3 { background: var(--pb3); color: #fff; } .pbadge.p4 { background: rgba(127,127,127,.3); color: inherit; }
   .ebadge, .dbadge { border: 1px solid var(--border); color: var(--muted); font-weight: 400; }
@@ -711,14 +720,17 @@
   .card.done .pbadge { opacity: .5; }
   .col h2 .esum { font-weight: 400; }
   .kmrow { display: flex; align-items: center; gap: 2px; padding: 3px 8px; flex-wrap: wrap; }
-  .kmrow span { font-size: 12px; color: var(--muted); width: 58px; flex: none; }
-  .pop .kmrow button { display: inline-block; width: auto; padding: 2px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 5px; }
+  #kbMenu:has(.kmrow) { width: 290px; }      /* room for the Estimate row on one line; other menus keep their width */
+  .kmrow span { font-size: 12px; color: var(--muted); width: 52px; flex: none; }
+  .pop .kmrow button { display: inline-block; width: auto; padding: 2px 4px; font-size: 12px; border: 1px solid var(--border); border-radius: 5px; }
   .pop .kmrow button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pop .kmrow button.none.on { background: none; border-color: var(--accent); color: var(--accent); }      /* "no priority / no estimate" is the current state, not an action: an outline only */
   /* Saved filters window */
   .flt-bar { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); }
   .flt-bar input { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
   #fltPick { font: inherit; font-size: 13px; padding: 2px 4px; max-width: 220px; }
   .flt-help { padding: 8px 12px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); display: grid; gap: 4px; }
+  .flt-help[hidden] { display: none; }
   .flt-help code { font-size: 11px; padding: 0 3px; border-radius: 3px; background: rgba(127,127,127,.18); color: var(--text); }
   .dr.frow input[type=checkbox] { flex: none; margin-top: 3px; }
   .dr.frow.done .dname { text-decoration: line-through; color: var(--muted); }
@@ -746,8 +758,8 @@
     <button id="settingsBtn" aria-haspopup="dialog" aria-expanded="false" title="Panes and Plan day settings">&#9881; Settings</button>
   </div>
   <!--@addons:button-->
-  <button id="refresh" type="button" title="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)">&#8635;</button>
-  <button id="sideBtn" aria-pressed="false" title="Hide the sidebar (Ctrl+\)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
+  <button id="refresh" type="button" title="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)" aria-label="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)">&#8635;</button>
+  <button id="sideBtn" aria-pressed="false" title="Hide the sidebar (Ctrl+\)" aria-label="Hide the sidebar (Ctrl+\)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
 </header>
 <div id="error"></div>
 <div id="main">
@@ -762,20 +774,20 @@
       <button id="kbCollapse" type="button" title="Fold every column into a narrow strip">Fold columns</button>
       <button id="kbExpand" type="button" title="Open every folded column">Unfold columns</button>
       <button id="kbSetup" type="button" title="Choose which nodes are columns">Columns&hellip;</button>
-      <button id="kbRefresh" type="button" title="Reload everything in the panes from WorkFlowy">&#8635;</button>
+      <button id="kbRefresh" type="button" title="Reload everything in the panes from WorkFlowy" aria-label="Reload everything in the panes from WorkFlowy">&#8635;</button>
     </div>
     <div id="kbCols"></div>
   </div>
   <aside id="side">
     <div class="weeknav" id="weeknav">
-      <button id="prev">&larr;</button>
+      <button id="prev" title="Previous week" aria-label="Previous week">&larr;</button>
       <button id="today">This week</button>
-      <button id="next">&rarr;</button>
+      <button id="next" title="Next week" aria-label="Next week">&rarr;</button>
     </div>
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
-      <h3 id="pageHead"><strong id="pageHeading">Daily page</strong><button class="mini nav" id="pagePrev" title="Previous day's page">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's page">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload">&#8635;</button><button class="mini" id="pageMore" aria-haspopup="true" aria-expanded="false" title="More: rename the notes bullet, move notes in">&#8943;</button></h3>
+      <h3 id="pageHead"><strong id="pageHeading">Daily page</strong><button class="mini nav" id="pagePrev" title="Previous day's page" aria-label="Previous day's page">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's page" aria-label="Next day's page">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar" aria-label="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload" aria-label="Reload">&#8635;</button><button class="mini" id="pageMore" aria-haspopup="true" aria-expanded="false" title="More: rename the notes bullet, move notes in" aria-label="More: rename the notes bullet, move notes in">&#8943;</button></h3>
       <div class="pop fixed" id="pageMenu" role="menu" hidden>
         <button id="notesEdit" role="menuitem" type="button"><span>&#9998; Rename the notes bullet&hellip;<small>Used on every day's page (saved in this browser)</small></span></button>
         <button id="moveNotes" role="menuitem" type="button"><span>&#8627; Move notes in<small>Move the shown day's plain bullets into the notes bullet</small></span></button>
@@ -807,7 +819,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.8</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.9</span></div>
   </div>
 </footer>
 
@@ -815,7 +827,7 @@
 
 <div class="modal" id="settingsPop" hidden>
   <div class="modal-box settings-box" role="dialog" aria-modal="true" aria-label="Settings">
-    <div class="sm-head"><h3>Settings</h3><button id="settingsClose" type="button" title="Close (Esc)">&#10005;</button></div>
+    <div class="sm-head"><h3>Settings</h3><button id="settingsClose" type="button" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button></div>
     <div class="set-body">
       <nav class="set-nav" role="tablist" aria-label="Settings sections">
         <button type="button" role="tab" data-sec="board" class="on">Week board</button>
@@ -930,7 +942,7 @@
     <div class="sm-list" id="listPane">
     <div class="sm-head">
       <input id="searchInput" type="search" placeholder="Search your outline…" autocomplete="off" spellcheck="false">
-      <button id="searchClose" title="Close (Esc)">&#10005;</button>
+      <button id="searchClose" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button>
     </div>
     <div class="sm-filters">
       <label><input type="checkbox" id="fCompleted" checked> Include completed</label>
@@ -949,9 +961,9 @@
 
 <div class="modal" id="rollModal" hidden>
   <div class="modal-box narrow" role="dialog" aria-modal="true" aria-label="Move open tasks">
-    <div class="sm-head"><h3 id="rollTitle">Move tasks</h3><button id="rollClose" title="Close (Esc)">&#10005;</button></div>
+    <div class="sm-head"><h3 id="rollTitle">Move tasks</h3><button id="rollClose" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button></div>
     <div class="roll-dest">
-      <span>Move to</span><input type="date" id="rollDate">
+      <label for="rollDate">Move to</label><input type="date" id="rollDate">
       <button id="rollToday" type="button">Today</button><button id="rollTomorrow" type="button">Tomorrow</button>
       <span class="grow"></span><label><input type="checkbox" id="rollAll" checked> All</label>
     </div>
@@ -969,7 +981,7 @@
         <option value="week">This week</option><option value="lastweek">Last week</option>
         <option value="d7">Last 7 days</option><option value="d30">Last 30 days</option>
       </select>
-      <button id="doneClose" title="Close (Esc)">&#10005;</button>
+      <button id="doneClose" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button>
     </div>
     <div class="sm-results" id="doneBody"></div>
     <div class="sm-foot"><span id="doneInfo"></span><span><button id="doneRefresh" class="mini" title="Download a fresh copy of your outline (allowed once a minute)">Refresh index</button> <button id="doneCopy" class="mini">Copy as text</button></span></div>
@@ -981,14 +993,14 @@
     <div class="sm-head">
       <h3>Filters</h3>
       <select id="fltPick" aria-label="Saved filter"></select>
-      <button id="fltClose" title="Close (Esc)">&#10005;</button>
+      <button id="fltClose" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button>
     </div>
     <div class="flt-bar">
       <input id="fltQuery" type="search" placeholder="e.g. p:1-2 due:week #work" autocomplete="off" spellcheck="false">
       <button id="fltRun" class="mini" type="button">Run</button>
       <button id="fltSave" class="mini" type="button" title="Save this filter under a name">Save&hellip;</button>
       <button id="fltDel" class="mini" type="button" title="Delete the chosen saved filter">Delete</button>
-      <button id="fltHelpBtn" class="mini" type="button" aria-expanded="false" title="What you can type">?</button>
+      <button id="fltHelpBtn" class="mini" type="button" aria-expanded="false" title="What you can type" aria-label="What you can type">?</button>
     </div>
     <div class="flt-help" id="fltHelp" hidden>
       <div><b>Words</b> must all match (name or note). <code>"exact phrase"</code>, <code>-word</code> leaves matches out, <code>#tag</code> and <code>@person</code> match whole words.</div>
@@ -1009,7 +1021,7 @@
   <div class="modal-box" role="dialog" aria-modal="true" aria-label="Encrypted items">
     <div class="sm-head">
       <h3 id="encTitle">Encrypted items</h3>
-      <button id="encClose" title="Close (Esc)">&#10005;</button>
+      <button id="encClose" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button>
     </div>
     <div class="sm-results" id="encBody"></div>
     <div class="sm-foot"><span id="encInfo"></span><span><button id="encRefresh" class="mini" title="Download a fresh copy of your outline (allowed once a minute)">Refresh index</button> <button id="encCopy" class="mini">Copy as text</button></span></div>
@@ -1025,7 +1037,7 @@
   <button id="selCancel" type="button">Done selecting</button>
 </div>
 <div id="rems" aria-live="assertive"></div>
-<div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button id="toastUndo" type="button">Undo</button><button id="toastX" type="button" title="Dismiss">&#10005;</button></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button id="toastUndo" type="button">Undo</button><button id="toastX" type="button" title="Dismiss" aria-label="Dismiss">&#10005;</button></div>
 
 <script>
 // ---- Shared settings: with "Share these settings between browsers" on, this browser's preference keys are kept on the server (/d/settings) and read back by the others.
@@ -1120,7 +1132,7 @@ const PRIO_RE = /(^|\s)!p([1-4])(?=$|[\s.,;!?)<])/i;
 const EST_RE = /(^|\s)~(?:(\d{1,2}(?:\.\d{1,2})?)h(?:(\d{1,2})m)?|(\d{1,3})m)(?=$|[\s.,;!?)<])/i;
 const PRIO_NAMES = ["Normal", "Urgent", "High", "Medium", "Low"];
 const PRIO_RANK = [3.5, 1, 2, 3, 4];                       // no priority sorts between medium and low
-const EST_PICKS = [15, 30, 45, 60, 90, 120, 180];
+const EST_PICKS = [15, 30, 45, 60, 120, 180];
 function parsePrio(text) { const m = PRIO_RE.exec(String(text || "")); return m ? Number(m[2]) : 0; }
 function parseEst(text) {
   const m = EST_RE.exec(String(text || ""));
@@ -1562,7 +1574,7 @@ function render() {
     list.className = "tasks";
     if (!ents.length) {
       list.insertAdjacentHTML("beforeend",
-        `<div class="empty">${hasAny ? "All done" : "Nothing yet"}</div>`);
+        `<div class="empty">${hasAny ? "All done 🎉" : "Nothing yet"}</div>`);
     }
     for (const e of ents) list.appendChild(entryEl(e, false));
 
@@ -1602,7 +1614,7 @@ function render() {
         { const band = allDayBand(k); if (band) sec.appendChild(band); }
         sec.appendChild(makeAddBox(k));
         if (prefs.nested === "group") sec.appendChild(makeAddGroup(k));
-        if (!ents.length) { const em = document.createElement("div"); em.className = "empty"; em.textContent = (cache[k] || []).length ? "All done" : "Nothing yet"; sec.appendChild(em); }
+        if (!ents.length) { const em = document.createElement("div"); em.className = "empty"; em.textContent = (cache[k] || []).length ? "All done 🎉" : "Nothing yet"; sec.appendChild(em); }
         for (const e of ents) sec.appendChild(entryEl(e, false));
         sec.addEventListener("dragover", (e) => { e.preventDefault(); sec.classList.add("over"); });
         sec.addEventListener("dragleave", () => sec.classList.remove("over"));
@@ -1682,6 +1694,7 @@ function sideExpandedLook(on) {      // the expanded look, without saving it as 
   document.getElementById("side").classList.toggle("expanded", on);
   expandBtn.textContent = on ? "⤡" : "⤢";
   expandBtn.title = on ? "Collapse back to the calendar view" : "Expand to fill the sidebar";
+  expandBtn.setAttribute("aria-label", expandBtn.title);
 }
 function setPeek(pref, on, restore) {
   peek[pref] = on;
@@ -1800,7 +1813,7 @@ function subList(nodes, rootId) {
     row.className = "si" + (todo && c.completedAt ? " done" : "");
     if (todo) {
       const cb = document.createElement("input");
-      cb.type = "checkbox"; cb.checked = !!c.completedAt;
+      cb.type = "checkbox"; cb.checked = !!c.completedAt; cb.setAttribute("aria-label", "Done");
       cb.addEventListener("change", async () => {
         try {
           await call("POST", `/nodes/${c.id}/${cb.checked ? "complete" : "uncomplete"}`);
@@ -1892,7 +1905,7 @@ function groupCard(e, showDate) {
   const head = document.createElement("div");
   head.className = "gh";
   const arrow = document.createElement("button");
-  arrow.className = "ga"; arrow.textContent = closed ? "▸" : "▾"; arrow.title = closed ? "Show tasks" : "Hide tasks";
+  arrow.className = "ga"; arrow.textContent = closed ? "▸" : "▾"; arrow.title = closed ? "Show tasks" : "Hide tasks"; arrow.setAttribute("aria-label", arrow.title);
   arrow.addEventListener("click", () => { if (closed) groupsClosed.delete(b.id); else groupsClosed.add(b.id); saveGroupsClosed(); render(); });
   const title = document.createElement("span");
   title.className = "gt"; title.textContent = shownVisible(b.name) || "(empty)";
@@ -1913,7 +1926,7 @@ function groupCard(e, showDate) {
   pill.className = "gc"; pill.textContent = `${open} of ${e.todos.length} open`;
   pill.title = "Tasks indented under this bullet";
   const mv = document.createElement("button");
-  mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move this group (the bullet and its tasks) to a date…";
+  mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move this group (the bullet and its tasks) to a date…"; mv.setAttribute("aria-label", mv.title);
   mv.addEventListener("click", (ev) => {
     ev.stopPropagation();
     openMovePop(mv, k, (to) => {
@@ -1922,7 +1935,7 @@ function groupCard(e, showDate) {
     });
   });
   const opn = document.createElement("button");
-  opn.className = "mv gopen"; opn.textContent = "Open ▸"; opn.title = "Open this bullet to see and edit everything under it";
+  opn.className = "mv gopen"; opn.textContent = "Open ▸"; opn.title = "Open this bullet to see and edit everything under it"; opn.setAttribute("aria-label", opn.title);
   opn.addEventListener("click", (ev) => { ev.stopPropagation(); openItem(b.id, true); });
   head.append(arrow, title, pill, mv, opn);
   el.appendChild(head);
@@ -1936,7 +1949,7 @@ function groupCard(e, showDate) {
       const tpr = prioOf(t);
       row.className = "si" + (t.completedAt ? " done" : "") + (tpr ? " prio" + tpr : "");
       const cb = document.createElement("input");
-      cb.type = "checkbox"; cb.checked = !!t.completedAt;
+      cb.type = "checkbox"; cb.checked = !!t.completedAt; cb.setAttribute("aria-label", "Done");
       cb.addEventListener("change", () => act(async () => {
         await call("POST", `/nodes/${t.id}/${cb.checked ? "complete" : "uncomplete"}`);
         t.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null;
@@ -2089,7 +2102,7 @@ function card(n, k, showDate, opts) {
   el.addEventListener("dragend", () => el.classList.remove("dragging"));
 
   const cb = document.createElement("input");
-  cb.type = "checkbox"; cb.checked = !!n.completedAt;
+  cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.setAttribute("aria-label", "Done");
   cb.addEventListener("change", () => act(async () => {
     const done = cb.checked;
     await call("POST", `/nodes/${n.id}/${done ? "complete" : "uncomplete"}`);
@@ -2160,7 +2173,7 @@ function card(n, k, showDate, opts) {
   });
 
   const del = document.createElement("button");
-  del.className = "del"; del.innerHTML = X_ICON; del.title = "Delete";
+  del.className = "del"; del.innerHTML = X_ICON; del.title = "Delete"; del.setAttribute("aria-label", del.title);
   del.addEventListener("click", () => {
     if (n.pending) { el.remove(); return; }
     const sc = prefs.showSubs && kids[n.id] ? kids[n.id].count : 0;
@@ -2172,7 +2185,7 @@ function card(n, k, showDate, opts) {
   });
 
   const mv = document.createElement("button");
-  mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move to a date…";
+  mv.className = "mv"; mv.innerHTML = CAL_ICON; mv.title = "Move to a date…"; mv.setAttribute("aria-label", mv.title);
   const moveTo = (to) => {
     if (!ISO_DAY.test(to) || to === k) return;
     act(async () => {
@@ -2182,15 +2195,17 @@ function card(n, k, showDate, opts) {
   };
   mv.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => openMovePop(mv, k, moveTo)); });
 
-  const rb = document.createElement("button");
-  rb.className = "rm"; rb.innerHTML = BELL_ICON; rb.title = "Set a reminder…";
-  rb.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => { const t = parseTime(plain(n.name)); openRemPop(rb, n, k, nested ? opts.bullet : null, parseTag(n.name) || t); }); });
-
-  const rp = document.createElement("button");
-  rp.className = "rm rp"; rp.innerHTML = REPEAT_ICON; rp.title = "Repeat…"; rp.setAttribute("aria-label", "Repeat…");
-  rp.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => openRepeatPop(rp, n, k, nested ? opts.bullet : null)); });
-
-  el.append(cb, txt, rp, rb, mv, del);
+  el.append(cb, txt, mv, del);           // reminder and repeat live in the right-click menu (live cards) or this card's own menu below
+  if (!liveOk) el.addEventListener("contextmenu", (ev) => {            // plain cards have no text box, so they get a short menu of their own
+    if (selMode || ev.target.closest("button, a, input, textarea, .pl-edit")) return;
+    ev.preventDefault();
+    kbMenu.textContent = "";
+    const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
+    add(n.completedAt ? "Mark not done" : "Mark done", () => cb.click());
+    add(parseTag(n.name) || parseTime(plain(n.name)) ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => openRemPop(el, n, k, nested ? opts.bullet : null, parseTag(n.name) || parseTime(plain(n.name))), 0));
+    add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, nested ? opts.bullet : null), 0));
+    kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(ev.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px";
+  });
   return el;
 }
 
@@ -2278,7 +2293,7 @@ async function cardSettle(ta) {                          // before 🔔 / 📅: 
 }
 function cardField(n, k, el, bullet, group) {      // group: the task sits in a group card (el is the whole group)
   const ta = document.createElement("textarea");
-  ta.className = "cd-live"; ta.rows = 1; ta.value = n.pending ? "" : visibleText(n.name);
+  ta.className = "cd-live"; ta.rows = 1; ta.value = n.pending ? "" : visibleText(n.name); ta.setAttribute("aria-label", "Task");
   const rev = cardRevealed.get(n.id); if (rev) { ta._enc = rev; ta.value = rev.text; }      // a locked card you opened: shown readable, sealed again whenever it is saved
   else if (!n.pending) { const lk = lockChips(visibleText(n.name)); if (lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } }      // locked words stay locked: edit around them
   if (n.pending) ta.placeholder = "New task"; else ta.dataset.id = n.id;
@@ -2369,13 +2384,15 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
     const cb = (ta.closest(".si") || el).querySelector("input[type=checkbox]");
     if (cb && !cb.disabled) add(n.completedAt ? "Mark not done" : "Mark done", () => cb.click());
     add("Edit the note…", () => ta.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true })), "Shift+Enter");
+    const remNow = () => parseTag(n.name || "") || parseTime(plain(n.name || ""));
+    add(remNow() ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => ta._flush().then(() => openRemPop(el, n, k, bullet, remNow())), 0));
     add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, bullet), 0));
     const metaRow = (label, picks, cur, which) => {          // Priority: P1 P2 P3 P4 ✕   /   Estimate: 15m 30m … ✕
       const row = document.createElement("div"); row.className = "kmrow";
       const l = document.createElement("span"); l.textContent = label; row.appendChild(l);
       for (const [v, text, title] of picks) {
         const b = document.createElement("button"); b.type = "button"; b.textContent = text; b.title = title;
-        if (v === cur) b.className = "on";
+        b.className = (v === 0 ? "none" : "") + (v === cur ? " on" : "");
         b.onclick = () => { kbMenu.hidden = true; ta._flush().then(() => setMeta(n, k, bullet, which, v === cur ? 0 : v)); };
         row.appendChild(b);
       }
@@ -2625,8 +2642,8 @@ function renderCal() {
   const todayK = key(new Date());
   const label = calMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const gridStart = addDays(calMonth, -((calMonth.getDay() + 6) % 7));   // Monday-first grid
-  let html = `<div class="calhead"><button data-cal="-1" title="Previous month">&lsaquo;</button>` +
-             `<strong>${label}</strong><button data-cal="1" title="Next month">&rsaquo;</button></div><div class="calgrid">`;
+  let html = `<div class="calhead"><button data-cal="-1" title="Previous month" aria-label="Previous month">&lsaquo;</button>` +
+             `<strong>${label}</strong><button data-cal="1" title="Next month" aria-label="Next month">&rsaquo;</button></div><div class="calgrid">`;
   for (const w of ["M", "T", "W", "T", "F", "S", "S"]) html += `<div class="dow">${w}</div>`;
   for (let i = 0; i < 42; i++) {
     const d = addDays(gridStart, i), k = key(d);
@@ -3212,13 +3229,14 @@ function pageLine(n, level, prev, removable, fold, out) {
   if (fold) {
     tg.textContent = fold === "open" ? "▾" : "▸";
     tg.title = fold === "open" ? "Collapse" : "Expand";
+    tg.setAttribute("aria-label", tg.title);
     tg.addEventListener("click", () => { setCollapsed(n.id, fold === "open"); renderPage(); });
   }
   row.appendChild(tg);
 
   if (mode === "todo") {
     const cb = document.createElement("input");
-    cb.type = "checkbox"; cb.checked = !!n.completedAt;
+    cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.setAttribute("aria-label", "Done");
     cb.addEventListener("change", async () => {
       try {
         await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`);
@@ -3240,7 +3258,10 @@ function pageLine(n, level, prev, removable, fold, out) {
 
   const t = document.createElement("span");
   t.className = "t";
-  t.textContent = shownVisible(n.name) || "(empty)";
+  const pr = prioOf(n);
+  if (pr) row.classList.add("prio" + pr);
+  t.textContent = dropMeta(shownVisible(n.name)) || "(empty)";
+  metaBadges(t, pr, estOf(n), n.completedAt);
   if (fold === "closed") {                             // how many lines are hidden
     const pc = document.createElement("span");
     const hidden = countBelow(n);
@@ -3266,7 +3287,7 @@ function pageLine(n, level, prev, removable, fold, out) {
   // "<" outdents the line: it moves up one level to sit right after its parent.
   if (out) {
     const od = document.createElement("button");
-    od.className = "outc"; od.textContent = "<"; od.title = "Outdent: move out one level, below its parent";
+    od.className = "outc"; od.textContent = "<"; od.title = "Outdent: move out one level, below its parent"; od.setAttribute("aria-label", od.title);
     od.addEventListener("click", async () => {
       od.disabled = true;
       try { await outdentLine(n, out.parent, out.grandId); }
@@ -3278,7 +3299,7 @@ function pageLine(n, level, prev, removable, fold, out) {
   // ">" indents the line: it becomes the last child of the line above (and takes its sub-bullets with it).
   if (prev) {
     const ind = document.createElement("button");
-    ind.className = "indc"; ind.textContent = ">"; ind.title = "Indent under the line above";
+    ind.className = "indc"; ind.textContent = ">"; ind.title = "Indent under the line above"; ind.setAttribute("aria-label", ind.title);
     ind.addEventListener("click", async () => {
       ind.disabled = true;
       try {
@@ -3291,14 +3312,14 @@ function pageLine(n, level, prev, removable, fold, out) {
   }
 
   const plus = document.createElement("button");
-  plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one";
+  plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one"; plus.setAttribute("aria-label", plus.title);
   plus.addEventListener("click", () => { addingFor = addingFor === n.id ? null : n.id; renderPage(); });
   row.appendChild(plus);
 
   // "−" removes a line (and anything under it) from today's page. Not offered inside the notes bullet.
   if (removable) {
     const minus = document.createElement("button");
-    minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
+    minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line"; minus.setAttribute("aria-label", minus.title);
     minus.addEventListener("click", async () => {
       const below = countBelow(n);
       const label = shownName(n.name) || "(empty)";
@@ -3342,6 +3363,7 @@ function setExpanded(on) {
   document.getElementById("side").classList.toggle("expanded", on);
   expandBtn.textContent = on ? "⤡" : "⤢";
   expandBtn.title = on ? "Collapse back to the calendar view" : "Expand to fill the sidebar";
+  expandBtn.setAttribute("aria-label", expandBtn.title);
   setPref("pageExpanded", on);
 }
 expandBtn.onclick = () => setExpanded(!document.getElementById("side").classList.contains("expanded"));
@@ -3374,6 +3396,7 @@ function setSidebarHidden(hide, save) {
   sideBtn.classList.toggle("off", hide);
   sideBtn.setAttribute("aria-pressed", hide ? "true" : "false");
   sideBtn.title = (hide ? "Show the sidebar" : "Hide the sidebar") + " (Ctrl+\\)";
+  sideBtn.setAttribute("aria-label", sideBtn.title);
   if (save) setPref("sideHidden", hide);
 }
 sideBtn.onclick = () => setSidebarHidden(!document.body.classList.contains("nosidebar"), true);
@@ -3642,7 +3665,7 @@ function updateViewBar() {
   link.href = "https://workflowy.com/#/" + viewItem.slice(-12);   // WorkFlowy links use the last 12 characters of the id
   link.target = "_blank"; link.rel = "noopener"; link.textContent = "Open in WorkFlowy ↗";
   const fresh = document.createElement("button");
-  fresh.textContent = "↻"; fresh.title = "Download a fresh copy of your outline from WorkFlowy (allowed once a minute)";
+  fresh.textContent = "↻"; fresh.title = "Download a fresh copy of your outline from WorkFlowy (allowed once a minute)"; fresh.setAttribute("aria-label", fresh.title);
   fresh.onclick = () => reloadItem(true);
   const ed = document.createElement("button"); ed.type = "button"; ed.className = "iedit" + (itemLiveOn() ? " on" : ""); ed.setAttribute("aria-label", "Edit like a text editor"); ed.setAttribute("aria-pressed", itemLiveOn() ? "true" : "false");
   ed.innerHTML = kbModeIcon(itemLiveOn());
@@ -3861,9 +3884,12 @@ function openRemPop(anchor, n, k, bullet, cur, after) {
     if (hhmm) showToast("Reminder set for " + fmtTime(+hhmm.slice(0, 2), +hhmm.slice(3)) + (k === key(new Date()) ? "" : " on " + dayLabel(k)) + (leads.length ? " + early alerts" : ""), false);
     else if (leads.length) showToast("Early alerts set: " + leads.map((c) => LEADS.find((x) => x[0] === c)[1]).join(", ") + " before", false);
   };
-  const saveLeads = document.createElement("button"); saveLeads.type = "button"; saveLeads.className = "cancel"; saveLeads.textContent = "Save early alerts only";
-  saveLeads.title = "Keep the time as it is (9:00 am if the task has none) and save the early alerts";
+  const rbtns = document.createElement("div"); rbtns.className = "rbtns";
+  const saveLeads = document.createElement("button"); saveLeads.type = "button"; saveLeads.className = "cancel"; saveLeads.textContent = "Save alerts";
+  saveLeads.title = "Save early alerts only"; saveLeads.setAttribute("aria-label", "Save early alerts only");
   saveLeads.addEventListener("click", () => { const t = parseTime(plain(n.name)); done(t ? `${pad2(t.h)}:${pad2(t.mi)}` : null); });
+  const cancelBtn = document.createElement("button"); cancelBtn.type = "button"; cancelBtn.className = "cancel"; cancelBtn.textContent = "Cancel";
+  cancelBtn.addEventListener("click", closeMovePop);
   if (cur && cur.fromTag) {                                // the time lives in WorkFlowy's date tag, which the board doesn't rewrite
     const msg = document.createElement("div");
     msg.textContent = "This reminder comes from the task's date tag. Edit the date in WorkFlowy (or double-click the card) to change it.";
@@ -3894,13 +3920,16 @@ function openRemPop(anchor, n, k, bullet, cur, after) {
   go.addEventListener("click", () => { if (inp.value) done(inp.value); });
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") go.click(); });
   row.append(inp, go);
-  pop.append(quick, row, lb, saveLeads);
+  rbtns.appendChild(saveLeads);
   if (cur || curLeads.length) {
     const rmv = document.createElement("button");
-    rmv.type = "button"; rmv.textContent = "Remove reminder"; rmv.className = "cancel";
+    rmv.type = "button"; rmv.textContent = "Remove"; rmv.className = "cancel";
+    rmv.title = "Remove reminder"; rmv.setAttribute("aria-label", "Remove reminder");
     rmv.addEventListener("click", () => done(null, []));
-    pop.appendChild(rmv);
+    rbtns.appendChild(rmv);
   }
+  rbtns.appendChild(cancelBtn);
+  pop.append(quick, row, lb, rbtns);
   document.body.appendChild(pop);
   placeCardPop(pop, anchor);
   movePop = pop;
@@ -4444,7 +4473,7 @@ function renderDone(note) {
       }
       const a = document.createElement("a");
       a.href = "https://workflowy.com/#/" + hit.id.slice(-12); a.target = "_blank"; a.rel = "noopener";
-      a.textContent = "↗"; a.title = "Open in WorkFlowy";
+      a.textContent = "↗"; a.title = "Open in WorkFlowy"; a.setAttribute("aria-label", a.title);
       row.append(time, mid, a);
       doneBody.appendChild(row);
     }
@@ -4587,7 +4616,7 @@ function renderFlt(note) {
     }
     const a = document.createElement("a");
     a.href = "https://workflowy.com/#/" + hit.id.slice(-12); a.target = "_blank"; a.rel = "noopener";
-    a.textContent = "↗"; a.title = "Open in WorkFlowy";
+    a.textContent = "↗"; a.title = "Open in WorkFlowy"; a.setAttribute("aria-label", a.title);
     row.append(cb, mid, a);
     fltBody.appendChild(row);
   }
@@ -4682,7 +4711,7 @@ function renderEnc(note, data) {
       const kind = document.createElement("span"); kind.className = "ebadge";
       kind.textContent = (hit.inName && hit.inNote ? "name + note" : hit.inNote ? "note" : "name") + (hit.tokens > 1 ? ` · ${hit.tokens}` : "");
       kind.title = hit.tokens + " encrypted value" + (hit.tokens === 1 ? "" : "s");
-      const a = document.createElement("a"); a.href = "https://workflowy.com/#/" + hit.id.slice(-12); a.target = "_blank"; a.rel = "noopener"; a.textContent = "↗"; a.title = "Open in WorkFlowy";
+      const a = document.createElement("a"); a.href = "https://workflowy.com/#/" + hit.id.slice(-12); a.target = "_blank"; a.rel = "noopener"; a.textContent = "↗"; a.title = "Open in WorkFlowy"; a.setAttribute("aria-label", a.title);
       row.append(mid, kind, a); encBody.appendChild(row);
     }
   }
@@ -4997,10 +5026,10 @@ function kbColEl(col, idx) {
   grip.addEventListener("click", (e) => e.stopPropagation());
   if (kbMaxId !== col.id) el.appendChild(grip);
   const h = document.createElement("div"); h.className = "kh";
-  const tg = document.createElement("button"); tg.type = "button"; tg.textContent = "▾"; tg.title = "Collapse this column"; tg.onclick = () => kbToggle(col.id);
+  const tg = document.createElement("button"); tg.type = "button"; tg.textContent = "▾"; tg.title = "Collapse this column"; tg.setAttribute("aria-label", tg.title); tg.onclick = () => kbToggle(col.id);
   const t = document.createElement("span"); t.className = "kt"; t.textContent = col.name;
   const n = document.createElement("span"); n.className = "kn"; n.textContent = cal || view === "kanban" ? "" : st.loaded ? String(c.n) : "…";
-  const mb = document.createElement("button"); mb.type = "button"; mb.textContent = "⋯"; mb.title = "Column options"; mb.onclick = (ev) => { ev.stopPropagation(); kbOpenMenu(mb, col, idx); };
+  const mb = document.createElement("button"); mb.type = "button"; mb.textContent = "⋯"; mb.title = "Column options"; mb.setAttribute("aria-label", mb.title); mb.onclick = (ev) => { ev.stopPropagation(); kbOpenMenu(mb, col, idx); };
   h.append(tg, t, n);
   let kctlFrom = 0;
   if (view === "kanban" && !cal && (st.cards || []).length) { t.style.flex = "0 0 auto"; h.append(kbLaneCountSel(col, st)); }       // the count sits by the name; the buttons stay on the right
@@ -5207,12 +5236,15 @@ function kbCardEl(n, col, ctx) {
     };
     el.appendChild(cb);
   }
-  const t = document.createElement("span"); t.className = "kct"; t.textContent = shownVisible(n.name) || "(empty)"; if (kbReadEdit) t.title = "Click to edit here";
+  const pr = prioOf(n);
+  if (pr) el.classList.add("prio" + pr);
+  const t = document.createElement("span"); t.className = "kct"; t.textContent = dropMeta(shownVisible(n.name)) || "(empty)"; if (kbReadEdit) t.title = "Click to edit here";
+  metaBadges(t, pr, estOf(n), n.completedAt);
   el.appendChild(t);
   if (n.note && plain(n.note).trim()) { const i = document.createElement("span"); i.className = "kic"; i.textContent = "≡"; i.title = "Has a note"; el.appendChild(i); }
   if (kbColors[n.id]) el.dataset.color = kbColors[n.id];
   if (kbColorsOn !== false) { const cb2 = document.createElement("button"); cb2.type = "button"; cb2.className = "kcolb"; cb2.textContent = "●"; cb2.title = "Colour this card"; cb2.setAttribute("aria-label", "Colour this card"); cb2.onclick = (ev) => { ev.stopPropagation(); kbOpenPalette(cb2, n.id); }; el.appendChild(cb2); }
-  const op = document.createElement("button"); op.type = "button"; op.className = "kopen"; op.textContent = "⤢"; op.title = "Open in the item window";
+  const op = document.createElement("button"); op.type = "button"; op.className = "kopen"; op.textContent = "⤢"; op.title = "Open in the item window"; op.setAttribute("aria-label", op.title);
   op.onclick = (ev) => { ev.stopPropagation(); openItem(n.id, true); };
   el.appendChild(op);
   // click edits the card where it is (formatting and dates are kept); Ctrl/Cmd+click opens the item window
@@ -5951,10 +5983,10 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
   const mode = kbType(n), row = document.createElement("div"), zoomable = ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline";
   row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "") + (kbSel.ids.includes(n.id) ? " sel" : ""); row.style.paddingLeft = level * 16 + "px"; row.dataset.id = n.id;
   const tg = document.createElement(fold ? "button" : "span"); tg.className = "tg";
-  if (fold) { tg.textContent = fold === "open" ? "▾" : "▸"; tg.title = fold === "open" ? "Collapse" : "Expand"; tg.addEventListener("click", () => { if (n._g) { if (fold === "open") kbHeadShut.add(n.id); else kbHeadShut.delete(n.id); kbSaveHeadShut(); } else kbSetOpen(n.id, fold !== "open"); if (kbAddingFor === n.id) kbAddingFor = null; kbRender(); }); }
+  if (fold) { tg.textContent = fold === "open" ? "▾" : "▸"; tg.title = fold === "open" ? "Collapse" : "Expand"; tg.setAttribute("aria-label", tg.title); tg.addEventListener("click", () => { if (n._g) { if (fold === "open") kbHeadShut.add(n.id); else kbHeadShut.delete(n.id); kbSaveHeadShut(); } else kbSetOpen(n.id, fold !== "open"); if (kbAddingFor === n.id) kbAddingFor = null; kbRender(); }); }
   row.appendChild(tg);
   if (mode === "todo") {
-    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.disabled = !!n.pending;
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.disabled = !!n.pending; cb.setAttribute("aria-label", "Done");
     cb.addEventListener("change", async () => {
       try { await call("POST", `/nodes/${n.id}/${cb.checked ? "complete" : "uncomplete"}`); n.completedAt = cb.checked ? Math.floor(Date.now() / 1000) : null; kbDirty = true; kbRender(); }
       catch (e) { showError(e.message); cb.checked = !cb.checked; }
@@ -5970,7 +6002,10 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
   const sealed = /wbenc1\.[A-Za-z0-9_-]{59,}/.test(visibleText(n.name)), crypt = !!window.wbcryptLive && window.wbcryptLive.ready();
   const live = !!sib && kbEditOn(ctx.col);     // a line with encrypted text opens only when you unlock it; without the add-on it still opens through the editor
   const t = document.createElement("span"); t.className = "t" + (live ? " live" : "");
-  if (live) t.appendChild(kbLiveField(n, ctx, sib, prev, out)); else t.textContent = shownVisible(n.name) || "(empty)";
+  const pr = n.pending ? 0 : prioOf(n);
+  if (pr) row.classList.add("prio" + pr);
+  if (live) t.appendChild(kbLiveField(n, ctx, sib, prev, out));                   // the markers stay visible as text while you type, as on board cards
+  else { t.textContent = dropMeta(shownVisible(n.name)) || "(empty)"; metaBadges(t, pr, estOf(n), n.completedAt); }
   if (fold === "closed" && !live) { const pc = document.createElement("span"); const hidden = countBelow(n) + (n._g || []).reduce((a, x) => a + 1 + countBelow(x), 0); pc.className = "pc"; pc.textContent = `(${hidden})`; pc.title = `${hidden} hidden line${hidden === 1 ? "" : "s"}`; t.appendChild(pc); }
   if (live && !n.pending && !kbSealedNote(n) && ((n.note && n.note.trim()) || kbNoteOpen === n.id)) t.appendChild(kbNoteField(n, ctx));
   else if (n.note && n.note.trim()) { const pn = document.createElement("small"); pn.className = "pn"; pn.textContent = shownVisible(n.note).split("\n")[0]; t.appendChild(pn); }
@@ -5997,12 +6032,12 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
   if (ctx.col.kind === "calendar" && mode === "todo" && !kbIsNotesLine(n)) row.appendChild(kbCalBar(n, ctx));        // 🔔 📅 ✕ on hover, hidden while you type in the line (a new line works once it is saved)
   if (n.pending) return row;                                  // a new line that is not in WorkFlowy yet: no buttons until it is saved
   if (out) {
-    const od = document.createElement("button"); od.className = "outc"; od.textContent = "<"; od.title = "Outdent: move out one level, below its parent";
+    const od = document.createElement("button"); od.className = "outc"; od.textContent = "<"; od.title = "Outdent: move out one level, below its parent"; od.setAttribute("aria-label", od.title);
     od.addEventListener("click", async () => { od.disabled = true; try { await kbOutdent(n, out.parent, out.grandId, ctx); } catch (e) { showError(e.message); od.disabled = false; await ctx.reload().catch(() => {}); } });
     row.appendChild(od);
   }
   if (prev) {
-    const ind = document.createElement("button"); ind.className = "indc"; ind.textContent = ">"; ind.title = "Indent under the line above";
+    const ind = document.createElement("button"); ind.className = "indc"; ind.textContent = ">"; ind.title = "Indent under the line above"; ind.setAttribute("aria-label", ind.title);
     ind.addEventListener("click", async () => { ind.disabled = true; try { await call("POST", `/nodes/${n.id}/move`, { parent_id: prev.id, position: "bottom" }); kbSetOpen(prev.id, true); await ctx.reload(); } catch (e) { showError(e.message); ind.disabled = false; } });
     row.appendChild(ind);
   }
@@ -6010,10 +6045,10 @@ function kbLine(n, level, prev, out, fold, ctx, sib) {
     const zm = document.createElement("button"); zm.className = "zmc"; zm.textContent = "⌖"; zm.title = "Zoom into this line";
     zm.addEventListener("click", () => kbSetZoom(ctx.col, [...kbZoomPath(ctx.col), { id: n.id, name: shownVisible(n.name).slice(0, 80) }])); row.appendChild(zm);
   }
-  const plus = document.createElement("button"); plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one";
+  const plus = document.createElement("button"); plus.className = "addc"; plus.textContent = "+"; plus.title = "Add a line under this one"; plus.setAttribute("aria-label", plus.title);
   plus.addEventListener("click", () => { kbAddingFor = kbAddingFor === n.id ? null : n.id; kbRender(); const x = kbRoot().querySelector(`.kaddin[data-parent="${n.id}"]`); if (x) x.focus(); });
   row.appendChild(plus);
-  const minus = document.createElement("button"); minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line";
+  const minus = document.createElement("button"); minus.className = "delc"; minus.textContent = "−"; minus.title = "Delete this line"; minus.setAttribute("aria-label", minus.title);
   minus.addEventListener("click", async () => {
     const below = countBelow(n), label = shownName(n.name) || "(empty)";
     if (!confirm(`Delete this line permanently?\n\n"${label}"` + (below ? `\n\nIts ${below} line${below === 1 ? "" : "s"} underneath will be deleted too.` : ""))) return;
@@ -6028,7 +6063,7 @@ function kbCalBody(col) {
   const cs = kbCalState(col), nd = kbCalN(col), body = document.createElement("div"); body.className = "kcal";
   const reloadCal = async (onlyDay) => { kbDirty = true; await kbLoadCal(col, onlyDay); kbRender(); };
   const nav = document.createElement("div"); nav.className = "kcn";
-  const mk = (label, title, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.onclick = fn; return b; };
+  const mk = (label, title, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.setAttribute("aria-label", title); b.onclick = fn; return b; };
   const di = document.createElement("input"); di.type = "date"; di.value = cs.sel; di.className = "kdi"; di.setAttribute("aria-label", "Jump to a date"); di.tabIndex = -1;
   di.onchange = () => { if (ISO_DAY.test(di.value)) { cs.sel = di.value; cs.start = keyToDate(di.value); kbLoadCal(col).then(kbRender); } };
   const pick = document.createElement("span"); pick.className = "kdw";
@@ -6179,7 +6214,7 @@ function kbRenderSettings() {
     const row = document.createElement("div"); row.className = "srow";
     const n = document.createElement("span"); n.className = "sn"; n.textContent = c.name;
     const id = document.createElement("small"); id.textContent = c.kind === "calendar" ? "calendar" : c.id.slice(-12); id.title = c.kind === "calendar" ? "WorkFlowy's own calendar days" : "Node id " + c.id;
-    const mk = (label, title, fn, dis) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.disabled = !!dis; b.onclick = fn; return b; };
+    const mk = (label, title, fn, dis) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.setAttribute("aria-label", title); b.disabled = !!dis; b.onclick = fn; return b; };
     row.append(n, id, mk("↑", "Move left", () => kbMoveCol(i, -1), i === 0), mk("↓", "Move right", () => kbMoveCol(i, 1), i === kbCols.length - 1),
       mk("Remove", "Remove " + c.name, () => { kbCols = kbCols.filter((x) => x.id !== c.id); kbSaveCols(); delete kbData[c.id]; delete kbCal[c.id]; kbRenderSettings(); kbRender(); }));
     kbList.appendChild(row);
@@ -6392,9 +6427,9 @@ function renderPlan() {
   const head = document.createElement("div");
   head.className = "phead";
   const prev = document.createElement("button");
-  prev.className = "mini nav"; prev.innerHTML = "&#8249;"; prev.title = "Previous day"; prev.onclick = () => goPlanDay(addDayKey(planDay, -1));
+  prev.className = "mini nav"; prev.innerHTML = "&#8249;"; prev.title = "Previous day"; prev.setAttribute("aria-label", prev.title); prev.onclick = () => goPlanDay(addDayKey(planDay, -1));
   const next = document.createElement("button");
-  next.className = "mini nav"; next.innerHTML = "&#8250;"; next.title = "Next day"; next.onclick = () => goPlanDay(addDayKey(planDay, 1));
+  next.className = "mini nav"; next.innerHTML = "&#8250;"; next.title = "Next day"; next.setAttribute("aria-label", next.title); next.onclick = () => goPlanDay(addDayKey(planDay, 1));
   const title = document.createElement("h2");
   title.textContent = keyToDate(planDay).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) + (isToday ? " · Today" : "");
   head.append(prev, title, next);
@@ -6450,7 +6485,7 @@ function renderPlan() {
   list.className = "tasks"; list.dataset.s = "day";
   const ents = entries(planDay, false);
   if (planLoading && !(planDay in cache)) list.insertAdjacentHTML("beforeend", '<div class="empty">Loading…</div>');
-  else if (!ents.length) list.insertAdjacentHTML("beforeend", `<div class="empty">${(cache[planDay] || []).length ? "All done" : "Nothing planned yet"}</div>`);
+  else if (!ents.length) list.insertAdjacentHTML("beforeend", `<div class="empty">${(cache[planDay] || []).length ? "All done 🎉" : "Nothing planned yet"}</div>`);
   for (const e of ents) list.appendChild(entryEl(e, false));
   left.appendChild(list);
   left.appendChild(makeAddBox(planDay));

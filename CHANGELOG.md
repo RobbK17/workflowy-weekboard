@@ -1,12 +1,90 @@
 # Changelog
 
+## 1.3.9 (2026-11-06)
+
+Priorities and estimates everywhere you see tasks, dates inside tasks in saved filters, tidier card buttons and popups, a dated today button on the phone, accessibility labels throughout, and the app icons.
+
+### Upgrading
+
+1. Replace `server.js`, `index.html`, `mobile.html`, `README.md` and `CHANGELOG.md`.
+2. Add `icon-180.png`, `icon-192.png` and `icon-512.png` next to `server.js`, if you don't have them yet.
+3. **Restart the server.** Saved filters, the phone page's settings and the phone page itself changed on the server side.
+
+### Priorities and estimates on the phone page
+
+- Tasks with `!p1`–`!p4` get a coloured left edge and a **P1**–**P4** badge. Tasks with `~45m` get a **⏱ 45m** badge. The markers are hidden from the task's text, as on the desktop board.
+- **Sort by priority** (⋯ > Settings, on by default) lists urgent first and low last in each day, and within each day of Past due and Upcoming. A group sorts by its most urgent open task. The Inbox keeps its outline order.
+- The setting is shared with your other devices when **Share settings across my devices** is on.
+
+### Priorities and estimates in Panes, the Daily page and the item window
+
+- Lines and cards with a priority get the same coloured edge. On outline lines, the edge sits next to the text at the line's own indent.
+- In read mode, the markers are hidden and shown as **P1**–**P4** and **⏱** badges. In typing mode the markers stay in the text, so you can edit them, and the edge still shows.
+- A Panes card that has a card colour keeps its colour stripe, and its priority shows as the badge.
+
+### Saved filters: dates inside tasks
+
+- A task that contains a WorkFlowy date (a date or date-and-time you inserted in WorkFlowy) is now due on **that date**. Otherwise it's due on the calendar day it sits on, as before.
+  - A task sitting on today but dated next Tuesday shows under `due:nextweek`, not `due:today`.
+  - A task outside the calendar with a date now counts for `due:` words, and is no longer `due:none`.
+- Results outside a `due:` range now show their day as well, so a plain `p:1` filter shows each task's date and sorts by it.
+
+### Accessibility
+
+A scan of every control on the desktop and phone pages found five without a name that screen readers could announce. All five now have one:
+- the task checkboxes on board cards, group cards, sub-item lists, the Daily page and Panes ("Done")
+- the text box on cards you type in ("Task")
+- the week arrows ← → ("Previous week", "Next week", with a tooltip)
+- the date in Move tasks (now labelled "Move to")
+
+A second scan found 36 desktop controls named only by their tooltip, which some screen readers don't read: refresh, the sidebar and Daily page buttons, the ✕ on every window, the outline line buttons (+ − < > ▾), the card's Move and Delete, the Panes column header buttons, the day and month arrows, and the ↗ links in report windows. Each now has a proper label, set where it's created and kept in step when its tooltip changes (Hide/Show the sidebar, Expand/Collapse). The phone page already had them. No runtime cost.
+
+### Fixes
+
+- **Priority and estimate changes work on formatted text.** A `!pN` or `~Nm` marker inside bold or italic, or after a non-breaking space, is now replaced when you set a new priority or estimate. Before, the old marker kept winning and a second one was added.
+- **Saved filters work while WorkFlowy refuses the calendar lookup.** Every filter run now asks once for the calendar page (to show each result's day). A refusal such as a 429 used to fail the whole filter; now the results are listed without days, and only `due:` filters report the error.
+- **The three reports open at one size.** Completed tasks, Saved filters and Encrypted items are 700 px wide and up to 700 px tall on the desktop page. The phone and narrow windows still fill the screen.
+- **Phone page Sign out only shows in the hosted modes** (`vps`, `fly`), like the desktop page. In local mode there is no sign-in, and tapping it used to wipe the phone page's settings and land on a "not found" page. The server now tells the phone page which mode it runs in.
+- **Phone today button shows the date.** The ⌂ in the phone page's header is now a small desk calendar: today's month over the day number (for example NOV / 5), same size as before. It updates itself just after midnight (one timer a day, no polling), and screen readers announce "Go to today, Thursday, November 5".
+- **Reminder popup buttons on one line.** The bottom of the 🔔 popup is now a single row: **Save alerts** (Save early alerts only), **Remove** (when the task has a time) and a new **Cancel**, like the Repeat and Move popups.
+- **Repeat popup shows only what applies.** The Mon–Sun boxes appear only for "Chosen weekdays…", and the ending options are hidden for "Does not repeat". Before, the weekday boxes always showed.
+- **Fewer buttons on cards.** Hovering a week-board card now shows only **Move to a date** and **✕**. Reminder and Repeat moved to the right-click menu. Cards with "Edit cards in place" off now have a right-click menu too: Mark done, Set a reminder… (or Change the reminder…) and Repeat….
+- **Set a reminder from the right-click menu.** Right-clicking a card you're editing now offers **Set a reminder…**, or **Change the reminder…** when the task already has a time. It opens the same popup as the 🔔 button, starting at the task's current time, and saves anything you've just typed first. In the same menu, the Estimate row is now 15m, 30m, 45m, 1h, 2h and 3h (1h30m is gone), so it fits on one line. When a task has no priority or no estimate, the ✕ shows as a subtle outline rather than a solid button.
+- **"All done 🎉" is back,** on both pages. An empty day (and an empty weekend section or Plan day) says "All done 🎉" on the desktop board too, so the two pages match the other way round from 1.3.8.
+- **App icons** (`icon-180.png`, `icon-192.png`, `icon-512.png`) are included, so installing the phone page as an app shows the icon. Browsers had logged an error for each missing icon.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | Dates inside tasks for `due:`, each result's day, the phone page's mode, the `prioSort` phone setting; version 1.3.9 |
+| `index.html` | Priority edges and badges in Panes, the Daily page and the item window; card hover buttons (Move and ✕ only) and right-click menus; Reminder and Repeat popup fixes; "All done 🎉"; labels; version 1.3.9 |
+| `mobile.html` | Priority and estimate badges, edges and sorting; Sort by priority setting; Sign out only when hosted; the dated today button with its midnight refresh; "All done 🎉"; version 1.3.9 |
+| `icon-180.png`, `icon-192.png`, `icon-512.png` | Added |
+| `tests/` | Added: the test suites (`verify*.js`, `syntax.js`, `a11y-scan.js`), `run-all.js` to run them all, and a short `README.md` |
+| `README.md`, `CHANGELOG.md` | Updated |
+
+### Tested
+
+All against a stand-in WorkFlowy:
+
+| Area | Checks |
+|---|---|
+| Saved filters, including the new date rule (dated tasks inside and outside the calendar, a task on today dated next week, `due:any` and `due:none`) | 29 |
+| Phone page and desktop views in headless Edge (sort on and off, badges, edges, read and typing modes, the shared setting) | 12 |
+| Sign out hidden in local mode, shown when hosted | 3 |
+| Accessibility scan of both pages across 15 views and menus | no unnamed controls, and no controls named only by a tooltip |
+| Card buttons, right-click menus, Reminder and Repeat popups, phone today button (including a faked-clock midnight flip) | checked on screen with screenshots; reviewed by Vera |
+
+The 1.3.8 suites were rerun and still pass (see Tested under 1.3.8).
+
 ## 1.3.8 (2026-11-05)
 
 Priorities, time estimates and saved filters, plus fixes from a code review and from a security and UI-consistency review.
 
 ### Upgrading
 
-1. Replace `server.js`, `index.html`, `mobile.html` and `README.md`.
+1. Replace `server.js`, `index.html`, `mobile.html` and `README.md`, and add `.gitignore`.
 2. **Restart the server.** It has a new route, `/filter`.
 
 Nothing else is needed. There are no new server settings, and existing settings files, card colours and sign-in sessions work as before (sessions still end at a restart, as always).
@@ -92,7 +170,24 @@ Responses passed through `/api/v1/...` copied WorkFlowy's `Content-Type`, so an 
   - Priority edges and badges, and the warning colours (meter over or near its limit, late badges, delete buttons, the update link, error text), now come from the theme, with lighter versions in dark mode.
   - The P1–P3 badges have at least 4.5:1 text contrast in both themes. P2 was 3.1:1.
   - Every priority edge stands out at least 3:1 from its card.
-- **Phone page wording:** "Show completed" (it said "Show done" in one place and "Show completed tasks" in another), matching the desktop page.
+  - In dark mode, the browser's own controls (number and date boxes, drop-down lists, spin arrows and scrollbars) are drawn dark too. They used to stay white in Settings, Completed tasks, Saved filters and Move tasks.
+  - The number boxes in Settings are all the same width (Plan day hours was wider than Plan day limit).
+- **Phone page wording:** "Show completed" (it said "Show done" in one place and "Show completed tasks" in another), and "All done" without the 🎉, matching the desktop page.
+
+### Added
+
+- **`.gitignore`** keeps these out of git:
+  - `envset.cmd` and `.env` files
+  - the runtime files `desktop-settings.json`, `mobile-settings.json` and `card-colors.json`
+  - backups (`*.bak*`), `.tmp/` and `node_modules/`
+  - `.cursor/`, which can hold editor and staff access tokens
+- **`CHANGELOG.md`**: this file.
+
+### Not covered yet
+
+- The phone page shows the priority and estimate markers as plain text, with no badges or sorting.
+- The Panes, the Daily page and the item window don't show priority colours or badges.
+- Date filters see the calendar day a task sits on, not a WorkFlowy date tag inside the task.
 
 ### Files changed
 
@@ -102,6 +197,7 @@ Responses passed through `/api/v1/...` copied WorkFlowy's `Content-Type`, so an 
 | `index.html` | Priorities, estimates, Plan day hours, the Saved filters window, focus handling, theme colours; version 1.3.8 |
 | `mobile.html` | Sign out clears storage; "Show completed" wording; version 1.3.8 |
 | `README.md` | What's new, usage for the new features, ntfy warning, phone wording |
+| `.gitignore`, `CHANGELOG.md` | New |
 
 The new browser settings `prioSort`, `planHours` and `filters` are on the shared-settings list in both `server.js` and `index.html`.
 

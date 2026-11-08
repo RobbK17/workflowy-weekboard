@@ -1,10 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
-// Version 1.3.8
+// Version 1.3.9
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.3.8";
+const VERSION = "1.3.9";
 
 const http = require("http");
 const fs = require("fs");
@@ -719,7 +719,7 @@ function cleanMobileSettings(x) {
   const out = {};
   if (x.nested !== undefined) { if (!["group", "flatten", "off"].includes(x.nested)) throw new Error("bad nested"); out.nested = x.nested; }
   if (x.span !== undefined) { if (!["5", "7", "7s"].includes(x.span)) throw new Error("bad span"); out.span = x.span; }
-  for (const k of ["showLate", "showSoon", "showDone"]) if (x[k] !== undefined) { if (typeof x[k] !== "boolean") throw new Error("bad " + k); out[k] = x[k]; }
+  for (const k of ["showLate", "showSoon", "showDone", "prioSort"]) if (x[k] !== undefined) { if (typeof x[k] !== "boolean") throw new Error("bad " + k); out[k] = x[k]; }
   if (x.inbox !== undefined) {
     if (x.inbox === null) out.inbox = null;
     else if (x.inbox && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(x.inbox.id))) out.inbox = { id: String(x.inbox.id).toLowerCase(), name: String(x.inbox.name || "Inbox").slice(0, 30) };
@@ -956,6 +956,32 @@ function dayOf(n, dayIds) {
   }
   return null;
 }
+function tagDay(raw) {                                    // WorkFlowy's own date in a task (<time startYear="2026" startMonth="11" startDay="10" …>), with or without a time
+  const m = /<time\b([^>]*)>/i.exec(String(raw || ""));
+  if (!m) return null;
+  const a = {}; for (const x of m[1].matchAll(/(\w+)="(\d+)"/g)) a[x[1]] = Number(x[2]);
+  if (!a.startYear || !(a.startMonth >= 1 && a.startMonth <= 12) || !(a.startDay >= 1 && a.startDay <= 31)) return null;
+  return `${a.startYear}-${String(a.startMonth).padStart(2, "0")}-${String(a.startDay).padStart(2, "0")}`;
+}
+// The calendar day a task sits on, read from the day page's own date (calendar > year > month > day), for showing and sorting
+// results outside a due: range. null when it isn't on the calendar or the day page has no date in its name.
+function calendarDay(n, rootId) {
+  let p = n;
+  for (let i = 0; p && i < 60; i++) {
+    const pid = p.parent_id;
+    if (!pid) return null;
+    if (ISO_DAY.test(pid)) return pid;
+    const d = idx.byId.get(pid), m = d && idx.byId.get(d.parent_id), y = m && idx.byId.get(m.parent_id);
+    if (rootId && y && y.parent_id === rootId) {
+      const t = tagDay(d.name); if (t) return t;
+      let mk = null; for (const [k, v] of calIds) if (v.id === m.id && /^\d{4}-\d{2}$/.test(k)) { mk = k; break; }      // a month already looked up through the API
+      const dn = dayNumber(d.name);
+      return mk && dn >= 1 && dn <= 31 ? `${mk}-${String(dn).padStart(2, "0")}` : null;
+    }
+    p = d;
+  }
+  return null;
+}
 function underNode(n, rootId) {
   let p = n;
   for (let i = 0; p && i < 60; i++) {
@@ -1030,7 +1056,9 @@ async function runFilter(q, today, ws) {
     const keys = [];
     for (let k = f.due[0]; k <= f.due[1]; k = addDaysKey(k, 1)) keys.push(k);
     dayIds = await calDays(keys);
-  } else if (f.due) calRoot = await calId("calendar");      // due:none / due:any: is it anywhere in the calendar?
+  }
+  // due:none / due:any need the calendar page; without a due: word it only supplies each result's day, so a refusal (say a 429) leaves the days blank instead of failing the filter.
+  try { calRoot = await calId("calendar"); } catch (e) { if (f.due) throw e; calRoot = null; }
   if (!idx) throw Object.assign(new Error("The outline copy was cleared; try again."), { status: 503 });
   const found = [];
   for (const n of idx.byId.values()) {
@@ -1046,9 +1074,12 @@ async function runFilter(q, today, ws) {
       const lp = pathNames(n).map((x) => x.toLowerCase());
       if (!f.under.every((u) => lp.some((x) => x.includes(u))) || f.notUnder.some((u) => lp.some((x) => x.includes(u)))) continue;
     }
-    let day = null;
-    if (dayIds) { day = dayOf(n, dayIds); if (!day) continue; }
-    else if (f.due) { const on = underNode(n, calRoot); if (f.due === "none" ? on : !on) continue; }
+    // A WorkFlowy date in the task is its due date; otherwise it is due on the calendar day it sits on.
+    const tagged = tagDay(n.name);
+    let day = tagged;
+    if (dayIds) { if (!day) day = dayOf(n, dayIds); if (!day || day < f.due[0] || day > f.due[1]) continue; }
+    else if (f.due) { const dated = !!tagged || underNode(n, calRoot); if (f.due === "none" ? dated : !dated) continue; }
+    if (!day) day = calendarDay(n, calRoot);
     found.push({ n, pr, est, day });
   }
   found.sort((a, b) => PRIO_RANK[a.pr] - PRIO_RANK[b.pr] || (a.day || "9999").localeCompare(b.day || "9999") || b.n.modifiedAt - a.n.modifiedAt);
@@ -1438,7 +1469,10 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/m" || url.pathname === "/m/" || url.pathname === "/mobile.html") {
     try {
-      const page = fs.readFileSync(path.join(__dirname, "mobile.html"), "utf8").replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b).replace(/<script>/g, `<script nonce="${res.nonce}">`);
+      const page = fs.readFileSync(path.join(__dirname, "mobile.html"), "utf8")
+        .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)
+        .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
+        .replace(/<script>/g, `<script nonce="${res.nonce}">`);
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       return res.end(page);
     } catch (e) { res.writeHead(404); return res.end("The phone page (mobile.html) is not installed."); }

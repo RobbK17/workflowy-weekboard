@@ -4,7 +4,24 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.3.8**
+**Version 1.3.9**
+
+### What's new in 1.3.9
+
+Replace `server.js`, `index.html` and `mobile.html`, add the three `icon-*.png` files if you don't have them, then **restart the server** (saved filters, the phone page's settings and the phone page itself changed on the server side). Full details are in `CHANGELOG.md`.
+
+- **Priorities and estimates on the phone page.** Tasks with `!p1`–`!p4` get a coloured left edge and a **P1**–**P4** badge, and tasks with `~45m` get a **⏱ 45m** badge. The markers themselves are hidden from the text, as on the desktop board. **Sort by priority** (⋯ > Settings, on by default) lists urgent first in each day, and within each day of Past due and Upcoming. The setting is shared with your other devices when **Share settings across my devices** is on.
+- **Priorities in Panes, the Daily page and the item window.** Lines and cards get the same coloured edge, and in read mode the same badges. While you type in a line the markers stay in the text so you can change them. A Panes card with a card colour keeps its stripe and shows the priority as a badge.
+- **Saved filters understand dates inside tasks.** A task that contains a WorkFlowy date is now due on that date, wherever it sits. A task on today but dated next Tuesday shows under `due:nextweek`, and a dated task outside the calendar no longer counts as `due:none`. Results also show each task's day, so a plain `p:1` filter lists the dates and sorts by them.
+- **Changing a priority or estimate works on formatted text.** A marker inside bold or italic, or after a non-breaking space (`<b>!p1</b>`), is now replaced when you pick a new priority or estimate. Before, the old marker kept winning and a second one was added.
+- **Tidier cards.** Hovering a card now shows just **Move to a date** and **✕**. **Set a reminder…** (or **Change the reminder…**) and **Repeat…** are in the right-click menu, which also exists now on cards with "Edit cards in place" off. The Estimate row there is 15m, 30m, 45m, 1h, 2h, 3h.
+- **Reminder and Repeat popups are simpler.** The reminder popup ends in one row: **Save alerts**, **Remove** (when the task has a time) and a new **Cancel**. The Repeat popup shows the Mon–Sun boxes only for "Chosen weekdays…", and hides the ending options for "Does not repeat".
+- **The three reports open at one size** on the desktop page: Completed tasks, Saved filters and Encrypted items are all 700 px wide and up to 700 px tall, so a long report scrolls inside the window instead of changing its shape.
+- **The phone's today button shows the date** (for example NOV / 5) in place of ⌂, and turns over just after midnight by itself.
+- **"All done 🎉" is back** on empty days, on both pages.
+- **Sign out only where there's a sign-in.** In local mode the phone page no longer shows it. Before, tapping it wiped the page's settings and landed on a "not found" page.
+- **Better for screen readers.** Every checkbox, text box, arrow and ✕ on both pages now has a name that a screen reader can announce.
+- **App icons included,** so installing the phone page as an app shows the board's icon.
 
 ### What's new in 1.3.8
 
@@ -22,10 +39,11 @@ Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**
 - **Shared settings and card colours** no longer lose a change when two saves arrive at the same moment.
 - **Easier to use with a keyboard and in dark mode.** The report windows put the keyboard focus inside when they open and return it when they close. Priority and warning colours have dark-mode versions and readable contrast.
 - **Consistent wording.** The phone page says "Show completed", like the desktop page.
+- **A `.gitignore`** keeps your settings files and any local secrets script out of git.
 
 ### What's new in 1.3.7
 
-- **Repeating tasks.** Hover a card and press **🔁** (next to 🔔 and 📅), or right-click it and choose **Repeat…**. Pick every day, every weekday (Mon–Fri), every week, every 2 weeks, chosen weekdays (for example Mon, Wed, Fri), every month (same date or last day) or every year, and optionally an end date or a number of times. The server makes the next copy ahead of time, counted from the due date; if that date has already passed, it lands on the next date still ahead. See "Repeating tasks" below.
+- **Repeating tasks.** Right-click a card and choose **Repeat…**. Pick every day, every weekday (Mon–Fri), every week, every 2 weeks, chosen weekdays (for example Mon, Wed, Fri), every month (same date or last day) or every year, and optionally an end date or a number of times. The server makes the next copy ahead of time, counted from the due date; if that date has already passed, it lands on the next date still ahead. See "Repeating tasks" below.
 - **Undo for deletes.** Deleting a card, a line, a Daily page item or an all-day note shows a toast with **Undo**. It puts the item back with everything inside it, in its old place.
 - **Save check.** Before a card or note is saved, the board checks that it hasn't been changed in WorkFlowy (or another tab) since you opened it. If it has, you choose: **OK** replaces it with your version, **Cancel** keeps the WorkFlowy version.
 - **Unsaved status and leave-page warning.** Cards, notes, all-day notes and table cells show **Unsaved…** while a change waits to be saved (in the Daily page's save indicator, or a small pill at the bottom left), then **Saved ✓**. Closing or reloading the tab with a change waiting shows the browser's warning.
@@ -99,7 +117,7 @@ Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**
 
 ### Also new in 1.2.0 (since 1.1.1)
 
-- **Reminders (1.2.0).** Put a time in a task (`@2:30pm`) or use WorkFlowy's date tag with a time, and the board shows a 🔔 badge, pops up when it's due, and can push to your phone through ntfy or Pushover. A 🔔 button on each card sets the time. New **Reminders** section in Settings. See "Reminders" below, including how to set up ntfy and Pushover. New settings: `REMINDER_TZ`, `NTFY_TOPIC`, `NTFY_URL`, `NTFY_TOKEN`, `PUSHOVER_TOKEN`, `PUSHOVER_USER`, `REMINDER_NESTED`, `REMINDER_STATE`.
+- **Reminders (1.2.0).** Put a time in a task (`@2:30pm`) or use WorkFlowy's date tag with a time, and the board shows a 🔔 badge, pops up when it's due, and can push to your phone through ntfy or Pushover. Right-click a card and choose **Set a reminder…** to set the time. New **Reminders** section in Settings. See "Reminders" below, including how to set up ntfy and Pushover. New settings: `REMINDER_TZ`, `NTFY_TOPIC`, `NTFY_URL`, `NTFY_TOKEN`, `PUSHOVER_TOKEN`, `PUSHOVER_USER`, `REMINDER_NESTED`, `REMINDER_STATE`.
 - **Peek at Past due / Upcoming.** With a panel switched off, clicking its count at the bottom right shows the panel without changing the setting (press **📌** to keep it on, **✕** or the count to close it).
 - **Adding in Group mode.** Each group card has a **+ Add task** box, and each day column has **+ Add group**.
 - **Hide completed on the Daily page.** Ticked items and sub-items are left out of the Daily page too.
@@ -335,7 +353,7 @@ All settings are environment variables, set the same way as the key above.
 - Click ✕ to delete (permanent, with a confirmation). If the task has sub-items, the confirmation says how many, because they are deleted too.
 - Drag a task onto another day's column to move it (mouse only; this doesn't work by touch). Its sub-items move with it.
 - **Sub-items:** a task that has lines underneath it shows a small **▸ 3 sub-items** button. Click it to open a checklist right on the card, nested as deep as the items go. Tick a sub-item to complete it, or click its text to edit it (with its note, and its type: bullet, task or numbered). Numbered sub-items show their numbers. To add or delete sub-items, use WorkFlowy, the Daily page, or the search item editor.
-- **Card buttons:** hover a task to show three small buttons in its top-right corner: 🔔 sets a reminder (see "Reminders"), the calendar icon moves it, and ✕ deletes it.
+- **Hovering a card** shows two buttons at its top-right corner: **Move to a date** (calendar icon) and **✕** (delete). Reminder and Repeat are on the card's right-click menu (1.3.9).
 - **Move to a date:** hover a task and click the calendar icon for a small menu: Today, Tomorrow, next Monday, or any date (type it or use the date picker). Cancel, Esc, or a click elsewhere closes it. The task moves to the bottom of that day's page, even a day outside the days shown. (Dragging a card onto a day column still works for days on the board.) In Group mode, the calendar icon on a group moves the whole bullet with all its tasks.
 - The day header and add box stay in place while the task list scrolls.
 
@@ -430,6 +448,7 @@ Like reminder times, priorities and estimates are short markers in the task's ow
 
 - **Set one** by typing the marker anywhere in the task (`Call the bank !p1`), or by right-clicking a card and clicking **P1**–**P4** in the **Priority** row. Click the highlighted one again, or **✕**, to remove it. The toast has Undo.
 - **On the card:** a priority shows as a coloured left edge. When you type on cards (**Edit cards in place**, the default) the marker stays visible in the text. With that setting off, the marker is hidden and a **P1**–**P4** badge shows instead.
+- **Elsewhere (1.3.9):** Panes, the Daily page and the item window show the same edge and badges. In typing mode the markers stay in the text, as on cards. A Panes card with a card colour keeps its colour stripe; its priority shows as the badge. The phone page shows the edge and badges on every task, and has its own **Sort by priority** in ⋯ > Settings (shared with your other devices when settings sharing is on).
 - **Order:** with **Sort by priority** on (Settings > Week board, on by default), each day lists urgent first and low last. Tasks without markers keep their outline order, so nothing moves until you use them.
 
 **Time estimates**
@@ -455,10 +474,10 @@ Pick a saved filter from the list, or type one and press **Enter**. **?** shows 
 | `call dentist` | Tasks containing every word, in the name or the note. `"exact phrase"` keeps words together; `-word` leaves matches out. |
 | `#work`, `@alex` | Tags and people, as whole words (`#work` doesn't match `#workshop`). |
 | `p:1`, `p:1-2`, `p:none`, `p:any` | By priority. |
-| `due:today`, `due:tomorrow`, `due:week`, `due:nextweek`, `due:lastweek` | By the calendar day the task sits on. Weeks follow your week-start setting. |
+| `due:today`, `due:tomorrow`, `due:week`, `due:nextweek`, `due:lastweek` | By the task's date: a WorkFlowy date inside the task if it has one, otherwise the calendar day it sits on. Weeks follow your week-start setting. |
 | `due:overdue` | Open tasks on the last 60 days. |
 | `due:7d`, `due:2026-11-04`, `due:2026-11-01..2026-11-15` | The next 7 days, one date, or a range (up to 120 days). |
-| `due:none`, `due:any` | Not on any calendar day, or on any day. |
+| `due:none`, `due:any` | No date at all (not on a calendar day and no WorkFlowy date inside), or any date. |
 | `est:none`, `est:any`, `est:<30m`, `est:>=1h` | By time estimate. |
 | `is:done`, `is:any`, `is:all` | Completed tasks, open and completed, or bullets as well as tasks. Open tasks only is the default. |
 | `under:"Project Alpha"`, `-under:Archive` | Tasks with (or without) that text in any line above them. |
@@ -472,11 +491,12 @@ Combine them freely, for example `p:1-2 due:week #work` or `due:week est:none`.
 **Limits and how it works**
 - Filters read the same in-memory copy of your outline as Search. **Refresh index** downloads a fresh copy, at most once a minute.
 - A filter can hold up to 50 words, and up to 500 results are listed (the count and total time cover them all).
+- A task's date is a WorkFlowy date inside it (the first one, with or without a time) if it has one; otherwise it is the calendar day it sits on (1.3.9).
 - To know which day a task sits on, the server asks WorkFlowy once for each month it needs and remembers the answer. It then reads each day page's date from WorkFlowy's own date tag in its name. If a month's day names can't be read, it asks about each day instead, which is slower the first time.
 
 ### Repeating tasks
 
-Add `!every …` to a task, or use the **🔁 Repeat…** button on a card (also in the right-click menu). The marker stays in the task's text and the board shows it as a 🔁 badge:
+Add `!every …` to a task, or right-click a card and choose **Repeat…** (1.3.9: the card no longer has a separate 🔁 button). The marker stays in the task's text and the board shows it as a 🔁 badge:
 
 | Write | Meaning |
 |-------|---------|
@@ -498,7 +518,7 @@ End it with `until 2027-06-30` or `x10` (10 times in all, counting this one), fo
 A task becomes a reminder in either of two ways:
 
 - **WorkFlowy's own date tag with a time.** In WorkFlowy type `!!` or `/date` and add a time, for example *Wed, Oct 28, 2026 at 2:30pm*. The reminder fires at that date and time, wherever the task sits. A date with no time is not a reminder.
-- **A time in the task text.** Write `Call dentist @2:30pm`, `Stand-up @9:15` or `Pay rent @17:00`. The reminder is for the day page the task sits on. You can also hover a card, press its 🔔 and pick a time, or **In 30 min** / **In 1 hour**; the board writes the `@time` for you.
+- **A time in the task text.** Write `Call dentist @2:30pm`, `Stand-up @9:15` or `Pay rent @17:00`. The reminder is for the day page the task sits on. You can also right-click a card, choose **Set a reminder…** and pick a time, or **In 30 min** / **In 1 hour**; the board writes the `@time` for you. The popup ends with **Save alerts** (save the early alerts without changing the time), **Remove** (when the task has a time) and **Cancel**.
 
 The time stays in the task in WorkFlowy, so the board stores nothing extra. If part of the task is encrypted (see "Encryption"), keep the `@time` outside the encrypted part so the reminder still works; popups and push messages show the encrypted part as 🔒. A card with a reminder shows a **🔔 2:30 PM** badge (with the date if it differs from the page). For `@time` reminders the badge replaces the `@` text, and clicking it changes or removes the time. A date tag's time is changed in WorkFlowy.
 
@@ -666,7 +686,7 @@ Other easy changes:
 - Your API key can read and change your whole outline. The browser never sees it. Keep it out of git repositories, screenshots and shared folders. On a VPS keep it in `/etc/weekboard.env` (root only, `chmod 600`). On Fly use `fly secrets`.
 - **What the server will pass on to WorkFlowy (1.0.8).** Only `GET`, `POST` and `DELETE` on the node endpoints the board uses, with plain ids (letters, digits, `-` and `_`; no slashes, dots or escaped characters). Anything else is refused. Request bodies are capped at 1 MB, and a request to WorkFlowy is dropped after 30 seconds (the full export gets 2 minutes), so one stuck request can't tie the server up.
 - **Scripts need a one-time token (1.0.8).** The page's content-security policy no longer allows inline script in general. The server stamps each page load with a fresh random token and the browser only runs scripts that carry it, so script injected through some future bug would be refused.
-- **Signing out wipes this browser's copy (1.0.8; phone page 1.3.8).** In hosted modes, the desktop page's **Sign out** also clears the notes bullet name, saved filters and every saved setting from the browser, and since 1.3.8 the phone page's **Sign out** does the same, so nothing is left behind on a shared device. (You'll set your options again next time.)
+- **Signing out wipes this browser's copy (1.0.8; phone page 1.3.8).** In hosted modes, the desktop page's **Sign out** also clears the notes bullet name, saved filters and every saved setting from the browser, and since 1.3.8 the phone page's **Sign out** does the same, so nothing is left behind on a shared device. In local mode there is no sign-in, so neither page shows Sign out. (You'll set your options again next time.)
 - Search, the Done window and Saved filters all read the server's in-memory copy of your outline, so the same rules apply (idle purge, login in hosted modes). Each only receives the results it asks for. A saved filter is capped at 50 words, so a huge filter can't keep the server busy.
 - The browser can't reach WorkFlowy's full export. Only the server uses it, to build the search copy.
 - **Use a long, unique password** (`openssl rand -base64 24`). It is the only thing between the internet and your outline. There's no second step such as a one-time code, and the lockout is per address, so a very large distributed guessing attack is only limited by the password's strength.
@@ -689,8 +709,9 @@ Other easy changes:
 - Calendar day pages (such as 2026-10-23) can show up in results with their date as the path.
 - Dragging a card to another day is remembered by Undo too, but touch screens still can't drag: use the calendar icon or Selector there.
 - Settings, which lines you've collapsed, the last line type you picked for new lines, and the crypt add-on's switches and check value are stored in the browser (`localStorage`), so they're per browser.
-- Priorities and estimates show as colours, badges and day totals on the week board and in Plan day only. The phone page, the Panes, the Daily page and the item window show the markers as plain text, without sorting.
-- Saved filters' `due:` words go by the calendar day a task sits on, not by a WorkFlowy date tag inside the task. `due:overdue` looks back 60 days.
+- Day totals of estimated time, and the Plan day hours meter, are on the desktop board only. Priorities and estimates can be set from the right-click menu on desktop cards; elsewhere, including the phone page, type the markers into the task.
+- Sorting by priority applies to the week board, Plan day and the phone page's days, Past due and Upcoming. Panes, the Daily page, the item window and the phone's Inbox keep the outline order.
+- Saved filters' `due:overdue` looks back 60 days.
 - The line-type buttons don't appear on board cards, group titles, or on headings, quotes and code lines. A numbered list that starts from a number other than 1 in WorkFlowy shows from 1 on the board.
 - The board relies on WorkFlowy's calendar nodes and the API as documented at <https://beta.workflowy.com/api-reference/>. It is tested against a mock of that API (Saved filters' date lookups were also checked read-only on a real account), so report anything that behaves differently on yours.
 
@@ -700,7 +721,7 @@ Other easy changes:
 - **All-day notes.** Under each day's title on the week board, the lines under that day's notes bullet (WB-Notes by default, the same bullet as on the Daily page) show in a tinted band, like an all-day strip on a calendar. Click a line to type in it (saved about a second after you pause); **Enter** adds another line at the bottom, and **Backspace** on an empty line removes it, and right-click on a note offers **Delete this note** (it asks first). A day with no notes shows a small **+ All-day note** link, which creates the notes bullet the first time you type. Only the top level lines show. Settings → Week board has **All-day notes** (on/off) and **Note lines shown** (1, 2, 3, 5 or All, default 3); the rest fold under **+ n more** and **Show less**. The Weekend column has a band for each day. Notes with encrypted words show a 🔒 and can be edited around. Dragging a note to another day is not built yet.
 - **Weekend column (5 days shown).** When Saturday or Sunday has tasks, an extra **Weekend** column appears after Friday, headed "Weekend · Sat 2 / Sun 1" (open tasks). It has a section for each day with its own add box, and you can drag tasks onto a section. It follows **Hide completed**, and it is hidden when both days have nothing to show. With 3 or 7 days it is not used.
 - **Week starts on (7 days shown).** With 7 days the week starts on Monday. To start on Sunday, choose it in Settings, in **Week starts on**, which shows only while 7 days are selected. 3 and 5 days always start on Monday.
-- **Right-click on a week-board card** opens a small menu: Mark done / Mark not done, Edit the note… and Encrypt (or remove encryption). It works on the text and on the rest of the card. Error messages at the top of the board have a **Dismiss** button.
+- **Right-click on a week-board card** opens a small menu: Mark done / Mark not done, Edit the note…, **Set a reminder…** (or **Change the reminder…** when the task has a time, 1.3.9), Repeat…, the Priority and Estimate rows, and Encrypt (or remove encryption). With **Edit cards in place** off, the menu is shorter: Mark done, Set a reminder… and Repeat…. It works on the text and on the rest of the card. Error messages at the top of the board have a **Dismiss** button.
 - **Early reminders (1 hour, 1 day, 1 week before).** The 🔔 popup has **Also remind me before:** with three boxes, and you can tick any of them. They are stored in the task's text as `!1h`, `!1d` and `!1w` next to the `@time` (for example `Dentist @2:30pm !1d !1w`), so they travel with the task in WorkFlowy. A task with no time counts as 9:00 am, so `!1d` on it alerts at 9:00 am the day before. **Save early alerts only** keeps the time as it is. Each early alert shows the board popup and goes through ntfy or Pushover like a normal reminder, with a title such as "In 1 day · 14:30". An alert whose moment has already passed by more than 15 minutes when the server looks is skipped. The markers are hidden on the cards and shown as `🔔 2:30 PM · 1d` on the badge; Remove reminder clears them. On the phone page the markers show as part of the text, and removing a reminder there removes them too. Restart the server for the push side.
 - **Move a line to a day.** Right-click any line in the Panes, the Daily page or the item window and choose **Move to a day…**. Pick a date in the popup (Today, Tomorrow, Mon, or any date). The line moves there with everything under it, at the bottom of the day. A bullet or numbered line becomes a task, because only tasks show on a day; headings keep their type and a note says they will not show until they are tasks. **Undo** puts the line back where it was, with its old type.
 - **Tables (Daily page and item window).** A WorkFlowy table shows as a grid: the first row is the header. Click a cell to type in it; it saves about a second after you pause. Adding or removing rows and columns stays in WorkFlowy (the link under the grid opens it); "Show as outline" shows the table as plain lines (remembered in this browser); a "Show as grid" link on the Table line brings the grid back. Right-click a line and choose "Copy raw data (for support)" to copy its structure.

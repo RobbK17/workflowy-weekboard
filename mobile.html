@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.3.8">
+<meta name="version" content="1.3.9">
 <meta name="notes-name" content="WB-Notes">
+<meta name="remote" content="0">
 <meta name="theme-color" content="#2f6fed">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -17,10 +18,14 @@
   :root {
     --bg: #f4f5f7; --col: #ebecf0; --card: #fff; --text: #172b4d; --muted: #6b778c;
     --accent: #2f6fed; --today: #fff4d6; --border: #dfe1e6; --late: #fde8e8; --ok: #1f8a4c;
+    /* Priority edges, and badges with white text (--pb1..3 keep 4.5:1 contrast in both themes); the same colours as the desktop board */
+    --p1: #c5280c; --p2: #b54708; --p3: #2459d4; --p4: #7a869a;
+    --pb1: #c5280c; --pb2: #b54708; --pb3: #2459d4;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #14161a; --col: #1e2126; --card: #2a2e35; --text: #e6e8eb; --muted: #8b95a3;
-            --accent: #6a9bff; --today: #3a3220; --border: #343942; --late: #3b2226; --ok: #54c283; }
+            --accent: #6a9bff; --today: #3a3220; --border: #343942; --late: #3b2226; --ok: #54c283;
+            --p1: #ff6b4a; --p2: #ff9f43; --p3: #6a9bff; --p4: #8b95a3; }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
@@ -32,6 +37,9 @@
   header h1 small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
   .ib { flex: none; width: 40px; height: 40px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-size: 18px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
   .ib:active { background: var(--col); }
+  #today { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2px 0; }
+  #today .tb-mon { font-size: 9px; font-weight: 700; text-transform: uppercase; line-height: 1.1; }
+  #today .tb-day { font-size: 16px; font-weight: 700; line-height: 1.1; }
   #strip { flex: none; display: grid; grid-template-columns: repeat(var(--cols, 7), 1fr); gap: 5px; padding: 4px 10px 8px; }
   .dchip { border: 1px solid var(--border); border-radius: 12px; background: var(--col); padding: 6px 0 5px; text-align: center; cursor: pointer; min-width: 0; }
   .dchip .dw { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
@@ -63,6 +71,14 @@
   .card .t { word-wrap: break-word; overflow-wrap: anywhere; }
   .card .n { font-size: 13px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; white-space: pre-wrap; }
   .chip { display: inline-block; margin-top: 6px; padding: 1px 9px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--muted); }
+  /* Priorities (!p1 to !p4) and time estimates (~45m) */
+  .card.prio1 { box-shadow: inset 4px 0 0 var(--p1); } .card.prio2 { box-shadow: inset 4px 0 0 var(--p2); }
+  .card.prio3 { box-shadow: inset 4px 0 0 var(--p3); } .card.prio4 { box-shadow: inset 4px 0 0 var(--p4); }
+  .chip.pb { font-weight: 600; color: #fff; }
+  .chip.pb1 { background: var(--pb1); border-color: var(--pb1); } .chip.pb2 { background: var(--pb2); border-color: var(--pb2); } .chip.pb3 { background: var(--pb3); border-color: var(--pb3); }
+  .chip.pb4 { background: rgba(127,127,127,.25); color: var(--text); }
+  .card.done .chip.pb { opacity: .5; }
+  .chip + .chip { margin-left: 4px; }
   #extras { flex: none; display: flex; gap: 8px; padding: 0 10px 6px; }
   #extras button { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-size: 14px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #extras button b { font-weight: 700; }
@@ -139,7 +155,7 @@
   <button class="ib" id="prevW" aria-label="Previous week">‹</button>
   <h1 id="title">Week Board<small id="range"></small></h1>
   <button class="ib" id="nextW" aria-label="Next week">›</button>
-  <button class="ib" id="today" aria-label="Go to today" title="Today">⌂</button>
+  <button class="ib" id="today" aria-label="Go to today" title="Today"><span class="tb-mon"></span><span class="tb-day"></span></button>
   <button class="ib" id="reload" aria-label="Refresh">↻</button>
   <button class="ib" id="menu" aria-label="Menu">⋯</button>
 </header>
@@ -177,6 +193,7 @@ let weekStart = startOf(today());
 let sel = key(today());
 let showDone = store.get("m.showDone", "0") === "1";
 let showLate = store.get("m.showLate", "1") === "1", showSoon = store.get("m.showSoon", "1") === "1";
+let prioSort = store.get("m.prioSort", "1") === "1";       // urgent first in each day (and in Past due / Upcoming), as on the desktop board
 const cache = {};                       // day key -> tasks, in outline order
 const dayNotes = {}, noteBul = {};        // day key -> its all-day note lines (the children of the WB-Notes bullet), and that bullet
 const bullets = {};                     // day key -> bullets/headings of that day (candidates for groups)
@@ -187,6 +204,7 @@ const typeOf = (n) => (n.data && n.data.layoutMode) || "bullets";
 let mine = new Set(); try { mine = new Set(JSON.parse(store.get("m.groups", "[]"))); } catch (e) { /* none */ }   // groups added here, shown even while empty
 const saveMine = () => store.set("m.groups", JSON.stringify([...mine].slice(-200)));
 const NOTES = ((document.querySelector('meta[name="notes-name"]') || {}).content || "WB-Notes").trim().toLowerCase();
+const REMOTE = ((document.querySelector('meta[name="remote"]') || {}).content || "0") === "1";      // set by the server: vps or fly, where there is a sign-in
 let mode = store.get("m.nested", "group");                // group | flatten | off
 let shut = new Set(); try { shut = new Set(JSON.parse(store.get("m.shut", "[]"))); } catch (e) { /* none */ }
 const saveShut = () => store.set("m.shut", JSON.stringify([...shut]));
@@ -203,9 +221,9 @@ const undoStack = [];
 /* ---------- sharing settings between devices (optional, per device, off by default) ---------- */
 let sync = store.get("m.sync", "0") === "1";
 let applying = false, pushTimer = 0, syncAt = store.get("m.syncAt", "");
-const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.inbox"]);
+const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.prioSort", "m.inbox"]);
 let inboxGone = false;                 // true only after "Remove" on this device, so a device without an Inbox never wipes the shared one
-const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; return o; };
+const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone, prioSort }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; return o; };
 { const rawSet = store.set; store.set = (k, v) => { rawSet(k, v); if (sync && !applying && SHARED_KEYS.has(k)) pushShared(); }; }
 function pushShared(now) {
   clearTimeout(pushTimer);
@@ -225,8 +243,8 @@ function applyShared(s) {
   try {
     if (["group", "flatten", "off"].includes(s.nested)) { mode = s.nested; store.set("m.nested", mode); }
     if (["5", "7", "7s"].includes(s.span)) { weekType = s.span; span = weekType === "5" ? 5 : 7; store.set("m.span", weekType); weekStart = startOf(keyToDate(sel)); }
-    for (const [k, mk] of [["showLate", "m.showLate"], ["showSoon", "m.showSoon"], ["showDone", "m.showDone"]]) {
-      if (typeof s[k] === "boolean") { if (k === "showLate") showLate = s[k]; else if (k === "showSoon") showSoon = s[k]; else showDone = s[k]; store.set(mk, s[k] ? "1" : "0"); }
+    for (const [k, mk] of [["showLate", "m.showLate"], ["showSoon", "m.showSoon"], ["showDone", "m.showDone"], ["prioSort", "m.prioSort"]]) {
+      if (typeof s[k] === "boolean") { if (k === "showLate") showLate = s[k]; else if (k === "showSoon") showSoon = s[k]; else if (k === "prioSort") prioSort = s[k]; else showDone = s[k]; store.set(mk, s[k] ? "1" : "0"); }
     }
     if (s.inbox === null) { inbox = null; store.set("m.inbox", "null"); }
     else if (s.inbox && s.inbox.id) { inbox = { id: String(s.inbox.id), name: String(s.inbox.name || "Inbox") }; store.set("m.inbox", JSON.stringify(inbox)); }
@@ -366,6 +384,16 @@ const fmtTime = (h, mi) => new Date(2000, 0, 1, h, mi).toLocaleTimeString(undefi
 const LEAD_RE = /(^|\s)!(1[hdw])(?=$|[\s.,;!?)])/gi;                       // early alerts (!1h !1d !1w): set on the desktop board, shown here only as part of the text
 const DOW_PAT = "mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?";
 const REPEAT_RE = new RegExp(`(^|\\s)!every\\s+(weekdays|month-end|(?:\\d+\\s*)?(?:day|week|month|year)s?|(?:${DOW_PAT})(?:\\s*,\\s*(?:${DOW_PAT}))*)(?:\\s+until\\s+(\\d{4}-\\d{2}-\\d{2}))?(?:\\s+x(\\d+))?(?=$|[\\s.,;!?)<])`, "i");
+// Priorities and time estimates: "!p1".."!p4" and "~45m" / "~1h30m" in a task's text, the same markers as on the desktop board.
+const PRIO_RE = /(^|\s)!p([1-4])(?=$|[\s.,;!?)<])/i;
+const EST_RE = /(^|\s)~(?:(\d{1,2}(?:\.\d{1,2})?)h(?:(\d{1,2})m)?|(\d{1,3})m)(?=$|[\s.,;!?)<])/i;
+const PRIO_NAMES = ["Normal", "Urgent", "High", "Medium", "Low"];
+const PRIO_RANK = [3.5, 1, 2, 3, 4];                       // no priority sorts between medium and low
+function parsePrio(text) { const m = PRIO_RE.exec(String(text || "")); return m ? Number(m[2]) : 0; }
+function parseEst(text) { const m = EST_RE.exec(String(text || "")); if (!m) return 0; return m[4] ? Number(m[4]) : Math.round(Number(m[2]) * 60) + Number(m[3] || 0); }
+function fmtMins(m) { const h = Math.floor(m / 60), r = m % 60; return h ? h + "h" + (r ? " " + r + "m" : "") : r + "m"; }
+const dropMeta = (s) => String(s || "").replace(new RegExp(PRIO_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(new RegExp(EST_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim();
+const prioRank = (n) => (prioSort ? PRIO_RANK[parsePrio(plain(n.name))] : 0);
 const stripTime = (s) => s.replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
 const LEADS = [["1h", "1 hour"], ["1d", "1 day"], ["1w", "1 week"]];
 const parseLeads = (t) => { const o = new Set(); for (const m of String(t || "").matchAll(LEAD_RE)) o.add(m[2].toLowerCase()); return LEADS.map((x) => x[0]).filter((c) => o.has(c)); };
@@ -435,15 +463,15 @@ async function loadNest(k, force) {
 // everything shown for a day, in outline order: its tasks and (unless Groups is off) the tasks under its bullets
 function entriesOf(k) {
   const out = [];
-  for (const n of cache[k] || []) out.push({ kind: "task", n, p: n.priority, s: 0 });
+  for (const n of cache[k] || []) out.push({ kind: "task", n, p: n.priority, s: 0, r: prioRank(n) });
   if (mode !== "off") for (const b of bullets[k] || []) {
     const info = nest[b.id]; if (!info) continue;
     const vis = info.todos.filter((t) => showDone || !t.completedAt);
     if (!vis.length && !(mode === "group" && !info.todos.length && mine.has(b.id))) continue;     // a group added here shows while it is empty
-    if (mode === "group") out.push({ kind: "group", b, todos: vis, all: info.todos, p: b.priority, s: 0 });
-    else for (const t of vis) out.push({ kind: "nested", n: t, b, p: b.priority, s: t.priority });
+    if (mode === "group") out.push({ kind: "group", b, todos: vis, all: info.todos, p: b.priority, s: 0, r: prioSort ? Math.min(PRIO_RANK[0], ...info.todos.filter((t) => !t.completedAt).map(prioRank)) : 0 });     // a group sorts by its most urgent open task
+    else for (const t of vis) out.push({ kind: "nested", n: t, b, p: b.priority, s: t.priority, r: prioRank(t) });
   }
-  return out.sort((a, b) => a.p - b.p || a.s - b.s);
+  return out.sort((a, b) => a.r - b.r || a.p - b.p || a.s - b.s);
 }
 function removeNode(id) {
   for (const k in cache) cache[k] = cache[k].filter((x) => x.id !== id);
@@ -514,7 +542,25 @@ const dayText = (k) => keyToDate(k).toLocaleDateString(undefined, { weekday: "sh
 /* ---------- drawing ---------- */
 const openCount = (k) => (cache[k] || []).filter((n) => !n.completedAt).length +
   (mode === "off" ? 0 : (bullets[k] || []).reduce((a, b) => a + ((nest[b.id] && nest[b.id].todos) || []).filter((n) => !n.completedAt).length, 0));
-function draw() { drawView(); updateUnlockBar(); if (pass !== null && pendingTok.size) runDecrypt(); }
+function draw() { drawView(); updateTodayBtn(); updateUnlockBar(); if (pass !== null && pendingTok.size) runDecrypt(); }
+function updateTodayBtn() {
+  const t = today(), btn = $("today");
+  const mon = t.toLocaleDateString(undefined, { month: "short" }).slice(0, 3).toUpperCase();
+  const day = t.getDate();
+  btn.querySelector(".tb-mon").textContent = mon;
+  btn.querySelector(".tb-day").textContent = day;
+  const label = `Go to today, ${t.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`;
+  btn.setAttribute("aria-label", label);
+  btn.setAttribute("title", label);
+}
+// once-a-day midnight timer to flip the date
+let midnightTimer = null;
+function armMidnightTimer() {
+  if (midnightTimer) clearTimeout(midnightTimer);
+  const now = new Date(), next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  midnightTimer = setTimeout(() => { updateTodayBtn(); armMidnightTimer(); }, next - now);
+}
+armMidnightTimer();
 // a line above the list while unlocked: how many items on screen were opened, and a Lock button
 function updateUnlockBar() {
   let bar = $("unlockbar");
@@ -668,7 +714,7 @@ function drawView() {
   if (!(sel in cache)) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
   list.appendChild(notesBand(sel));
   const ents = entriesOf(sel).filter((e) => e.kind !== "task" || showDone || !e.n.completedAt);
-  if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = (cache[sel] || []).length || openCount(sel) ? "All done" : "Nothing yet"; list.appendChild(m); }
+  if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = (cache[sel] || []).length || openCount(sel) ? "All done 🎉" : "Nothing yet"; list.appendChild(m); }
   for (const e of ents) list.appendChild(e.kind === "group" ? groupEl(e) : cardEl(e.n, e.kind === "nested" ? e.b : null));
   list.scrollTop = keep;
 }
@@ -742,7 +788,7 @@ function drawExtraList(list) {
   }
   const tk = key(today());
   for (const k of keys) {
-    const here = items.filter((x) => x.k === k); if (!here.length) continue;
+    const here = items.filter((x) => x.k === k).map((x, i) => ({ x, i, r: prioRank(x.n) })).sort((a, b) => a.r - b.r || a.i - b.i).map((y) => y.x); if (!here.length) continue;
     const h = document.createElement("button"); h.type = "button"; h.className = "sec";
     const diff = Math.round((keyToDate(k) - keyToDate(tk)) / 86400000);
     h.textContent = dayText(k) + " "; const sp = document.createElement("span"); sp.textContent = diff < 0 ? `${-diff} day${diff === -1 ? "" : "s"} ago` : diff === 1 ? "tomorrow" : `in ${diff} days`; h.appendChild(sp);
@@ -875,7 +921,8 @@ function openSectionMenu(b) {
 }
 function cardEl(n, bullet, inZoom) {
   const ty = typeOf(n), isTask = ty === "todo";
-  const el = document.createElement("div"); el.className = "card" + (n.completedAt ? " done" : "") + (isTask ? "" : " line"); el.dataset.id = n.id;
+  const pr = parsePrio(plain(n.name)), est = parseEst(plain(n.name));
+  const el = document.createElement("div"); el.className = "card" + (n.completedAt ? " done" : "") + (isTask ? "" : " line") + (pr ? " prio" + pr : ""); el.dataset.id = n.id;
   const mk = document.createElement("span"); mk.className = "mark"; mk.setAttribute("aria-hidden", "true");
   mk.textContent = ty === "numbered" ? (n._num || 1) + "." : /^h[1-3]$/.test(ty) ? "H" : "•";
   const cb =document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.setAttribute("aria-label", "Done");
@@ -891,11 +938,13 @@ function cardEl(n, bullet, inZoom) {
   const body = document.createElement("div"); body.className = "body";
   const tm = timeOf(plain(n.name));
   if (bullet) { const gt = document.createElement("span"); gt.className = "gtag"; gt.textContent = "▸ " + (shown(bullet.name) || "(untitled)"); body.appendChild(gt); }
-  const t = document.createElement("div"); t.className = "t" + (/^h[1-3]$/.test(ty) ? " hd" : ""); linkTags(t, shown((tm || REPEAT_RE.test(plain(n.name)) || parseLeads(plain(n.name)).length) && isTask ? stripTime(plain(n.name)) : n.name) || "(empty)");
+  const t = document.createElement("div"); t.className = "t" + (/^h[1-3]$/.test(ty) ? " hd" : ""); linkTags(t, dropMeta(shown((tm || REPEAT_RE.test(plain(n.name)) || parseLeads(plain(n.name)).length) && isTask ? stripTime(plain(n.name)) : n.name)) || "(empty)");
   if (isOpened(n)) { el.classList.add("dec"); const dm = document.createElement("span"); dm.className = "decmark"; dm.setAttribute("aria-label", "Decrypted"); dm.textContent = "🔓"; t.prepend(dm); }
   body.appendChild(t);
   const note = plain(n.note || "").trim();
   if (note) { const nn = document.createElement("div"); nn.className = "n"; nn.textContent = showNote(note); body.appendChild(nn); }
+  if (pr) { const c = document.createElement("span"); c.className = "chip pb pb" + pr; c.textContent = "P" + pr; c.setAttribute("aria-label", PRIO_NAMES[pr] + " priority"); body.appendChild(c); }
+  if (est && !n.completedAt) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "⏱ " + fmtMins(est); c.setAttribute("aria-label", "Estimate " + fmtMins(est)); body.appendChild(c); }
   if (tm && isTask) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "🔔 " + fmtTime(tm.h, tm.mi); body.appendChild(c); }
   { const lds = parseLeads(plain(n.name)), rp = parseRepeat(plain(n.name));
     if (isTask && lds.length) { const c = document.createElement("span"); c.className = "chip"; c.textContent = (tm ? "" : "🔔 early ") + "· " + lds.join(" "); body.appendChild(c); }
@@ -1364,6 +1413,7 @@ function openSettings() {
     row("Show Past due", "The last 14 days", check(showLate, (v) => { showLate = v; store.set("m.showLate", v ? "1" : "0"); if (!v && view === "late") view = "day"; draw(); if (v) loadWeek(true); }));
     row("Show Upcoming", "The next 14 days", check(showSoon, (v) => { showSoon = v; store.set("m.showSoon", v ? "1" : "0"); if (!v && view === "soon") view = "day"; draw(); if (v) loadWeek(true); }));
     row("Show completed", "", check(showDone, (v) => { showDone = v; store.set("m.showDone", v ? "1" : "0"); draw(); }));
+    row("Sort by priority", "Urgent (!p1) first, low (!p4) last", check(prioSort, (v) => { prioSort = v; store.set("m.prioSort", v ? "1" : "0"); draw(); }));
     // Inbox: a WorkFlowy node (an Inbox or quick-capture bullet) whose open tasks you can see and sort into days
     const ir = document.createElement("div"); ir.className = "srow"; ir.style.flexWrap = "wrap";
     const it = document.createElement("span"); it.innerHTML = "Inbox<small></small>"; ir.appendChild(it);
@@ -1472,7 +1522,7 @@ function openMainMenu() {
     sbtn(s, pass === null ? "🔓 Unlock encryption…" : "🔒 Lock encryption", pass === null ? openUnlock : () => { closeSheet(); lockCrypto("Locked"); });
     if (undoStack.length) sbtn(s, `↶ Undo: ${undoStack[undoStack.length - 1].label}`, () => { closeSheet(); doUndo(); });
     sbtn(s, "🖥 Open the desktop page", () => { store.set("m.desktop", "1"); location.href = "/?desktop=1"; });
-    sbtn(s, "Sign out", async () => {
+    if (REMOTE) sbtn(s, "Sign out", async () => {                           // local mode has no sign-in, so nothing to sign out of
       try { await fetch("/logout", { method: "POST" }); } catch (e) { /* leave anyway */ }
       try { localStorage.clear(); sessionStorage.clear(); } catch (e) { /* blocked: nothing to clear */ }      // shared phone: leave no Inbox, settings or names behind, as the desktop page does
       location.href = "/login";
