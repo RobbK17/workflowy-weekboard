@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.3.9">
+<meta name="version" content="1.4.0">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -45,6 +45,10 @@
   #searchBtn { white-space: nowrap; }
   .opts select { font: inherit; font-size: 13px; padding: 1px 2px; }
   header h1 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; white-space: nowrap; }
+  header h1 .wk { display: inline-flex; align-items: center; gap: 4px; }
+  header .wnav { padding: 1px 8px; font-size: 13px; line-height: 1.4; }
+  header .rangelink { border: none; background: none; padding: 2px 4px; font: inherit; color: var(--accent); cursor: pointer; border-radius: 4px; }
+  header .rangelink:hover { text-decoration: underline; border: none; }
   .settings { position: relative; }
   body.nosidebar #side { display: none; }
   #sideBtn.off { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -89,8 +93,6 @@
            border-radius: 6px; padding: 6px 10px; cursor: pointer; }
   button:hover { border-color: var(--accent); }
   button:disabled { opacity: .5; cursor: default; }
-  .weeknav { flex: none; display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 6px; }
-  .weeknav button { padding: 5px 9px; font-size: 13px; }
   .setrow { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; padding: 7px 8px; font-size: 14px; }
   .setrow > span { flex: 1; min-width: 0; }
   .setrow small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
@@ -718,6 +720,96 @@
   .ebadge, .dbadge { border: 1px solid var(--border); color: var(--muted); font-weight: 400; }
   .dbadge.late { color: var(--late-text); border-color: var(--late-text); }
   .card.done .pbadge { opacity: .5; }
+  .metarow { margin: 1px 0 0; } .metarow .pbadge:first-child, .metarow .ebadge:first-child { margin-left: 0; }
+  .txt:focus-within > .metarow, .st2:focus-within > .metarow { display: none; }   /* while you edit, the markers are in the text */
+  /* Time blocking badges */
+  .card.hastb { padding-bottom: 24px; }   /* room for the badge in the lower right, clear of the hover buttons */
+  .tbbadge { position: absolute; bottom: 4px; right: 6px; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .tbbadge.sched { background: var(--accent); color: #fff; }
+  .tbbadge.now { background: #22c55e; color: #fff; }
+  .tbbadge.conflict { background: #eab308; color: #000; }
+  .card.done .tbbadge { opacity: .5; }
+  /* Time blocking button and panel */
+  .tbbtn { margin-left: 8px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); font-size: 14px; cursor: pointer; vertical-align: middle; }
+  .tbbtn:hover { border-color: var(--accent); }
+  #tbPanel { position: fixed; top: 0; right: 0; bottom: 0; width: 370px; max-width: 100vw; z-index: 70; background: var(--card); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(0,0,0,.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .2s; }
+  #tbPanel.open { transform: translateX(0); }
+  #tbPanel header { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); }
+  #tbPanel header h3 { flex: 1; margin: 0; font-size: 16px; }
+  #tbPanel .tbx { border: none; background: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+  #tbPanel .tbx:hover { color: var(--text); }
+  #tbPool { flex: none; padding: 8px; border-bottom: 1px solid var(--border); max-height: 200px; overflow-y: auto; }
+  #tbQuick { flex: none; padding: 8px; border-bottom: 1px solid var(--border); }
+  .tbfold { display: block; width: 100%; text-align: left; border: none; background: none; padding: 2px 0; margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .tbfold:hover { color: var(--text); }
+  #tbQuick .tbfold ~ .tbfold, #tbQuick .tbqs ~ .tbfold { margin-top: 6px; }
+  #tbQuick h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  #tbQuick .tbqs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tbq { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 14px; background: var(--col); border: 1px dashed var(--border); font-size: 12px; cursor: grab; }
+  .tbq:hover { border-style: solid; border-color: var(--accent); }
+  .tbq .tbqx { border: none; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 12px; line-height: 1; }
+  .tbq .tbqx:hover { color: var(--text); }
+  .tbqadd { padding: 3px 10px; border-radius: 14px; border: 1px dashed var(--border); background: none; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .tbqadd:hover { border-color: var(--accent); color: var(--text); }
+  #tbPool h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  #tbTimeline { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; }
+  .tbSlot { display: flex; align-items: flex-start; min-height: 40px; border-bottom: 1px dashed var(--border); padding: 4px 0; }
+  .tbSlot.hour { border-bottom-style: solid; }
+  .tbTime { flex: none; width: 50px; font-size: 11px; color: var(--muted); text-align: right; padding-right: 8px; }
+  .tbArea { flex: 1; min-width: 0; min-height: 32px; border-radius: 6px; }
+  .tbArea.over { background: rgba(47, 111, 237, .15); }
+  .tbTask { padding: 4px 8px; background: var(--accent); color: #fff; border-radius: 6px; font-size: 12px; margin-bottom: 2px; cursor: grab; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #tbPanel header { flex-wrap: wrap; }
+  #tbPanel header h3 { flex: 1 0 100%; }
+  #tbPanel .tbnav { padding: 3px 8px; font-size: 13px; }
+  #tbDow { flex: none; font-size: 12px; min-width: 2.3em; text-align: center; }
+  #tbDate { min-width: 128px; }
+  #tbDate { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+  .tbArea { display: flex; flex-direction: column; }
+  .tbTask.cont { flex: 1; border-radius: 6px 6px 0 0; margin-bottom: -5px; }   /* the negative margins let the block run through the slot gaps, so a 1h task reads as one block */
+  .tbCont { flex: 1; min-height: 32px; background: color-mix(in srgb, var(--accent) 55%, var(--card)); margin: -4px 0 -5px; cursor: grab; }
+  .tbCont.last { border-radius: 0 0 6px 6px; margin-bottom: 2px; }
+  #tbTpl { position: absolute; left: 0; right: 0; bottom: 0; top: 0; z-index: 4; background: var(--card); padding: 10px 12px; overflow-y: auto; }
+  #tbTpl[hidden] { display: none; }
+  #tbTpl h3 { margin: 0 0 8px; font-size: 15px; }
+  #tbTpl .tpTabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  #tbTpl .tpTabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #tbTpl .tpRow { display: flex; gap: 4px; align-items: center; margin: 4px 0; }
+  #tbTpl .tpRow input[type=text] { flex: 1; min-width: 0; }
+  #tbTpl input, #tbTpl select { font: inherit; font-size: 13px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+  #tbTpl .tpNote { font-size: 12px; color: var(--muted); margin: 8px 0; }
+  #tbTpl .tpAct { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tbtplbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tbtplbar button { padding: 3px 9px; font-size: 12px; }
+  #tbEdit { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; background: var(--card); border-top: 1px solid var(--border); box-shadow: 0 -8px 20px rgba(0,0,0,.15); padding: 10px 12px 12px; max-height: 70%; overflow-y: auto; }
+  #tbEdit[hidden] { display: none; }
+  #tbEdit .tbeT { font-weight: 700; font-size: 14px; margin-bottom: 8px; overflow-wrap: anywhere; }
+  #tbEdit .tber { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+  #tbEdit .tber label { width: 48px; font-size: 12px; color: var(--muted); }
+  #tbEdit .tbeEnd { font-size: 12px; color: var(--muted); }
+  #tbEdit .tbeL { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+  #tbEdit input, #tbEdit select, #tbEdit textarea { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+  #tbEdit textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+  #tbEdit .tbeB { display: flex; gap: 6px; margin-top: 10px; }
+  .tbTask, .tbCont { position: relative; }
+  .tbTask { cursor: pointer; }
+  .tbTask .tbl { display: flex; flex-direction: column; gap: 1px; }
+  .tbTask .tbn { font-size: 11px; opacity: .85; font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+  .tbRz { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; background: linear-gradient(transparent, rgba(255,255,255,.35)); border-radius: 0 0 6px 6px; }
+  .tbRz:hover, .tbRz.drag { background: linear-gradient(transparent, rgba(255,255,255,.7)); }
+  .tbtip { position: fixed; z-index: 90; background: #111; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 4px; pointer-events: none; }
+  .tbTask.done { opacity: 1; text-decoration: none; background: color-mix(in srgb, var(--muted) 28%, var(--card)); color: var(--muted); cursor: pointer; }
+  .tbCont.done { background: color-mix(in srgb, var(--muted) 16%, var(--card)); cursor: pointer; }
+  .tbtplbar .go { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tbtplbar button:disabled { opacity: .5; cursor: default; }
+  .tbTask { display: flex; align-items: center; gap: 6px; }
+  .tbTask .tbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .tbTask .tbu { flex: none; border: none; background: none; color: #fff; opacity: .75; cursor: pointer; padding: 0 2px; font-size: 12px; line-height: 1; }
+  .tbTask .tbu:hover { opacity: 1; }
+  .poolTask { padding: 6px 8px; background: var(--col); border: 1px dashed var(--border); border-radius: 6px; font-size: 12px; margin-bottom: 4px; cursor: grab; }
+  .poolTask:hover { border-style: solid; border-color: var(--accent); }
+  #tbShade { position: fixed; inset: 0; z-index: 69; background: rgba(0,0,0,.3); display: none; }
+  #tbShade.open { display: block; }
   .col h2 .esum { font-weight: 400; }
   .kmrow { display: flex; align-items: center; gap: 2px; padding: 3px 8px; flex-wrap: wrap; }
   #kbMenu:has(.kmrow) { width: 290px; }      /* room for the Estimate row on one line; other menus keep their width */
@@ -750,7 +842,7 @@
 </head>
 <body>
 <header>
-  <h1>Workflowy Week Board <small id="range"></small></h1>
+  <h1>Workflowy Week Board <small class="wk"><button id="prev" class="wnav" title="Previous week" aria-label="Previous week">&larr;</button><button id="today" class="rangelink" title="Back to this week" aria-label="Back to this week"><span id="range"></span></button><button id="next" class="wnav" title="Next week" aria-label="Next week">&rarr;</button></small></h1>
   <div class="hsearch">
     <button id="searchBtn" title="Search your whole outline (Ctrl+K)">&#128269; Search nodes</button>
   </div>
@@ -779,11 +871,6 @@
     <div id="kbCols"></div>
   </div>
   <aside id="side">
-    <div class="weeknav" id="weeknav">
-      <button id="prev" title="Previous week" aria-label="Previous week">&larr;</button>
-      <button id="today">This week</button>
-      <button id="next" title="Next week" aria-label="Next week">&rarr;</button>
-    </div>
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
@@ -819,7 +906,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.3.9</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.4.0</span></div>
   </div>
 </footer>
 
@@ -1038,11 +1125,35 @@
 </div>
 <div id="rems" aria-live="assertive"></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button id="toastUndo" type="button">Undo</button><button id="toastX" type="button" title="Dismiss" aria-label="Dismiss">&#10005;</button></div>
+<div id="tbShade"></div>
+<div id="tbPanel" role="dialog" aria-modal="true" aria-label="Time blocking">
+  <header>
+    <h3>Time Blocking</h3>
+    <button class="tbnav" id="tbPrev" title="Previous day" aria-label="Previous day">‹</button>
+    <strong id="tbDow" aria-live="polite"></strong>
+    <input type="date" id="tbDate" aria-label="Day to time block">
+    <button class="tbnav" id="tbNext" title="Next day" aria-label="Next day">›</button>
+    <button class="tbnav tbtoday" id="tbToday" title="Back to today">Today</button>
+    <button class="tbx" title="Close (Esc)" aria-label="Close">✕</button>
+  </header>
+  <div id="tbPool"><h4>Unscheduled</h4></div>
+  <div id="tbQuick"></div>
+  <div id="tbTimeline"></div>
+  <div id="tbTpl" hidden role="group" aria-label="Day template"></div>
+  <div id="tbEdit" hidden role="group" aria-label="Edit time block">
+    <div class="tbeT" id="tbeTitle"></div>
+    <div class="tber"><label for="tbeStart">Start</label><input type="time" id="tbeStart" step="300"></div>
+    <div class="tber"><label for="tbeLen">Length</label><select id="tbeLen"></select><span class="tbeEnd" id="tbeEnd"></span></div>
+    <label for="tbeNote" class="tbeL">Description (the task's note)</label>
+    <textarea id="tbeNote" rows="4" placeholder="Add a description"></textarea>
+    <div class="tbeB"><button type="button" class="go" id="tbeSave">Save</button><button type="button" id="tbeUn">Unschedule</button><button type="button" id="tbeCancel">Cancel</button></div>
+  </div>
+</div>
 
 <script>
 // ---- Shared settings: with "Share these settings between browsers" on, this browser's preference keys are kept on the server (/d/settings) and read back by the others.
 const dsync = (() => {
-  const KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters"]);
+  const KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters", "tbPresets", "tbTemplate"]);
   const ls = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { Storage.prototype.setItem.call(localStorage, k, v); } catch (e) {} }, del: (k) => { try { Storage.prototype.removeItem.call(localStorage, k); } catch (e) {} } };
   let timer = null, applying = false;
   const on = () => ls.get("dsync") === "1";
@@ -1130,6 +1241,8 @@ const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLat
    "~1h30m" or "~1.5h" its time estimate. Like reminder times they live in the task text, so they travel with it in WorkFlowy. */
 const PRIO_RE = /(^|\s)!p([1-4])(?=$|[\s.,;!?)<])/i;
 const EST_RE = /(^|\s)~(?:(\d{1,2}(?:\.\d{1,2})?)h(?:(\d{1,2})m)?|(\d{1,3})m)(?=$|[\s.,;!?)<])/i;
+// Time blocking: "^9am", "^9:30am", "^14:00" in task text schedules it for that time
+const TIME_BLOCK_RE = /(^|\s)\^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?(?=$|[\s.,;!?)<])/i;
 const PRIO_NAMES = ["Normal", "Urgent", "High", "Medium", "Low"];
 const PRIO_RANK = [3.5, 1, 2, 3, 4];                       // no priority sorts between medium and low
 const EST_PICKS = [15, 30, 45, 60, 120, 180];
@@ -1139,8 +1252,28 @@ function parseEst(text) {
   if (!m) return 0;
   return m[4] ? Number(m[4]) : Math.round(Number(m[2]) * 60) + Number(m[3] || 0);
 }
+function parseTimeBlock(text) {
+  const m = TIME_BLOCK_RE.exec(String(text || ""));
+  if (!m) return null;
+  let h = Number(m[2]), mi = Number(m[3] || 0);
+  const ampm = (m[4] || "").toLowerCase();
+  if (ampm === "pm" && h < 12) h += 12;
+  else if (ampm === "am" && h === 12) h = 0;
+  if (h > 23 || mi > 59) return null;
+  return { h, mi, mins: h * 60 + mi };
+}
+function fmtTimeBlock(h, mi) {
+  const h12 = h % 12 || 12;
+  const suffix = h < 12 ? " AM" : " PM";
+  return mi ? `${h12}:${String(mi).padStart(2, "0")}${suffix}` : `${h12}${suffix}`;
+}
+function timeBlockToken(h, mi) {
+  if (h >= 12) return `^${h}:${String(mi).padStart(2, "0")}`;
+  return mi ? `^${h}:${String(mi).padStart(2, "0")}am` : `^${h}am`;
+}
 const prioOf = (n) => parsePrio(plain(n.name));
 const estOf = (n) => parseEst(plain(n.name));
+const timeBlockOf = (n) => parseTimeBlock(plain(n.name));
 function fmtMins(m) { const h = Math.floor(m / 60), r = m % 60; return h ? h + "h" + (r ? " " + r + "m" : "") : r + "m"; }
 function estToken(m) { const h = Math.floor(m / 60), r = m % 60; return "~" + (h ? h + "h" + (r ? r + "m" : "") : r + "m"); }
 function withMarker(raw, re, token) {                     // the stored name with one kind of marker replaced (or removed when token is "")
@@ -1150,7 +1283,8 @@ function withMarker(raw, re, token) {                     // the stored name wit
     .replace(/<(b|i|u|strong|em|span)[^>]*><\/\1>/gi, "").replace(/\s{2,}/g, " ").trim();
   return token ? `${cleared} ${token}` : cleared;
 }
-const dropMeta = (s) => withMarker(withMarker(s, PRIO_RE, ""), EST_RE, "");
+const BLK_RE = /(^|\s)!blk(?=$|[\s.,;!?)<])/i;        // marks a block that came from the day template; it is marked done by itself once its time has passed
+const dropMeta = (s) => withMarker(withMarker(withMarker(withMarker(s, PRIO_RE, ""), EST_RE, ""), TIME_BLOCK_RE, ""), BLK_RE, "");
 async function setMeta(n, k, bullet, which, value) {      // which: "prio" (0 to 4, 0 = none) or "est" (minutes, 0 = none)
   const old = n.name;
   const name = which === "prio" ? withMarker(old, PRIO_RE, value ? "!p" + value : "") : withMarker(old, EST_RE, value ? estToken(value) : "");
@@ -1468,6 +1602,7 @@ async function loadWeek(force = false) {
   if (err2 || err3) showError(err2 || err3);
   if (span === 5) { await loadNotes(fullWeekKeys().filter((k) => !visibleKeys.has(k))); if (token !== loadToken) return; }
   render();
+  autoCompleteBlocks();
 }
 
 function collect(keys, onlyOpen) {
@@ -1488,20 +1623,22 @@ function entries(k, onlyOpen) {
   const hide = (n) => (onlyOpen || prefs.hideDone) && n.completedAt;
   const out = [];
   const rank = (t) => (prefs.prioSort ? PRIO_RANK[prioOf(t)] : 0);
-  for (const n of cache[k] || []) if (!hide(n)) out.push({ kind: "task", n, k, p: n.priority, s: 0, r: rank(n) });
+  const tbMins = (n) => { const tb = timeBlockOf(n); return tb ? tb.mins : 9999; };  // time-blocked tasks sort by their time, unscheduled at end
+  for (const n of cache[k] || []) if (!hide(n)) out.push({ kind: "task", n, k, p: n.priority, s: 0, r: rank(n), tb: tbMins(n) });
   if (prefs.nested !== "off") {
     for (const b of dayBullets[k] || []) {
       const info = nest[b.id];
       if (!info || (!info.todos.length && !(prefs.nested === "group" && emptyGroups.has(b.id)))) continue;
       if (prefs.nested === "group") {
         const r = Math.min(PRIO_RANK[0], ...info.todos.filter((t) => !t.completedAt).map(rank));      // a group sorts by its most urgent open task
-        if (info.todos.some((t) => !hide(t)) || !(onlyOpen || prefs.hideDone) || emptyGroups.has(b.id)) out.push({ kind: "group", b, k, todos: info.todos, hideDone: !!(onlyOpen || prefs.hideDone), p: b.priority, s: 0, r: prefs.prioSort ? r : 0 });
+        if (info.todos.some((t) => !hide(t)) || !(onlyOpen || prefs.hideDone) || emptyGroups.has(b.id)) out.push({ kind: "group", b, k, todos: info.todos, hideDone: !!(onlyOpen || prefs.hideDone), p: b.priority, s: 0, r: prefs.prioSort ? r : 0, tb: 9999 });
       } else {
-        for (const t of info.todos) if (!hide(t)) out.push({ kind: "nested", n: t, b, k, p: b.priority, s: t.priority, r: rank(t) });
+        for (const t of info.todos) if (!hide(t)) out.push({ kind: "nested", n: t, b, k, p: b.priority, s: t.priority, r: rank(t), tb: tbMins(t) });
       }
     }
   }
-  return out.sort((a, b) => a.r - b.r || a.p - b.p || a.s - b.s);
+  // On today, time-blocked tasks come first (sorted by time), then priority, then outline order
+  return out.sort((a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s);
 }
 const entriesFor = (keys, onlyOpen) => keys.flatMap((k) => entries(k, onlyOpen));
 function entryOpen(e) {
@@ -1515,6 +1652,10 @@ function openCount(k) {
     for (const b of dayBullets[k] || []) for (const t of (nest[b.id] && nest[b.id].todos) || []) if (!t.completedAt) n++;
   }
   return n;
+}
+function liveMeta(wrap, pr, est, done) {                  // cards you type in hide the markers until you click in, so their badges sit on a line under the text
+  if (!pr && !est) return;
+  const r = document.createElement("div"); r.className = "metarow"; metaBadges(r, pr, est, done); wrap.appendChild(r);
 }
 function metaBadges(where, pr, est, done) {               // "P1" and "⏱ 45m" after a task's text (cards you type in show the markers as text instead)
   if (pr) { const b = document.createElement("span"); b.className = "pbadge p" + pr; b.textContent = "P" + pr; b.title = PRIO_NAMES[pr] + " priority"; where.appendChild(b); }
@@ -1535,6 +1676,469 @@ function flushRedraws() {
   const fns = [...redrawQueue.values()]; redrawQueue.clear();
   for (const f of fns) { try { f(); } catch (e) { console.error(e); } }
 }
+
+/* ---------- Time Blocking Panel ---------- */
+const TB_WORK_START = 8, TB_WORK_END = 18;                // working hours (8 AM – 6 PM)
+let tbPanelDay = null;
+// Quick blocks: standard items (Meeting, Lunch, Appointment…) to drag onto the timeline. Each asks how long, then adds a task on that day.
+const TB_DEFAULT_PRESETS = [{ name: "Meeting", mins: 30 }, { name: "Lunch", mins: 60 }, { name: "Appointment", mins: 60 }];
+function tbPresets() {
+  try { const v = JSON.parse(localStorage.getItem("tbPresets") || "null"); if (Array.isArray(v)) return v.filter((p) => p && typeof p.name === "string" && p.name.trim() && Number(p.mins) > 0).slice(0, 20).map((p) => ({ name: p.name.slice(0, 40), mins: Math.min(1440, Math.round(Number(p.mins))) })); } catch (e) { /* the starters */ }
+  return TB_DEFAULT_PRESETS.map((p) => ({ ...p }));
+}
+function tbSavePresets(list) { try { localStorage.setItem("tbPresets", JSON.stringify(list)); } catch (e) { /* kept for this visit only */ } }
+function parseDurMins(t) {                                // "30m", "1h", "1h30m", "90" → minutes, or null
+  t = String(t || "").trim().toLowerCase();
+  let m = /^(\d{1,3})m?$/.exec(t); if (m) return Number(m[1]) || null;
+  m = /^(\d{1,2}(?:\.\d{1,2})?)h(?:(\d{1,2})m)?$/.exec(t); if (m) return Math.round(Number(m[1]) * 60) + Number(m[2] || 0) || null;
+  return null;
+}
+function askDurMins(label, def) {                         // asks until it gets a length; null when you cancel
+  let shownDef = estToken(def).slice(1), msg = `How long is “${label}”? (for example 30m, 1h or 1h30m)`;
+  for (;;) {
+    const a = prompt(msg, shownDef);
+    if (a === null) return null;
+    if (!a.trim()) return def;
+    const m = parseDurMins(a);
+    if (m && m <= 1440) return m;
+    shownDef = a; msg = "That isn't a length. Use something like 30m, 1h or 1h30m:";
+  }
+}
+const tbEsc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Day template: blocks that each weekday should have (Mon: Standup 9:00 30m, Lunch 12:00 1h…). Applying one adds them to a day as ordinary tasks, skipping any already there.
+// Each is tagged !blk and is marked done by itself once its time has passed, so a block you didn't tick never piles up in Past due.
+function tbTplGet() {
+  const out = {}; for (let d = 0; d < 7; d++) out[d] = [];
+  try {
+    const v = JSON.parse(localStorage.getItem("tbTemplate") || "null");
+    if (v && typeof v === "object") for (let d = 0; d < 7; d++) if (Array.isArray(v[d])) out[d] = v[d].filter((b) => b && typeof b.name === "string" && b.name.trim() && /^\d{1,2}:\d{2}$/.test(b.start) && Number(b.mins) > 0).slice(0, 30).map((b) => ({ name: b.name.slice(0, 60), start: b.start, mins: Math.min(1440, Math.round(Number(b.mins))) }));
+  } catch (e) { /* none yet */ }
+  return out;
+}
+function tbTplSave(tpl) { try { localStorage.setItem("tbTemplate", JSON.stringify(tpl)); } catch (e) { /* kept for this visit only */ } }
+const TB_DAYS = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
+const tbRangeLabel = (keys) => {                            // "Nov 9–15", or "Nov 30–Dec 6" across a month
+  if (!keys.length) return "";
+  const f = keyToDate(keys[0]), l = keyToDate(keys[keys.length - 1]);
+  const m = (d) => d.toLocaleDateString(undefined, { month: "short" });
+  if (keys.length === 1) return `${m(f)} ${f.getDate()}`;
+  return f.getMonth() === l.getMonth() ? `${m(f)} ${f.getDate()}–${l.getDate()}` : `${m(f)} ${f.getDate()}–${m(l)} ${l.getDate()}`;
+};
+function tbWeekKeys() {                                    // the week of the day shown in the panel, from today on
+  if (!tbPanelDay) return [];
+  const tk = key(new Date()), w0 = startOfWeek(keyToDate(tbPanelDay));
+  return [...Array(7)].map((_, i) => key(addDays(w0, i))).filter((k) => ISO_DAY.test(k) && k >= tk);
+}
+async function tbFillWeek(keys) {
+  if (!keys.length) { showToast("That week is already past. Open a current or future week in the panel.", false); return; }
+  const tpl = tbTplGet(), label = tbRangeLabel(keys), plan = [];
+  try {
+    for (const k of keys) {
+      const list = tpl[keyToDate(k).getDay()] || [];
+      if (!list.length) continue;
+      if (!cache[k]) await loadDay(k);
+      for (const b of list) {
+        const [h, mi] = b.start.split(":").map(Number);
+        const there = (cache[k] || []).some((t) => { const tb = timeBlockOf(t); return tb && tb.mins === h * 60 + mi && sameName(dropMeta(shownVisible(t.name)), b.name); });
+        if (!there) plan.push({ k, b, h, mi });
+      }
+    }
+  } catch (err) { showError(err.message); return; }
+  if (!plan.length) {
+    const any = keys.some((k) => (tpl[keyToDate(k).getDay()] || []).length);
+    showToast(any ? `${label} already has every template block.` : `No template blocks are saved for ${label}. Use Edit template… to add some.`, false);
+    return;
+  }
+  const dayCount = new Set(plan.map((p) => p.k)).size;
+  if (!confirm(`Add ${plan.length} block${plan.length > 1 ? "s" : ""} across ${dayCount} day${dayCount > 1 ? "s" : ""} (${label})?`)) return;
+  let made = 0;
+  try {
+    for (const p of plan) {
+      await call("POST", "/nodes", { parent_id: p.k, name: `${tbEsc(p.b.name)} ${timeBlockToken(p.h, p.mi)} ${estToken(p.b.mins)} !blk`, layoutMode: "todo", position: "bottom" });
+      made++;
+    }
+  } catch (err) { showError(err.message); }
+  for (const k of new Set(plan.map((p) => p.k))) { try { await loadDay(k); } catch (e) { /* shown next refresh */ } }
+  if (tbPanelDay) renderTimelinePanel();
+  render();
+  if (made) showToast(`Added ${made} block${made > 1 ? "s" : ""} to ${label}`, false);
+}
+function closeTbTpl() { document.getElementById("tbTpl").hidden = true; }
+function openTbTpl(startWd) {
+  const box = document.getElementById("tbTpl"); box.hidden = false;
+  let wd = startWd != null ? startWd : (tbPanelDay ? keyToDate(tbPanelDay).getDay() : new Date().getDay());
+  const draw = () => {
+    const tpl = tbTplGet(); box.innerHTML = "";
+    const h = document.createElement("h3"); h.textContent = "Day template"; box.appendChild(h);
+    const tabs = document.createElement("div"); tabs.className = "tpTabs";
+    for (const [d, label] of TB_DAYS) { const b = document.createElement("button"); b.type = "button"; b.textContent = label + (tpl[d].length ? ` (${tpl[d].length})` : ""); b.title = tpl[d].length ? `${tpl[d].length} block${tpl[d].length > 1 ? "s" : ""} in the ${label} template` : `No blocks in the ${label} template`; if (d === wd) b.className = "on"; b.onclick = () => { wd = d; draw(); }; tabs.appendChild(b); }
+    box.appendChild(tabs);
+    tpl[wd].forEach((b, i) => {
+      const row = document.createElement("div"); row.className = "tpRow";
+      const t = document.createElement("input"); t.type = "time"; t.step = 300; t.value = b.start; t.setAttribute("aria-label", "Start");
+      const l = document.createElement("select"); l.setAttribute("aria-label", "Length");
+      const steps = []; for (let m = 15; m <= 480; m += 15) steps.push(m); if (!steps.includes(b.mins)) steps.push(b.mins); steps.sort((x, y) => x - y);
+      for (const m of steps) { const o = document.createElement("option"); o.value = m; o.textContent = fmtMins(m); l.appendChild(o); } l.value = String(b.mins);
+      const n = document.createElement("input"); n.type = "text"; n.value = b.name; n.maxLength = 60; n.placeholder = "Name"; n.setAttribute("aria-label", "Name");
+      const x = document.createElement("button"); x.type = "button"; x.textContent = "✕"; x.title = "Remove"; x.setAttribute("aria-label", "Remove this block");
+      const commit = () => { const cur = tbTplGet(); if (/^\d{1,2}:\d{2}$/.test(t.value)) cur[wd][i].start = t.value; cur[wd][i].mins = Number(l.value); cur[wd][i].name = n.value.trim() || b.name; tbTplSave(cur); };
+      t.onchange = l.onchange = n.onchange = commit;
+      x.onclick = () => { const cur = tbTplGet(); cur[wd].splice(i, 1); tbTplSave(cur); draw(); };
+      row.append(t, l, n, x); box.appendChild(row);
+    });
+    if (!tpl[wd].length) { const e = document.createElement("div"); e.className = "tpNote"; e.textContent = "No blocks for this day yet."; box.appendChild(e); }
+    const act = document.createElement("div"); act.className = "tpAct";
+    const add = document.createElement("button"); add.type = "button"; add.textContent = "+ Add block";
+    add.onclick = () => { const cur = tbTplGet(); const last = cur[wd][cur[wd].length - 1]; let st = "09:00"; if (last) { const e2 = Number(last.start.slice(0, 2)) * 60 + Number(last.start.slice(3)) + last.mins; st = String(Math.min(23, Math.floor(e2 / 60))).padStart(2, "0") + ":" + String(e2 % 60).padStart(2, "0"); } cur[wd].push({ name: "New block", start: st, mins: 30 }); tbTplSave(cur); draw(); };
+    const copy = document.createElement("button"); copy.type = "button"; copy.textContent = "Copy to Mon–Fri"; copy.title = "Replace Monday to Friday with this day's blocks";
+    copy.onclick = () => { const cur = tbTplGet(); if (!cur[wd].length) return; if (!confirm("Replace the other weekdays' templates (Mon–Fri) with this day's blocks?")) return; for (const d of [1, 2, 3, 4, 5]) if (d !== wd) cur[d] = cur[wd].map((b) => ({ ...b })); tbTplSave(cur); draw(); showToast("Copied to the other weekdays (Mon–Fri)", false); };
+    const done = document.createElement("button"); done.type = "button"; done.className = "go"; done.textContent = "Done"; done.onclick = closeTbTpl;
+    act.append(add, copy, done); box.appendChild(act);
+    const note = document.createElement("div"); note.className = "tpNote"; note.textContent = "The number in brackets on a day is how many blocks its template holds. Blocks added from a template are marked done by themselves once their time has passed.";
+    box.appendChild(note);
+  };
+  draw();
+}
+let blkBusy = false;
+async function autoCompleteBlocks() {                      // template blocks whose time has passed are ticked, once; their !blk marker is removed so un-ticking one keeps it open
+  if (blkBusy) return; blkBusy = true;
+  try {
+    const now = new Date(), tk = key(now), nowM = now.getHours() * 60 + now.getMinutes(); let did = 0;
+    for (const k of Object.keys(cache)) {
+      if (!ISO_DAY.test(k) || k > tk) continue;
+      for (const n of cache[k] || []) {
+        if (n.completedAt || n.pending || !BLK_RE.test(plain(n.name))) continue;
+        const tb = timeBlockOf(n);
+        if (k === tk && !(tb && nowM >= tb.mins + (estOf(n) || 30))) continue;
+        if (did >= 30) break;
+        const name = withMarker(n.name, BLK_RE, "");
+        await call("POST", `/nodes/${n.id}`, { name }); n.name = name;
+        await call("POST", `/nodes/${n.id}/complete`); n.completedAt = Math.floor(Date.now() / 1000); did++;
+      }
+    }
+    if (did) { if (!deferRedraw("render", render)) render(); if (tbPanelDay) renderTimelinePanel(); }
+  } catch (e) { /* tries again in a minute */ } finally { blkBusy = false; }
+}
+setInterval(() => { if (!document.hidden) autoCompleteBlocks(); }, 60000);
+function renderTbTplBar(box) {
+  if (!tbFold(box, "Tpl", "Day template", renderTbQuick)) return;
+  const bar = document.createElement("div"); bar.className = "tbtplbar";
+  const keys = tbWeekKeys(), label = tbRangeLabel(keys);
+  const fill = document.createElement("button"); fill.type = "button"; fill.className = "go";
+  fill.textContent = keys.length ? `Fill ${label}` : "Fill week";
+  fill.title = keys.length ? `Add the template blocks to ${label}. Blocks already there are skipped, and it asks before adding.` : "This week is already past";
+  fill.disabled = !keys.length; fill.onclick = () => tbFillWeek(tbWeekKeys());
+  const edit = document.createElement("button"); edit.type = "button"; edit.textContent = "Edit template…"; edit.title = "Choose the standard blocks for each weekday"; edit.onclick = () => openTbTpl();
+  bar.append(fill, edit); box.appendChild(bar);
+}
+const tbOpen = (k) => { try { return localStorage.getItem("tbOpen" + k) === "1"; } catch (e) { return false; } };     // folded unless the person opened it
+function tbFold(box, k, title, redraw) {
+  const b = document.createElement("button"); b.type = "button"; b.className = "tbfold"; const o = tbOpen(k);
+  b.textContent = (o ? "▾ " : "▸ ") + title; b.setAttribute("aria-expanded", o ? "true" : "false"); b.title = o ? "Hide" : "Show";
+  b.onclick = () => { try { localStorage.setItem("tbOpen" + k, o ? "0" : "1"); } catch (e) { /* this visit only */ } redraw(); };
+  box.appendChild(b); return o;
+}
+function renderTbQuick() {
+  const box = document.getElementById("tbQuick"); if (!box) return;
+  box.innerHTML = "";
+  const qOpen = tbFold(box, "Quick", "Quick blocks", renderTbQuick);
+  if (qOpen) {
+  const wrap = document.createElement("div"); wrap.className = "tbqs"; box.appendChild(wrap);
+  const list = tbPresets();
+  list.forEach((p, i) => {
+    const chip = document.createElement("span"); chip.className = "tbq"; chip.draggable = true;
+    chip.title = "Drag onto the timeline. It asks how long.";
+    chip.appendChild(document.createTextNode(`${p.name} · ${fmtMins(p.mins)}`));
+    const x = document.createElement("button"); x.type = "button"; x.className = "tbqx"; x.textContent = "✕"; x.title = "Remove this quick block"; x.setAttribute("aria-label", "Remove " + p.name);
+    x.onclick = (e) => { e.stopPropagation(); const l = tbPresets(); l.splice(i, 1); tbSavePresets(l); renderTbQuick(); };
+    chip.appendChild(x);
+    chip.addEventListener("dragstart", (e) => { e.dataTransfer.setData("application/x-timeblock", JSON.stringify({ preset: p })); });
+    wrap.appendChild(chip);
+  });
+  const add = document.createElement("button"); add.type = "button"; add.className = "tbqadd"; add.textContent = "+ New";
+  add.title = "Add a quick block of your own";
+  add.onclick = () => {
+    const nm = (prompt("Name for the quick block (for example Gym, Call, Commute):", "") || "").trim().slice(0, 40);
+    if (!nm) return;
+    const mins = askDurMins(nm, 30); if (!mins) return;
+    const l = tbPresets(); l.push({ name: nm, mins }); tbSavePresets(l); renderTbQuick();
+  };
+  wrap.appendChild(add);
+  }
+  renderTbTplBar(box);
+}
+async function tbCreateBlock(preset, h, mi) {             // a quick block dropped on the timeline: ask the length, then add the task on the panel's day
+  const mins = askDurMins(preset.name, preset.mins);
+  if (!mins) return;
+  const name = `${tbEsc(preset.name)} ${timeBlockToken(h, mi)} ${estToken(mins)}`;
+  const day = tbPanelDay;
+  try {
+    await call("POST", "/nodes", { parent_id: day, name, layoutMode: "todo", position: "bottom" });
+    await loadDay(day);
+    if (tbPanelDay === day) renderTimelinePanel();
+    render();
+    showToast(`${preset.name} added at ${fmtTimeBlock(h, mi)}`, false);
+  } catch (err) { showError(err.message); }
+}
+const TOKEN_TEST = (t) => /wbenc1\./.test(String(t || ""));
+// Save changed fields ({ name } and/or { note }) of a task in the panel's day, with Undo.
+async function tbApply(n, fields, what) {
+  const old = { name: n.name, note: n.note || "" }, day = tbPanelDay;
+  const body = {}; for (const f of ["name", "note"]) if (fields[f] !== undefined && fields[f] !== old[f]) body[f] = fields[f];
+  if (!Object.keys(body).length) return false;
+  try {
+    await call("POST", `/nodes/${n.id}`, body);
+    Object.assign(n, body); n._chk = Date.now();
+    await loadDay(day);
+    if (tbPanelDay === day) renderTimelinePanel();
+    render();
+  } catch (err) { showError(err.message); return false; }
+  showToast(what, false);
+  const undo = {}; for (const f of Object.keys(body)) undo[f] = old[f];
+  pushUndo(`${what}: “${shortName(n)}”`, async () => { await call("POST", `/nodes/${n.id}`, undo); await reloadParents([day]); if (tbPanelDay === day) { await loadDay(day); renderTimelinePanel(); } });
+  return true;
+}
+// Drag the bottom edge of a block to change its length, in 15-minute steps (the length is the task's ~estimate).
+function addResizeHandle(block, n, tb, dur) {
+  const h = document.createElement("div"); h.className = "tbRz"; h.title = "Drag to change the length"; h.setAttribute("aria-hidden", "true");
+  h.addEventListener("click", (e) => e.stopPropagation());
+  h.addEventListener("dragstart", (e) => e.preventDefault());
+  h.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const slotH = (document.querySelector(".tbSlot") || { offsetHeight: 41 }).offsetHeight || 41, y0 = e.clientY;
+    const tip = document.createElement("div"); tip.className = "tbtip"; document.body.appendChild(tip); h.classList.add("drag");
+    const calc = (ev) => Math.max(15, Math.min(720, Math.round((dur + ((ev.clientY - y0) / slotH) * 30) / 15) * 15));
+    const move = (ev) => { const d = calc(ev), end = tb.mins + d; tip.textContent = `${fmtMins(d)} · ends ${fmtTimeBlock(Math.floor(end / 60) % 24, end % 60)}`; tip.style.left = ev.clientX + 12 + "px"; tip.style.top = ev.clientY + 12 + "px"; };
+    const up = (ev) => {
+      document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); tip.remove(); h.classList.remove("drag");
+      const d = calc(ev);
+      if (d !== dur) tbApply(n, { name: withMarker(n.name, EST_RE, estToken(d)) }, "Length " + fmtMins(d));
+    };
+    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up); move(e);
+  });
+  block.appendChild(h);
+}
+// Click a block: change its start, its length and its description (the WorkFlowy note) without leaving the panel.
+let tbEditNode = null;
+function closeTbEdit() { tbEditNode = null; document.getElementById("tbEdit").hidden = true; }
+function openTbEdit(n) {
+  const tb = timeBlockOf(n); if (!tb) return;
+  tbEditNode = n;
+  const ed = document.getElementById("tbEdit"), len = document.getElementById("tbeLen"), start = document.getElementById("tbeStart"), note = document.getElementById("tbeNote");
+  document.getElementById("tbeTitle").textContent = dropMeta(shownVisible(n.name)) || "(empty)";
+  start.value = String(tb.h).padStart(2, "0") + ":" + String(tb.mi).padStart(2, "0");
+  const est = estOf(n), def = est || 30; len.innerHTML = "";
+  const steps = []; for (let m = 15; m <= 480; m += 15) steps.push(m); if (!steps.includes(def)) steps.push(def); steps.sort((a, b) => a - b);
+  for (const m of steps) { const o = document.createElement("option"); o.value = m; o.textContent = fmtMins(m) + (!est && m === 30 ? " (default)" : ""); len.appendChild(o); }
+  len.value = String(def);
+  const enc = TOKEN_TEST(n.note);
+  note.value = enc ? "(Encrypted note: open it on the card to edit)" : visibleText(n.note || ""); note.readOnly = enc;
+  const showEnd = () => { const m = /^(\d{1,2}):(\d{2})$/.exec(start.value); if (!m) { document.getElementById("tbeEnd").textContent = ""; return; } const e2 = Number(m[1]) * 60 + Number(m[2]) + Number(len.value); document.getElementById("tbeEnd").textContent = "ends " + fmtTimeBlock(Math.floor(e2 / 60) % 24, e2 % 60); };
+  start.oninput = len.onchange = showEnd; showEnd();
+  document.getElementById("tbeSave").onclick = async () => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(start.value);
+    if (!m) { showToast("Pick a start time.", false); return; }
+    const fields = {};
+    let name = (Number(m[1]) === tb.h && Number(m[2]) === tb.mi) ? n.name : withMarker(n.name, TIME_BLOCK_RE, timeBlockToken(Number(m[1]), Number(m[2])));      // an unchanged time is left where it is in the text
+    const d = Number(len.value); if (d !== def) name = withMarker(name, EST_RE, estToken(d));
+    fields.name = name;
+    if (!enc) {
+      const next = note.value.replace(/\s+$/, "");
+      if (next !== visibleText(n.note || "").replace(/\s+$/, "")) {
+        const theirs = await guardFresh(n, "note");
+        if (theirs != null) { note.value = visibleText(theirs); showToast("This note changed elsewhere. Check it and save again.", false); return; }
+        fields.note = next === "" ? "" : applyEdit(n.note || "", next);
+      }
+    }
+    closeTbEdit();
+    await tbApply(n, fields, fields.note !== undefined && name === n.name ? "Description saved" : "Time block updated");
+  };
+  document.getElementById("tbeUn").onclick = async () => { closeTbEdit(); await tbApply(n, { name: withMarker(n.name, TIME_BLOCK_RE, "") }, "Time block removed"); };
+  document.getElementById("tbeCancel").onclick = closeTbEdit;
+  ed.hidden = false; note.focus({ preventScroll: true });
+}
+async function tbGoDay(k) {                               // show another day in the panel (loading it first when the board hasn't)
+  if (!ISO_DAY.test(k)) return;
+  tbPanelDay = k; closeTbEdit();
+  document.getElementById("tbDate").value = k;
+  try { if (!cache[k]) await loadDay(k); } catch (err) { showError(err.message); }
+  if (tbPanelDay === k) renderTimelinePanel();
+}
+function openTimelinePanel(k) {
+  tbPanelDay = k;
+  document.getElementById("tbDate").value = k;
+  tbGoDay(k);
+  const panel = document.getElementById("tbPanel");
+  const shade = document.getElementById("tbShade");
+  panel.classList.add("open");
+  shade.classList.add("open");
+  renderTimelinePanel();
+}
+function closeTimelinePanel() {
+  tbPanelDay = null; closeTbEdit(); closeTbTpl();
+  document.getElementById("tbPanel").classList.remove("open");
+  document.getElementById("tbShade").classList.remove("open");
+}
+function renderTimelinePanel() {
+  if (!tbPanelDay) return;
+  { const dw = document.getElementById("tbDow"); if (dw) dw.textContent = keyToDate(tbPanelDay).toLocaleDateString(undefined, { weekday: "short" }); }
+  const pool = document.getElementById("tbPool");
+  const timeline = document.getElementById("tbTimeline");
+  pool.innerHTML = "<h4>Unscheduled</h4>";
+  renderTbQuick();
+  timeline.innerHTML = "";
+  
+  const tasks = cache[tbPanelDay] || [];
+  const scheduled = [], unscheduled = [];
+  for (const n of tasks) {
+    const tb = timeBlockOf(n);
+    if (tb) scheduled.push({ n, tb, dur: estOf(n) || 30, done: !!n.completedAt });   // done blocks stay, greyed
+    else if (!n.completedAt) unscheduled.push(n);
+  }
+  
+  // Pool of unscheduled tasks
+  for (const n of unscheduled) {
+    const el = document.createElement("div");
+    el.className = "poolTask";
+    el.textContent = dropMeta(shownVisible(n.name)).slice(0, 50) || "(empty)";
+    el.draggable = true;
+    el.dataset.id = n.id;
+    el.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("application/x-timeblock", JSON.stringify({ id: n.id, name: shortName(n) }));
+    });
+    pool.appendChild(el);
+  }
+  if (!unscheduled.length) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "font-size: 12px; color: var(--muted); padding: 8px 0;";
+    empty.textContent = "All tasks are scheduled";
+    pool.appendChild(empty);
+  }
+  
+  // Timeline grid (30-min slots). It covers working hours, and stretches to include a task scheduled before or after them.
+  let lo = TB_WORK_START, hi = TB_WORK_END;
+  for (const sc of scheduled) { lo = Math.min(lo, Math.floor(sc.tb.mins / 60)); hi = Math.max(hi, Math.min(24, Math.ceil((sc.tb.mins + sc.dur) / 60))); }
+  const setTime = async (id, token, durToken) => {          // schedule or move: the old ^marker is replaced, not repeated
+    const node = (cache[tbPanelDay] || []).find((n) => n.id === id);
+    if (!node) return;
+    const name = withMarker(node.name, TIME_BLOCK_RE, token) + (durToken || "");
+    if (name === node.name) return;
+    try {
+      await call("POST", `/nodes/${id}`, { name });
+      node.name = name;
+      await loadDay(tbPanelDay);
+      renderTimelinePanel();
+      render();
+    } catch (err) { showError(err.message); }
+  };
+  for (let h = lo; h < hi; h++) {
+    for (let half = 0; half < 2; half++) {
+      const mi = half * 30;
+      const slot = document.createElement("div");
+      slot.className = "tbSlot" + (mi === 0 ? " hour" : "");
+      const time = document.createElement("div");
+      time.className = "tbTime";
+      time.textContent = mi === 0 ? fmtTimeBlock(h, 0) : "";
+      const area = document.createElement("div");
+      area.className = "tbArea";
+      area.dataset.h = h;
+      area.dataset.mi = mi;
+
+      // Tasks scheduled in this half hour (so ^9:15am shows in the 9:00 slot, with its exact time)
+      const slotMins = h * 60 + mi;
+      const here = scheduled.filter((s2) => s2.tb.mins >= slotMins && s2.tb.mins < slotMins + 30);
+      for (const { n, tb, dur, done } of here) {
+        const task = document.createElement("div");
+        task.className = "tbTask";
+        const lab = document.createElement("span"); lab.className = "tbl";
+        const lt = document.createElement("span");
+        lt.textContent = (done ? "✓ " : "") + (tb.mins === slotMins ? "" : fmtTimeBlock(tb.h, tb.mi) + " ") + dropMeta(shownVisible(n.name)).slice(0, 40) + (dur > 30 ? ` (${fmtMins(dur)})` : "");
+        lab.appendChild(lt);
+        const nline = (n.note && !TOKEN_TEST(n.note)) ? shownVisible(n.note).split("\n")[0].trim().slice(0, 80) : "";
+        if (nline) { const ln = document.createElement("span"); ln.className = "tbn"; ln.textContent = nline; lab.appendChild(ln); }
+        const rm = document.createElement("button"); rm.type = "button"; rm.className = "tbu"; rm.textContent = "✕"; rm.title = "Take it off the schedule"; rm.setAttribute("aria-label", "Unschedule");
+        rm.onclick = async (e) => {
+          e.stopPropagation();
+          const name = withMarker(n.name, TIME_BLOCK_RE, "");
+          try { await call("POST", `/nodes/${n.id}`, { name }); n.name = name; await loadDay(tbPanelDay); renderTimelinePanel(); render(); } catch (err) { showError(err.message); }
+        };
+        task.append(lab); if (!done) task.append(rm);
+        if (done) task.classList.add("done");
+        task.draggable = !done;                                // drag to another time to move it
+        task.addEventListener("dragstart", (e) => { e.dataTransfer.setData("application/x-timeblock", JSON.stringify({ id: n.id, name: shortName(n) })); });
+        task.title = fmtTimeBlock(tb.h, tb.mi) + " – " + fmtTimeBlock(Math.floor((tb.mins + dur) / 60), (tb.mins + dur) % 60);
+        if (tb.mins + dur > slotMins + 30) task.classList.add("cont");     // runs on into the next slot(s)
+        else if (!done) addResizeHandle(task, n, tb, dur);
+        task.addEventListener("click", () => openTbEdit(n));
+        area.appendChild(task);
+      }
+      // The rest of a long task: its length fills the slots it covers (a 1h task from 3 PM fills 3:00 to 4:00)
+      for (const { n, tb, dur, done } of scheduled) {
+        if (tb.mins >= slotMins || tb.mins + dur <= slotMins) continue;
+        const bar = document.createElement("div");
+        bar.className = "tbCont" + (tb.mins + dur <= slotMins + 30 ? " last" : "");
+        bar.draggable = !done; if (done) bar.classList.add("done");
+        bar.title = dropMeta(shownVisible(n.name)).slice(0, 40) + ": " + fmtTimeBlock(tb.h, tb.mi) + " – " + fmtTimeBlock(Math.floor((tb.mins + dur) / 60), (tb.mins + dur) % 60);
+        bar.addEventListener("dragstart", (e) => { e.dataTransfer.setData("application/x-timeblock", JSON.stringify({ id: n.id, name: shortName(n) })); });
+        bar.addEventListener("click", () => openTbEdit(n));
+        if (!done && tb.mins + dur <= slotMins + 30) addResizeHandle(bar, n, tb, dur);
+        area.appendChild(bar);
+      }
+
+      // Drop zone: schedule an unscheduled task, or move a scheduled one
+      area.addEventListener("dragover", (e) => { e.preventDefault(); area.classList.add("over"); });
+      area.addEventListener("dragleave", () => area.classList.remove("over"));
+      area.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        area.classList.remove("over");
+        const data = e.dataTransfer.getData("application/x-timeblock");
+        if (!data) return;
+        const dropped = JSON.parse(data);
+        if (dropped.preset) { await tbCreateBlock(dropped.preset, Number(area.dataset.h), Number(area.dataset.mi)); return; }
+        const { id } = dropped;
+        const node = (cache[tbPanelDay] || []).find((n) => n.id === id);
+        if (!node) return;
+        const token = timeBlockToken(Number(area.dataset.h), Number(area.dataset.mi));
+        let durToken = "";
+        if (!estOf(node)) {                                   // no estimate yet: ask for a duration. Cancel stops, so nothing is scheduled by accident.
+          let dur = "30m";
+          for (;;) {
+            const a2 = prompt(dur === "30m" ? "Duration (e.g. 30m, 1h):" : "That isn't a duration. Use something like 30m, 1h or 1h30m:", dur);
+            if (a2 === null) return;
+            const t = a2.trim().toLowerCase();
+            if (!t) break;                                      // left empty: schedule with no estimate (30m is assumed)
+            if (/^\d{1,3}m$|^\d{1,2}h(?:\d{1,2}m)?$/.test(t)) { durToken = " ~" + t; break; }
+            dur = a2 || "x";
+          }
+        }
+        await setTime(id, token, durToken);
+      });
+
+      slot.append(time, area);
+      timeline.appendChild(slot);
+    }
+  }
+}
+// The ▶ NOW badge follows the clock without redrawing the board (so nothing being typed is disturbed).
+function tickTimeBlocks() {
+  const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+  for (const b of document.querySelectorAll(".tbbadge[data-s]")) {
+    if (b.classList.contains("conflict")) continue;
+    const done = !!b.closest(".card.done"), cur = !done && m >= Number(b.dataset.s) && m < Number(b.dataset.e);
+    const want = cur ? "now" : "sched";
+    if (!b.classList.contains(want)) { b.classList.remove("now", "sched"); b.classList.add(want); }
+    b.textContent = cur ? "▶ NOW" : b.dataset.lab; b.title = cur ? b.dataset.win : "Time block";
+  }
+}
+setInterval(() => { if (!document.hidden) tickTimeBlocks(); }, 30000);
+document.getElementById("tbPrev").onclick = () => tbPanelDay && tbGoDay(addDayKey(tbPanelDay, -1));
+document.getElementById("tbNext").onclick = () => tbPanelDay && tbGoDay(addDayKey(tbPanelDay, 1));
+document.getElementById("tbToday").onclick = () => tbGoDay(key(new Date()));
+document.getElementById("tbDate").onchange = (e) => { if (e.target.value) tbGoDay(e.target.value); };
+document.getElementById("tbShade").onclick = closeTimelinePanel;
+document.getElementById("tbPanel").querySelector(".tbx").onclick = closeTimelinePanel;
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tbPanelDay) { if (!document.getElementById("tbTpl").hidden) closeTbTpl(); else if (tbEditNode) closeTbEdit(); else closeTimelinePanel(); } });
 
 function render() {
   if (deferRedraw("render", render)) return;
@@ -1570,6 +2174,13 @@ function render() {
     const head = document.createElement("div");
     head.className = "colhead";
     head.innerHTML = `<h2>${DAY_NAMES[d.getDay()]} ${d.getDate()}<span${stale && prefs.pastCount ? ` title="This day has passed and still has ${open} open task${open === 1 ? "" : "s"}"` : ""}>${stale && prefs.pastCount ? "⚠ " : ""}${open} open${(() => { const t = estFor(k); return t.mins ? ` · <b class="esum" title="Time estimated for the open tasks${t.none ? ` (${t.none} without an estimate)` : ""}">${fmtMins(t.mins)}</b>` : ""; })()}</span></h2>`;
+    // Time blocking button (today only)
+    if (k === todayKey) {
+      const tbBtn = document.createElement("button");
+      tbBtn.type = "button"; tbBtn.className = "tbbtn"; tbBtn.textContent = "🕐"; tbBtn.title = "Open time blocking panel"; tbBtn.setAttribute("aria-label", tbBtn.title);
+      tbBtn.onclick = () => openTimelinePanel(k);
+      head.querySelector("h2").appendChild(tbBtn);
+    }
     const list = document.createElement("div");
     list.className = "tasks";
     if (!ents.length) {
@@ -1958,7 +2569,7 @@ function groupCard(e, showDate) {
       txt.className = "st2";
       const ttag = parseTag(t.name), ttm = ttag || parseTime(plain(t.name));
       const gMode = cardMode(t), gLive = gMode === "live";
-      if (gLive) txt.appendChild(cardField(t, k, el, b, true));
+      if (gLive) { txt.appendChild(cardField(t, k, el, b, true)); liveMeta(txt, tpr, estOf(t), t.completedAt); }
       else if (gMode === "locked") cardLockedBox(t, txt, el);
       else { setLinked(txt, dropMeta(ttm && !ttag ? dropTime(shownVisible(t.name)) : dropLeads(shownVisible(t.name))) || "(empty)"); metaBadges(txt, tpr, estOf(t), t.completedAt); }
       if (gMode === "plain" && kbReadEdit) txt.title = "Double-click to edit";
@@ -2101,6 +2712,31 @@ function card(n, k, showDate, opts) {
   });
   el.addEventListener("dragend", () => el.classList.remove("dragging"));
 
+  // Time block badge (if scheduled)
+  const tb = n.pending ? null : timeBlockOf(n);
+  if (tb && ISO_DAY.test(k)) {                            // every calendar day; ▶ NOW only on today
+    const now = new Date(), nowMins = now.getHours() * 60 + now.getMinutes();
+    const dur = est || 30;                               // duration = estimate or 30m default
+    const endMins = tb.mins + dur;
+    const isCurrent = k === key(new Date()) && nowMins >= tb.mins && nowMins < endMins && !n.completedAt;
+    // Check for conflicts with other time-blocked tasks
+    const conflicts = (cache[k] || []).filter((t) => {
+      if (t.id === n.id || t.completedAt) return false;
+      const otb = timeBlockOf(t);
+      if (!otb) return false;
+      const oEnd = otb.mins + (estOf(t) || 30);
+      return !(endMins <= otb.mins || tb.mins >= oEnd);   // overlap check
+    });
+    const badge = document.createElement("span");
+    const cls = conflicts.length ? "conflict" : (isCurrent ? "now" : "sched");
+    badge.className = "tbbadge " + cls;
+    badge.textContent = conflicts.length ? "⚠ " + fmtTimeBlock(tb.h, tb.mi) : (isCurrent ? "▶ NOW" : fmtTimeBlock(tb.h, tb.mi) + (est ? " · " + fmtMins(est) : ""));
+    badge.title = conflicts.length ? `Time conflict with ${conflicts.length} other task${conflicts.length > 1 ? "s" : ""}` : (isCurrent ? `Scheduled ${fmtTimeBlock(tb.h, tb.mi)} – ${fmtTimeBlock(Math.floor(endMins / 60), endMins % 60)}` : "Time block");
+    if (k === key(new Date())) { badge.dataset.s = tb.mins; badge.dataset.e = endMins; badge.dataset.lab = fmtTimeBlock(tb.h, tb.mi) + (est ? " · " + fmtMins(est) : "");
+    badge.dataset.win = `Scheduled ${fmtTimeBlock(tb.h, tb.mi)} – ${fmtTimeBlock(Math.floor(endMins / 60), endMins % 60)}`; }
+    el.appendChild(badge); el.classList.add("hastb");
+  }
+
   const cb = document.createElement("input");
   cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.setAttribute("aria-label", "Done");
   cb.addEventListener("change", () => act(async () => {
@@ -2120,7 +2756,7 @@ function card(n, k, showDate, opts) {
   const cmode = cardMode(n);                           // "live", "locked" (encrypted: click to unlock) or "plain" (old double-click editor)
   const liveOk = cmode === "live";
   let cta = null;
-  if (liveOk) { cta = cardField(n, k, el, nested ? opts.bullet : null); txt.appendChild(cta); }
+  if (liveOk) { cta = cardField(n, k, el, nested ? opts.bullet : null); txt.appendChild(cta); liveMeta(txt, pr, est, n.completedAt); }
   else if (cmode === "locked") cardLockedBox(n, txt, el);
   else setLinked(txt, dropMeta(tag ? dropLeads(shownName(n.name)) : tm ? dropTime(shownName(n.name)) : dropLeads(shownName(n.name))));
   if (!liveOk && cmode !== "locked") metaBadges(txt, pr, est, n.completedAt);
@@ -2204,6 +2840,7 @@ function card(n, k, showDate, opts) {
     add(n.completedAt ? "Mark not done" : "Mark done", () => cb.click());
     add(parseTag(n.name) || parseTime(plain(n.name)) ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => openRemPop(el, n, k, nested ? opts.bullet : null, parseTag(n.name) || parseTime(plain(n.name))), 0));
     add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, nested ? opts.bullet : null), 0));
+    if (ISO_DAY.test(k)) add("Time block…", () => setTimeout(() => openTimeBlockPop(el, n, k, nested ? opts.bullet : null), 0));
     kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(ev.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px";
   });
   return el;
@@ -2300,8 +2937,12 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
   ta.readOnly = selMode; ta.spellcheck = true;
   let base = ta.value, timer = null, saved = false, busy = null;
   const fit = autoFit(ta);
+  // !p1, ~30m and ^9am are hidden while the card is at rest (badges show them) and come back when you click in. While hidden, nothing is ever saved from the box.
+  const hideText = () => { if (n.pending || ta._enc || ta._lock) return null; const h = dropMeta(base); return h && h !== base ? h : null; };
+  { const h0 = hideText(); if (h0 != null) { ta.value = h0; ta._hid = true; } }
   ta._flush = () => {
     clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
+    if (ta._hid) return busy || Promise.resolve();
     const shown = cardClean(ta);
     if (!shown || shown === base.trim()) return busy || Promise.resolve();
     const lp = lockPrepare(ta, shown); if (!lp) return busy || Promise.resolve();
@@ -2331,7 +2972,7 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
     return busy;
   };
   ta.addEventListener("input", () => { fit(); if (ta._enc) ta._enc.text = ta.value; kbUnsaved.add(ta); kbStat("Unsaved…"); clearTimeout(timer); timer = setTimeout(() => ta._flush(), KB_PAUSE); });
-  ta.addEventListener("focus", () => { el.draggable = false; });
+  ta.addEventListener("focus", () => { el.draggable = false; if (ta._hid) { ta.value = base; ta._hid = false; fit(); } });
   ta.addEventListener("mousedown", (e) => { if (selMode) e.preventDefault(); });
   ta.addEventListener("blur", () => {
     el.draggable = group ? !selMode : !bullet && !selMode;
@@ -2343,6 +2984,7 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
           cardRevealed.delete(n.id); saved = true;       // you left it: it locks again
         }
         if (n.pending && !cardClean(ta) && !(document.activeElement && document.activeElement.closest && document.activeElement.closest(".card") === el)) { el.remove(); }
+        if (!saved) { const h = hideText(); if (h != null && cardClean(ta) === base.trim()) { ta.value = h; ta._hid = true; fit(); } }
         if (saved) { saved = false; if (!deferRedraw("render", render)) render(); } else flushRedraws();
       }, 30);
     });
@@ -2387,6 +3029,7 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
     const remNow = () => parseTag(n.name || "") || parseTime(plain(n.name || ""));
     add(remNow() ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => ta._flush().then(() => openRemPop(el, n, k, bullet, remNow())), 0));
     add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, bullet), 0));
+    if (ISO_DAY.test(k)) add("Time block…", () => setTimeout(() => ta._flush().then(() => openTimeBlockPop(el, n, k, bullet)), 0));
     const metaRow = (label, picks, cur, which) => {          // Priority: P1 P2 P3 P4 ✕   /   Estimate: 15m 30m … ✕
       const row = document.createElement("div"); row.className = "kmrow";
       const l = document.createElement("span"); l.textContent = label; row.appendChild(l);
@@ -2775,7 +3418,7 @@ async function moveNotes() {
   const movable = nodes.filter((n) =>
     !sameName(plain(n.name), notesName) && ((n.data && n.data.layoutMode) || "bullets") === "bullets");
   if (!movable.length) { setStatus("No plain bullets to move"); return; }
-  const preview = movable.slice(0, 5).map((n) => "• " + (shownName(n.name).slice(0, 60) || "(empty)")).join("\n") +
+  const preview = movable.slice(0, 5).map((n) => "• " + (dropMeta(shownName(n.name)).slice(0, 60) || "(empty)")).join("\n") +
     (movable.length > 5 ? `\n…and ${movable.length - 5} more` : "");
   if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from ${shownDayWord()} page into ${notesName}?\n\n` +
                `${preview}\n\nSub-bullets move with them. Todos and headings stay put.`)) return;
@@ -3748,7 +4391,7 @@ document.addEventListener("keydown", (e) => {
    ==================================================================================================== */
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-const shortName = (n) => { const t = (shownName(n.name) || "").trim() || "(empty)"; return t.length > 40 ? t.slice(0, 39) + "…" : t; };
+const shortName = (n) => { const t = (dropMeta(shownName(n.name)) || "").trim() || "(empty)"; return t.length > 40 ? t.slice(0, 39) + "…" : t; };
 const dayLabel = (k) => (ISO_DAY.test(k) ? keyToDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : sourceName(k));   // a plan source (Inbox...) shows its own name
 
 /* ---------- Reminders ----------
@@ -4009,6 +4652,50 @@ function openRepeatPop(anchor, n, k, bullet, after) {
   placeCardPop(pop, anchor);
   movePop = pop;
   sel.focus({ preventScroll: true });
+}
+// Time block… : pick a time and how long, for a task on any day (the panel and the card badge both read the same ^marker)
+function openTimeBlockPop(anchor, n, k, bullet) {
+  const wasMine = movePop && movePop._anchor === anchor;
+  closeMovePop();
+  if (wasMine) return;
+  const cur = timeBlockOf(n), est = estOf(n);
+  const pop = document.createElement("div");
+  pop.className = "movepop rpop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Time block"); pop._anchor = anchor; pop._t = Date.now();
+  pop.addEventListener("click", (e) => e.stopPropagation());
+  const row = (label, el) => { const d = document.createElement("div"); d.style.cssText = "display:flex;gap:6px;align-items:center;margin:6px 0"; const l = document.createElement("span"); l.textContent = label; l.style.minWidth = "58px"; d.append(l, el); return d; };
+  const time = document.createElement("input"); time.type = "time"; time.step = 300; time.setAttribute("aria-label", "Start time");
+  time.value = cur ? String(cur.h).padStart(2, "0") + ":" + String(cur.mi).padStart(2, "0") : "09:00";
+  const dur = document.createElement("select"); dur.setAttribute("aria-label", "How long");
+  const picks = [[0, est ? "Keep " + fmtMins(est) : "No estimate (30m shown)"], [15, "15m"], [30, "30m"], [45, "45m"], [60, "1h"], [90, "1h 30m"], [120, "2h"], [180, "3h"]];
+  if (est && !picks.some((p) => p[0] === est)) picks.push([est, fmtMins(est)]);
+  for (const [v, t] of picks) { const o = document.createElement("option"); o.value = v; o.textContent = t; dur.appendChild(o); }
+  dur.value = "0";
+  const save = document.createElement("button"); save.type = "button"; save.className = "go"; save.textContent = "Save";
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel"; cancel.textContent = "Cancel"; cancel.addEventListener("click", closeMovePop);
+  const apply = async (name, what) => {
+    const old = n.name; if (name === old) { closeMovePop(); return; }
+    closeMovePop();
+    const parent = bullet ? bullet.id : k;
+    await act(async () => { await call("POST", `/nodes/${n.id}`, { name }); n.name = name; if (bullet) await reloadBullet(bullet.id); else await loadDay(k); });
+    if (tbPanelDay) renderTimelinePanel();
+    showToast(what, false);
+    pushUndo(`${what}: “${shortName(n)}”`, async () => { await call("POST", `/nodes/${n.id}`, { name: old }); await reloadParents([parent]); if (tbPanelDay) { await loadDay(tbPanelDay); renderTimelinePanel(); } });
+  };
+  save.addEventListener("click", () => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(time.value);
+    if (!m) { showToast("Pick a start time.", false); return; }
+    let name = withMarker(n.name, TIME_BLOCK_RE, timeBlockToken(Number(m[1]), Number(m[2])));
+    const d = Number(dur.value);
+    if (d && d !== est) name = withMarker(name, EST_RE, estToken(d));
+    apply(name, "Time blocked " + fmtTimeBlock(Number(m[1]), Number(m[2])));
+  });
+  pop.append(row("Start", time), row("Length", dur), save);
+  if (cur) { const rm = document.createElement("button"); rm.type = "button"; rm.className = "cancel"; rm.textContent = "Remove"; rm.addEventListener("click", () => apply(withMarker(n.name, TIME_BLOCK_RE, ""), "Time block removed")); pop.appendChild(rm); }
+  pop.appendChild(cancel);
+  document.body.appendChild(pop);
+  placeCardPop(pop, anchor);
+  movePop = pop;
+  time.focus({ preventScroll: true });
 }
 let remItems = [], remInfo = { push: {} };
 const remFired = (() => { try { return JSON.parse(localStorage.getItem("remFired") || "{}"); } catch (e) { return {}; } })();
@@ -4388,7 +5075,7 @@ function openRoll({ title, items, dest }) {
     cb.type = "checkbox"; cb.checked = true; cb.dataset.i = i;
     cb.addEventListener("change", updateRollCount);
     const t = document.createElement("span");
-    t.className = "rt"; t.textContent = shownName(it.n.name) || "(empty)";
+    t.className = "rt"; t.textContent = dropMeta(shownName(it.n.name)) || "(empty)"; metaBadges(t, prioOf(it.n), estOf(it.n), it.n.completedAt);
     const d = document.createElement("span");
     d.className = "rd"; d.textContent = dayLabel(it.k);
     row.append(cb, t, d);
@@ -6403,7 +7090,7 @@ function planRow(n, k, label) {
   const row = document.createElement("div");
   row.className = "brow";
   const t = document.createElement("span");
-  t.className = "bt"; t.textContent = shownName(n.name) || "(empty)";
+  t.className = "bt"; t.textContent = dropMeta(shownName(n.name)) || "(empty)"; metaBadges(t, prioOf(n), estOf(n), n.completedAt);
   const d = document.createElement("span");
   d.className = "bd"; d.textContent = ISO_DAY.test(k) ? dayLabel(k) : "";
   const b = document.createElement("button");

@@ -4,7 +4,20 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.3.9**
+**Version 1.4.0**
+
+### What's new in 1.4.0
+
+Replace `server.js`, `index.html` and `mobile.html`, then **restart the server** (the phone page's Notes location, the quick blocks list and the day template are shared through it). Full details are in `CHANGELOG.md`.
+
+- **Time blocking (desktop).** Put a start time in a task with `^9am`, `^9:30am` or `^14:00`, and its length comes from its `~` estimate (30m if it has none). A blue badge on the card shows the time and length ("3 PM · 1h"), a green **▶ NOW** shows while the clock is inside it, and a yellow **⚠** warns when two blocks overlap. On each day, blocked tasks list first, by time. The **🕐** button on today's column opens the time blocking panel. See "Time blocking" below.
+- **Time block any day.** The panel has ‹ › arrows, a date box and a **Today** button, so you can plan Monday on Friday afternoon. For a single task, right-click it and choose **Time block…** to set a start and a length.
+- **Quick blocks.** Drag **Meeting**, **Lunch** or **Appointment** (or ones you add yourself) onto the timeline. It asks how long, then adds the task on that day.
+- **Edit a block in the panel.** Click it to change its start to the minute, its length and its description (the task's WorkFlowy note). Drag its bottom edge to change the length. A block fills its whole length on the timeline, and a task's first note line shows under its title.
+- **Markers stay out of the way on cards.** With **Edit cards in place** on, `!p1`, `~60m` and `^15:00` are hidden while you aren't editing, and show as badges instead. Click into a card and the full text comes back; leave it and they hide again. Nothing is saved from a card you only looked at.
+- **Notes on the phone page.** Paste a WorkFlowy node link in **⋯ > Settings > Notes location**, and a **📝 Notes** button appears under Past due / Upcoming / Inbox. Each note is a child of that node, with a full-screen editor that saves as you type, a title you can rename, and **Delete** in its ⋯ menu. Encrypted notes open read-only. The location is shared with your other devices when **Share settings across my devices** is on. See "Using it on a phone or tablet".
+- **Week arrows moved to the header.** The ← This week → row is gone from the sidebar. The arrows now sit on either side of the date range at the top of the page, and clicking the range goes back to the current week.
+- **Quieter fixes.** The version label in the lower right of the board now follows the page's version (it still said 1.3.9). Saved filters keep working when WorkFlowy refuses the calendar lookup, and only `due:` filters report it. Changing a priority or estimate works when the marker is in bold or after a non-breaking space. The three reports open at one size.
 
 ### What's new in 1.3.9
 
@@ -340,9 +353,9 @@ All settings are environment variables, set the same way as the key above.
 **Columns and days**
 - Choose **3**, **5**, or **7** days with **Days shown** in Settings → Week board. The default is 5 (Monday to Friday). 7 is Monday to Sunday. 3 is today plus the next two days.
 - The day columns share the board's width evenly, so 5 days fit without sideways scrolling on a normal window (about 1100px wide or more with the sidebar open). Columns never get narrower than about 140px; below that the board scrolls sideways. Hiding the sidebar gives them more room.
-- The arrows and "This week" are in one evenly spaced row at the top of the sidebar (so hiding the sidebar hides them too). Use the arrows to move between weeks (or 3-day blocks), and "This week" to jump back to the current one.
+- The arrows sit on either side of the date range in the header (1.4.0), so they stay put when you hide the sidebar. Use them to move between weeks (or 3-day blocks), and click the date range to jump back to the current week.
 - The ↻ button in the header (after **Settings**, before the sidebar button) reloads everything from WorkFlowy.
-- **Hide / show the sidebar:** the button at the right end of the header (or **Ctrl+\**, also **Cmd+\** on a Mac, even while typing in a box) hides the whole right-hand sidebar so the board or Plan day gets the full width. It's remembered in this browser. The ↻ and the Past due / Upcoming counts stay visible; the week arrows are inside the sidebar, so they hide with it.
+- **Hide / show the sidebar:** the button at the right end of the header (or **Ctrl+\**, also **Cmd+\** on a Mac, even while typing in a box) hides the whole right-hand sidebar so the board or Plan day gets the full width. It's remembered in this browser. The ↻, the week arrows and the Past due / Upcoming counts stay visible.
 
 **Tasks**
 - Type in a column's **+ Add task** box and press Enter. New tasks go to the bottom of that day.
@@ -447,8 +460,8 @@ Like reminder times, priorities and estimates are short markers in the task's ow
 | `!p4` | Low | Grey, **P4** |
 
 - **Set one** by typing the marker anywhere in the task (`Call the bank !p1`), or by right-clicking a card and clicking **P1**–**P4** in the **Priority** row. Click the highlighted one again, or **✕**, to remove it. The toast has Undo.
-- **On the card:** a priority shows as a coloured left edge. When you type on cards (**Edit cards in place**, the default) the marker stays visible in the text. With that setting off, the marker is hidden and a **P1**–**P4** badge shows instead.
-- **Elsewhere (1.3.9):** Panes, the Daily page and the item window show the same edge and badges. In typing mode the markers stay in the text, as on cards. A Panes card with a card colour keeps its colour stripe; its priority shows as the badge. The phone page shows the edge and badges on every task, and has its own **Sort by priority** in ⋯ > Settings (shared with your other devices when settings sharing is on).
+- **On the card:** a priority shows as a coloured left edge and a **P1**–**P4** badge. The marker (`!p1`) is hidden while you aren't editing, and it comes back when you click into the card (1.4.0). In 1.3.9 and earlier it stayed visible on cards you type in.
+- **Elsewhere (1.3.9):** Panes, the Daily page and the item window show the same edge and badges. While you type in a line the markers stay in the text. A Panes card with a card colour keeps its colour stripe; its priority shows as the badge. The phone page shows the edge and badges on every task, and has its own **Sort by priority** in ⋯ > Settings (shared with your other devices when settings sharing is on).
 - **Order:** with **Sort by priority** on (Settings > Week board, on by default), each day lists urgent first and low last. Tasks without markers keep their outline order, so nothing moves until you use them.
 
 **Time estimates**
@@ -493,6 +506,20 @@ Combine them freely, for example `p:1-2 due:week #work` or `due:week est:none`.
 - A filter can hold up to 50 words, and up to 500 results are listed (the count and total time cover them all).
 - A task's date is a WorkFlowy date inside it (the first one, with or without a time) if it has one; otherwise it is the calendar day it sits on (1.3.9).
 - To know which day a task sits on, the server asks WorkFlowy once for each month it needs and remembers the answer. It then reads each day page's date from WorkFlowy's own date tag in its name. If a month's day names can't be read, it asks about each day instead, which is slower the first time.
+
+### Time blocking
+
+Plan a day by the hour. Like priorities, the start time is a short marker in the task's own text, so it travels with the task in WorkFlowy and nothing extra is stored.
+
+- **Set a time:** type `^9am`, `^9:30am`, `^2pm` or `^14:00` in a task, right-click the card and choose **Time block…** (a start time and a length, with **Remove**), or drag the task onto the timeline. The length is the task's `~` estimate; with none, it is 30 minutes.
+- **On the cards:** every day shows a blue badge with the time and length ("3 PM · 1h"), the badge is a green **▶ NOW** on today while the clock is inside the block, and a yellow **⚠** warns when two blocks overlap. Blocked tasks list first on each day, in time order, then the rest in their usual order. The badge sits in the card's lower right.
+- **The panel:** the **🕐** button on today's column opens it. The top lists the day's **Unscheduled** tasks. Below is a timeline in half-hour steps (8 AM to 6 PM, stretching for tasks outside those hours). Drag an unscheduled task onto a time; if it has no estimate it asks how long (Cancel schedules nothing). Drag a placed block to move it, press its **✕** to take it off the schedule, and drag its bottom edge to change its length in 15-minute steps.
+- **Any day:** the ‹ › arrows, the date box and **Today** at the top of the panel change the day. Dropped tasks, quick blocks and edits all apply to the day shown.
+- **Edit a block:** click it for a small editor with the start, the length and a **Description**, which is the task's WorkFlowy note. **Save**, **Unschedule** or **Cancel**; Undo works. Saving only the description leaves the time alone.
+- **Quick blocks:** **Meeting** (30m), **Lunch** (1h) and **Appointment** (1h) sit above the timeline. Drag one onto a time and it asks how long, then adds a task such as `Lunch ^12:00 ~45m` on that day. **+ New** adds your own (a name and a usual length), and **✕** on a chip removes it. The list is kept in the browser, and is shared when **Share these settings between browsers** is on.
+- **Day template:** under the quick blocks, **Fill Nov 9–15** (the dates follow the day the panel shows; past days are left out) adds each weekday's standard blocks. It first says how many it will add and asks to confirm. Blocks already on a day with the same start and name are skipped, so filling twice is safe. **Edit template…** opens one editor with a tab per weekday (time, length, name, **Copy to Mon–Fri**; the number in brackets is that weekday's block count). Template blocks carry a hidden `!blk` tag and are marked done once their time has passed. The template is kept in the browser and is shared when **Share these settings between browsers** is on (restart the server).
+- **Done blocks:** a checked-off block stays on the timeline, greyed with a ✓ (it can't be moved), and drops out of the day's open total.
+- **Not covered yet:** blocks don't send reminders (use `@2:30pm` for that), and the right-click **Time block…** is on the week board's cards only, not in Panes.
 
 ### Repeating tasks
 
@@ -592,6 +619,12 @@ The board is a web page, so a phone only needs to reach the server in its browse
 - **Home Wi-Fi without Tailscale:** the plain `local` mode only answers on this computer, so another device on your Wi-Fi can't use it. Use the Tailscale option above.
 
 Phones open the phone page (`/m`); tablets 820px wide or narrower do too, while wider tablets (landscape) get the desktop board. Use **⋯ > Open the desktop page** on the phone page to switch.
+
+**On the phone page (1.4.0): Notes**
+
+- **Set it up:** open **⋯ > Settings > Notes location** and paste a WorkFlowy node link (or its id). Notes live as children of that node. **Remove** clears it. With **Share settings across my devices** on, your other devices get the same location.
+- **Use it:** the **📝 Notes** button appears under Past due / Upcoming / Inbox. **＋ New note** starts a note titled "Notes · Thu, Nov 5". Tap the title to rename it, and type in the note below; it saves a second after you stop, and again when you leave the page. **Done** closes it, and an untouched new note is discarded. **⋯ > Delete note** asks first and can't be undone.
+- **Good to know:** the title is plain text (bold or links in an old title are dropped when you rename), and an encrypted note opens read-only so it can never be overwritten with plain text. This is separate from the day's **All-day notes** below.
 
 **On the phone page (1.3.7):**
 

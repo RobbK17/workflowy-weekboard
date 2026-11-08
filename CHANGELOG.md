@@ -1,5 +1,85 @@
 # Changelog
 
+## 1.4.0 (2026-11-05)
+
+Two major features: Mobile Notes on the phone page, and Time Blocking on the desktop board.
+
+### Upgrading
+
+1. Replace `server.js`, `index.html`, `mobile.html`, `README.md` and `CHANGELOG.md`.
+2. **Restart the server.** The phone page now supports a Notes location setting.
+
+### Mobile Notes (phone page)
+
+Quick notes that sync with WorkFlowy, accessible from the phone page.
+
+- **📝 Notes button** in the extras row (below Past due / Upcoming / Inbox), shown only after you configure a Notes location.
+- **Notes location** (Settings): paste a WorkFlowy node link. Notes are stored as children of that node.
+- **New note button** creates a note with the default title "Notes · Thu, Nov 5" (short date format, no year).
+- **Full-screen editor** with auto-save (1-second debounce). Shows "Saving…" and "Saved ✓" status.
+- **Delete via ⋯ menu** with confirmation prompt.
+- **Empty notes discarded** if you tap Done without typing anything.
+- **Encrypted notes** display as read-only (unlock with the passphrase to view).
+- **Settings sync**: the Notes location is shared with your other devices when "Share settings across my devices" is on.
+
+### Time Blocking (desktop board)
+
+Schedule tasks to specific times on today's column.
+
+- **Marker syntax**: Add `^9am`, `^9:30am`, or `^14:00` to a task's text to schedule it.
+- **Blue pill badge** in the upper right of scheduled tasks showing "9 AM · 1h" (time + duration from estimate).
+- **Green "▶ NOW" badge** when the current time falls within the task's scheduled window.
+- **Yellow warning badge** for time conflicts (overlapping tasks).
+- **Sorting**: Time-blocked tasks appear first (sorted by time), then unscheduled tasks below (sorted by priority).
+- **🕐 button** on today's column header opens the time blocking panel.
+- **Timeline panel**: A slide-out panel on the right showing:
+  - Unscheduled tasks pool at the top (drag to schedule)
+  - 30-minute increment timeline below (8 AM – 6 PM default working hours)
+  - Drag a task from the pool to a time slot to schedule it
+  - If the task has no estimate, you're prompted for a duration (default 30m)
+- **Close** via ✕ button, click outside, or Escape key.
+
+### Fixes after review
+
+- **Notes button on the phone page no longer fails with "data is not iterable".** The note list was read as a plain list; WorkFlowy returns it inside `nodes`. The list is also rebuilt each time it loads, so a note deleted elsewhere drops off.
+- **The ⋯ menu in the note editor works.** The editor covered the menu, so Delete note could not be tapped. The editor now sits under the menu.
+- **Encrypted notes are recognised and stay read-only.** They were looked for as `[encrypted:` text, but the add-on writes `wbenc1.…`, so an encrypted note could be opened as plain text and overwritten when edited. They now open read-only, decrypted when the passphrase is unlocked.
+- **Notes save once, in order.** A slow first save could be followed by a second "create" and make a duplicate note, and leaving the editor during a save could lose the note from the list. Saves now run one after another.
+- **Notes save when you leave the page,** not only a second after you stop typing, and opening and closing a note without typing writes nothing.
+- **Time-block badge moved to the lower right of the card,** so the hover buttons (Move and ✕) no longer cover it. Cards with a badge get a little extra room at the bottom.
+- **Time blocking panel, tidied up.**
+  - Cancel on the duration prompt now stops, so nothing is scheduled by accident. An invalid answer asks again, and an empty one schedules with no estimate.
+  - Tasks at times like `^9:15am` or before or after working hours (`^7am`) now show in the panel; the grid stretches to include them.
+  - Drag a scheduled task to another time to move it (the old `^` time is replaced, not repeated), or press its ✕ to take it off the schedule.
+  - The ▶ NOW badge follows the clock every 30 seconds without redrawing the board.
+- **Note titles are editable.** Tap the title at the top of the note editor to rename it. It saves with the note (a second after you stop typing, or when you tap Done). The new-note default "Notes · Thu, Nov 5" can be changed before you start. Titles of encrypted notes stay read-only. A title is plain text, so any bold or links in the old title are dropped when you rename.
+- **Time blocking works on any day.**
+  - The 🕐 panel has a day switcher: ‹ › arrows, a date box and a **Today** button. Open it from today's 🕐 and step to any other day to see that day's schedule and unscheduled tasks, and to drag tasks onto it.
+  - Right-click any card and choose **Time block…** to pick a start time and a length (Start, Length, Save, and Remove when it already has a time). Undo works.
+  - Time badges, the ⚠ conflict check and time-first sorting now apply on every day. ▶ NOW still shows only on today.
+- **Markers are hidden on cards you type in, until you click in.** With **Edit cards in place** on, `!p1`, `~60m` and `^15:00` no longer show in the card's text. Their badges (P1, ⏱ 1h, 3 PM · 1h) show instead, on a line under the text for priority and estimate. Click into the card and the whole text, markers included, comes back for editing, and the badges step aside; leave it and they return. Leaving without a change saves nothing, and an edit keeps the markers unless you delete them. This also applies to tasks inside group cards.
+- **A long time block fills its time in the panel.** A task of 1h from 3 PM now fills 3:00 to 4:00 as one block (and a 2h task fills two hours), instead of showing only in its first half hour. Blocks are drawn in half-hour steps, so a task that ends mid-slot fills that last slot.
+- **Day template for time blocking.** A **Day template** row in the panel has two buttons. **Fill Nov 9–15** (the dates follow the day the panel is showing; days already past are left out) counts what is missing, asks "Add N blocks across N days?", then adds the blocks, skipping any with the same start and name already on that day. **Edit template…** opens one editor with a tab per weekday (time, length, name, **Copy to Mon–Fri**; the number in brackets is how many blocks that weekday has). Blocks added from a template are tagged `!blk` (hidden like the other markers) and are marked done by themselves once their end time has passed; the tag is then removed, so un-ticking one keeps it open. Blocks you make by hand are never auto-completed. The template is kept in the browser and shared when **Share these settings between browsers** is on (`tbTemplate` is on the shared-settings list in `server.js` and `index.html`). **Restart the server** for the sharing.
+- **Done blocks stay on the timeline.** A checked-off time block remains in the time blocking panel, greyed with a ✓, so the day shows what happened. It can't be dragged or resized, and it still leaves the day's open total.
+- **Quick blocks in the time blocking panel.** A new **Quick blocks** strip holds standard items: **Meeting** (30m), **Lunch** (1h) and **Appointment** (1h). Drag one onto the timeline and it asks how long (the usual length is filled in; Cancel adds nothing; an empty answer takes the usual length), then adds a task such as `Lunch ^12:00 ~45m` on the day the panel is showing. **+ New** adds your own (a name and a usual length), and ✕ on a chip removes it. The list is kept in the browser and shared with your other browsers when **Share these settings between browsers** is on (`tbPresets` is on the shared-settings list in `server.js` and `index.html`). **Restart the server** for the sharing.
+- **Edit a time block from the panel.**
+  - **Click a block** to open a small editor at the bottom of the panel: the start time (to the minute), the length (15-minute steps) and the **description**, which is the task's WorkFlowy note. **Save**, **Unschedule** and **Cancel**; Undo works. Saving a description alone leaves the time as it was; an encrypted note shows as read-only. Esc closes the editor first, then the panel.
+  - **Drag a block's bottom edge** to change its length in 15-minute steps. A tip shows the new length and end time while you drag.
+  - **The first line of a task's note shows under its title** on the block.
+- **Week arrows moved to the header.** The ← This week → buttons are gone from the sidebar. The arrows now sit on either side of the date range at the top of the page, and clicking the date range (now a link) goes back to the current week.
+- **The label in the desktop page's lower right** read "v1.3.9". It now follows the page's version, so it can't go stale.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | `cleanMobileSettings` now validates `notesLoc` for notes location; version 1.4.0 |
+| `index.html` | Time blocking: marker parsing, badges, conflict detection, sorting, timeline panel; version 1.4.0 |
+| `mobile.html` | Mobile Notes: notes location setting, notes button, notes list, full-screen editor with auto-save; version 1.4.0 |
+| `README.md`, `CHANGELOG.md` | Updated |
+
+---
+
 ## 1.3.9 (2026-11-06)
 
 Priorities and estimates everywhere you see tasks, dates inside tasks in saved filters, tidier card buttons and popups, a dated today button on the phone, accessibility labels throughout, and the app icons.

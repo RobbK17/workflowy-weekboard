@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.3.9">
+<meta name="version" content="1.4.0">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <meta name="theme-color" content="#2f6fed">
@@ -148,6 +148,27 @@
   #sheet .row button.go { background: var(--accent); border-color: var(--accent); color: #fff; }
   #sheet input[type=date], #sheet input[type=time] { width: 100%; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); margin-top: 8px; }
   #toast { display: none; align-items: center; gap: 12px; position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #172b4d; color: #fff; padding: 9px 14px; border-radius: 999px; font-size: 14px; z-index: 30; display: none; max-width: 90vw; }
+  /* Notes editor (full-screen) */
+  #noteEditor { position: fixed; inset: 0; z-index: 19;     /* under the menu sheet (21) and its shade (20), so the ⋯ menu can be used */ background: var(--bg); display: none; flex-direction: column; }
+  #noteEditor.open { display: flex; }
+  #noteEditor header { flex: none; padding: calc(10px + env(safe-area-inset-top)) 14px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); background: var(--card); }
+  #noteEditor header .ntitle { flex: 1; min-width: 0; font: inherit; font-size: 16px; font-weight: 700; color: var(--text); background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; text-overflow: ellipsis; }
+  #noteEditor header .ntitle:focus { outline: none; border-color: var(--accent); background: var(--bg); }
+  #noteEditor header .ntitle:read-only { color: var(--muted); }
+  #noteEditor .nstatus { font-size: 12px; color: var(--muted); }
+  #noteEditor .nstatus.saving { color: var(--accent); }
+  #noteEditor .nedit { flex: 1; min-height: 0; padding: 14px; font: inherit; font-size: 16px; line-height: 1.5; border: none; background: var(--bg); color: var(--text); resize: none; }
+  #noteEditor .nedit:focus { outline: none; }
+  #noteEditor .nedit:read-only { background: var(--col); color: var(--muted); }
+  .nbtn { padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-weight: 600; cursor: pointer; }
+  .nbtn.go { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ncard { display: flex; align-items: flex-start; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; }
+  .ncard .nbody { flex: 1; min-width: 0; }
+  .ncard .nt { font-weight: 600; overflow-wrap: anywhere; }
+  .ncard .np { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ncard .np:empty { display: none; }
+  .ncard.enc { opacity: .7; }
+  .ncard.enc .nt::after { content: " 🔒"; }
 </style>
 </head>
 <body>
@@ -172,6 +193,15 @@
 <div id="shade"></div>
 <div id="sheet" role="dialog" aria-modal="true"></div>
 <div id="toast"></div>
+<div id="noteEditor" role="dialog" aria-modal="true" aria-label="Note editor">
+  <header>
+    <button class="nbtn" id="noteBack" aria-label="Done">Done</button>
+    <input id="noteTitle" class="ntitle" type="text" maxlength="200" autocomplete="off" autocapitalize="sentences" aria-label="Note title" placeholder="Title">
+    <span class="nstatus" id="noteStatus"></span>
+    <button class="nbtn" id="noteMenu" aria-label="Note menu">⋯</button>
+  </header>
+  <textarea class="nedit" id="noteText" placeholder="Start writing…" aria-label="Note content"></textarea>
+</div>
 
 <script>
 "use strict";
@@ -213,6 +243,9 @@ let view = "day";                       // day | late | soon | inbox
 let zoom = [];                          // opened bullets, outermost first: { id, name, up, day, from }; empty = the normal board
 const zkids = {};                      // opened item id -> its children, any type
 let inbox = null; try { const v = JSON.parse(store.get("m.inbox", "null")); if (v && v.id) inbox = { id: String(v.id), name: String(v.name || "Inbox") }; } catch (e) { /* none */ }
+let notesLoc = null; try { const v = JSON.parse(store.get("m.notesLoc", "null")); if (v && v.id) notesLoc = { id: String(v.id), name: String(v.name || "Notes") }; } catch (e) { /* none */ }
+const notesCache = {};                 // note id -> { id, name, note, enc }
+let notesLoaded = false;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 let extrasReady = false, extrasAt = 0;
 const LATE_DAYS = 14, SOON_DAYS = 14;
@@ -221,9 +254,9 @@ const undoStack = [];
 /* ---------- sharing settings between devices (optional, per device, off by default) ---------- */
 let sync = store.get("m.sync", "0") === "1";
 let applying = false, pushTimer = 0, syncAt = store.get("m.syncAt", "");
-const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.prioSort", "m.inbox"]);
-let inboxGone = false;                 // true only after "Remove" on this device, so a device without an Inbox never wipes the shared one
-const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone, prioSort }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; return o; };
+const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.prioSort", "m.inbox", "m.notesLoc"]);
+let inboxGone = false, notesLocGone = false;  // true only after "Remove" on this device, so a device without it never wipes the shared one
+const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone, prioSort }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; if (notesLoc) o.notesLoc = notesLoc; else if (notesLocGone) o.notesLoc = null; return o; };
 { const rawSet = store.set; store.set = (k, v) => { rawSet(k, v); if (sync && !applying && SHARED_KEYS.has(k)) pushShared(); }; }
 function pushShared(now) {
   clearTimeout(pushTimer);
@@ -248,7 +281,9 @@ function applyShared(s) {
     }
     if (s.inbox === null) { inbox = null; store.set("m.inbox", "null"); }
     else if (s.inbox && s.inbox.id) { inbox = { id: String(s.inbox.id), name: String(s.inbox.name || "Inbox") }; store.set("m.inbox", JSON.stringify(inbox)); }
-    if ((view === "late" && !showLate) || (view === "soon" && !showSoon) || (view === "inbox" && !inbox)) view = "day";
+    if (s.notesLoc === null) { notesLoc = null; store.set("m.notesLoc", "null"); }
+    else if (s.notesLoc && s.notesLoc.id) { notesLoc = { id: String(s.notesLoc.id), name: String(s.notesLoc.name || "Notes") }; store.set("m.notesLoc", JSON.stringify(notesLoc)); }
+    if ((view === "late" && !showLate) || (view === "soon" && !showSoon) || (view === "inbox" && !inbox) || (view === "notes" && !notesLoc)) view = "day";
     $("showDone").checked = showDone;
   } finally { applying = false; }
 }
@@ -708,6 +743,7 @@ function drawView() {
   const list = $("list"), keep = list.scrollTop; list.textContent = "";
   if (zoom.length) { drawZoom(list); return; }
   if (view === "inbox") { $("dayname").textContent = inbox.name; drawInboxList(list); return; }
+  if (view === "notes") { $("dayname").textContent = "Notes"; drawNotesList(list); return; }
   if (view !== "day") { $("dayname").textContent = view === "late" ? "Past due" : "Upcoming"; drawExtraList(list); return; }
   $("dayname").textContent = keyToDate(sel).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) + (sel === tk ? " · Today" : "");
   $("showDone").checked = showDone;
@@ -739,7 +775,8 @@ function drawExtras() {
   if (view === "late" && !showLate) view = "day";
   if (view === "soon" && !showSoon) view = "day";
   if (view === "inbox" && !inbox) view = "day";
-  box.style.display = showLate || showSoon || inbox ? "" : "none";
+  if (view === "notes" && !notesLoc) view = "day";
+  box.style.display = showLate || showSoon || inbox || notesLoc ? "" : "none";
   if (showLate) mk("late", "Past due", openIn(lateKeys()));
   if (showSoon) mk("soon", "Upcoming", openIn(soonKeys()));
   if (inbox) {
@@ -747,6 +784,12 @@ function drawExtras() {
     const c = document.createElement("b"); c.textContent = inbox.id in allOf ? String(inboxCount()) : "…";
     b.append("📥 " + (inbox.name.length > 12 ? inbox.name.slice(0, 11) + "… " : inbox.name + " "), c);
     b.onclick = () => { view = view === "inbox" ? "day" : "inbox"; draw(); if (view === "inbox") loadInbox().then(draw).catch((e) => err(e.message)); };
+    box.appendChild(b);
+  }
+  if (notesLoc) {
+    const b = document.createElement("button"); b.type = "button"; b.className = view === "notes" ? "on" : "";
+    b.textContent = "📝 Notes";
+    b.onclick = () => { view = view === "notes" ? "day" : "notes"; draw(); if (view === "notes") loadNotes().catch((e) => err(e.message)); };
     box.appendChild(b);
   }
 }
@@ -797,6 +840,169 @@ function drawExtraList(list) {
     for (const x of here) list.appendChild(cardEl(x.n, x.b));
   }
 }
+
+/* ---------- Notes ---------- */
+async function loadNotes() {
+  if (!notesLoc) return;
+  const data = await call("GET", `/nodes?parent_id=${notesLoc.id}`);
+  if (data === null) return;
+  const fresh = {};                                         // rebuilt each time, so a note deleted elsewhere drops off the list
+  for (const n of (data && data.nodes) || []) {
+    const enc = /wbenc1\.[A-Za-z0-9_-]{20,}/.test(n.note || "");       // text from the Encryption add-on
+    fresh[n.id] = { id: n.id, name: n.name || "", note: n.note || "", enc, priority: n.priority };
+  }
+  for (const k of Object.keys(notesCache)) delete notesCache[k];
+  Object.assign(notesCache, fresh);
+  notesLoaded = true;
+  draw();
+}
+function defaultNoteTitle() {
+  const d = new Date();
+  return "Notes · " + d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+function drawNotesList(list) {
+  if (!notesLoaded) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
+  // New note button
+  const newBtn = document.createElement("button"); newBtn.type = "button"; newBtn.className = "bulk"; newBtn.textContent = "＋ New note";
+  newBtn.onclick = () => openNoteEditor(null);
+  list.appendChild(newBtn);
+  // Notes list sorted by priority (most recent first)
+  const notes = Object.values(notesCache).sort((a, b) => (a.priority || 0) - (b.priority || 0));
+  if (!notes.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "No notes yet"; list.appendChild(m); return; }
+  for (const n of notes) {
+    const card = document.createElement("div"); card.className = "ncard" + (n.enc ? " enc" : "");
+    const body = document.createElement("div"); body.className = "nbody";
+    const title = document.createElement("div"); title.className = "nt"; title.textContent = shown(n.name) || "(untitled)";
+    const preview = document.createElement("div"); preview.className = "np";
+    preview.textContent = n.enc ? "(encrypted)" : shown(n.note).slice(0, 200);
+    body.append(title, preview); card.appendChild(body);
+    card.onclick = () => openNoteEditor(n);
+    list.appendChild(card);
+  }
+}
+let currentNote = null;       // { id, name, note, enc, isNew }
+let noteSaveTimer = null;
+let noteTitleEdited = false;     // the title box was changed since the last save
+const noteNameFromInput = () => $("noteTitle").value.replace(/\s+/g, " ").trim().slice(0, 200).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");   // names are stored as HTML text
+let noteDirty = false;          // typed since the last save, so opening and closing a note never rewrites it
+let noteUntouched = false;    // true if new note hasn't been edited yet
+async function openNoteEditor(note) {
+  const ed = $("noteEditor"), title = $("noteTitle"), text = $("noteText"), status = $("noteStatus");
+  if (note) {
+    currentNote = { ...note, isNew: false };
+    title.value = shown(note.name) || ""; title.readOnly = !!note.enc || TOKEN.test(note.name || ""); TOKEN.lastIndex = 0;
+    if (note.enc) {
+      if (pass) {
+        try {
+          const plain = await decryptToken((note.note.match(/wbenc1\.[A-Za-z0-9_-]{20,}/) || [note.note])[0], pass);
+          text.value = plain; text.readOnly = true;                    // read-only: saving would put the plain text over the encrypted note
+        } catch (e) { text.value = "(Couldn't decrypt)"; text.readOnly = true; }
+      } else { text.value = "(Encrypted - unlock first)"; text.readOnly = true; }
+    } else {
+      text.value = note.note; text.readOnly = false;
+    }
+    noteUntouched = false;
+  } else {
+    // New note
+    const newTitle = defaultNoteTitle();
+    currentNote = { id: null, name: newTitle, note: "", enc: false, isNew: true };
+    title.value = newTitle; title.readOnly = false;
+    text.value = ""; text.readOnly = false;
+    noteUntouched = true;
+  }
+  noteDirty = false; noteTitleEdited = false;
+  status.textContent = ""; status.classList.remove("saving");
+  ed.classList.add("open");
+  text.focus();
+}
+function closeNoteEditor() {
+  if (noteSaveTimer) { clearTimeout(noteSaveTimer); noteSaveTimer = null; }
+  $("noteEditor").classList.remove("open");
+  currentNote = null;
+  draw();
+}
+let noteSaveChain = Promise.resolve();            // saves run one after another, so a slow first save can't be followed by a second "create"
+function saveNote() { noteSaveChain = noteSaveChain.then(doSaveNote, doSaveNote); return noteSaveChain; }
+async function doSaveNote() {
+  const cur = currentNote;
+  if (!cur || $("noteText").readOnly) return;
+  const text = $("noteText").value, status = $("noteStatus");
+  // If new and untouched, don't create yet
+  if (cur.isNew && noteUntouched) return;
+  if (!noteDirty) return;
+  noteDirty = false;
+  status.textContent = "Saving…"; status.classList.add("saving");
+  try {
+    if (cur.isNew) {
+      // Create new note
+      const nm = noteNameFromInput() || cur.name; cur.name = nm;
+      const res = await call("POST", "/nodes", { parent_id: notesLoc.id, name: nm, note: text, position: "top" });
+      const id = res && (res.item_id || res.id || (res.node && res.node.id));
+      cur.id = id; cur.isNew = false;
+      notesCache[id] = { id, name: cur.name, note: text, enc: false, priority: -1e9 };
+    } else {
+      // Update existing note
+      const body = { note: text };
+      if (noteTitleEdited) { const nm = noteNameFromInput(); if (nm) { body.name = nm; cur.name = nm; } }
+      await call("POST", `/nodes/${cur.id}`, body);
+      if (notesCache[cur.id]) { notesCache[cur.id].note = text; if (body.name) notesCache[cur.id].name = body.name; }
+    }
+    noteTitleEdited = false;
+    status.textContent = "Saved ✓"; status.classList.remove("saving");
+  } catch (e) {
+    noteDirty = true;
+    status.textContent = "Error: " + e.message; status.classList.remove("saving");
+  }
+}
+document.addEventListener("visibilitychange", () => {      // leaving the page (app switch, tab closed) saves what was typed in the last second
+  if (document.visibilityState === "hidden" && noteSaveTimer) { clearTimeout(noteSaveTimer); noteSaveTimer = null; saveNote(); }
+});
+$("noteTitle").addEventListener("input", () => {
+  noteUntouched = false; noteDirty = true; noteTitleEdited = true;
+  if (noteSaveTimer) clearTimeout(noteSaveTimer);
+  noteSaveTimer = setTimeout(saveNote, 1000);
+});
+$("noteTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("noteText").focus(); } });
+$("noteText").addEventListener("input", () => {
+  noteUntouched = false; noteDirty = true;
+  if (noteSaveTimer) clearTimeout(noteSaveTimer);
+  noteSaveTimer = setTimeout(saveNote, 1000);
+});
+$("noteBack").onclick = async () => {
+  if (currentNote && currentNote.isNew && noteUntouched) {
+    // Discard untouched new note
+    closeNoteEditor();
+    return;
+  }
+  if (noteSaveTimer) { clearTimeout(noteSaveTimer); noteSaveTimer = null; }
+  await saveNote();                                         // also waits for a save already under way
+  closeNoteEditor();
+};
+$("noteMenu").onclick = () => {
+  if (!currentNote) return;
+  openSheet((s) => {
+    head(s, shown(currentNote.name) || "(untitled)", "Note options");
+    sbtn(s, "🗑 Delete note", () => {
+      openSheet((s2) => {
+        head(s2, "Delete note?", "This can't be undone.");
+        sbtn(s2, "Delete", async () => {
+          closeSheet();
+          if (currentNote.id) {
+            try {
+              await call("DELETE", `/nodes/${currentNote.id}`);
+              delete notesCache[currentNote.id];
+              toast("Note deleted");
+            } catch (e) { err(e.message); }
+          }
+          closeNoteEditor();
+        }, "danger");
+        sbtn(s2, "Cancel", closeSheet, "cancel");
+      });
+    }, "danger");
+    sbtn(s, "Close", closeSheet, "cancel");
+  });
+};
+
 function openBulk(items) {
   openSheet((s) => {
     head(s, `Move ${items.length} task${items.length === 1 ? "" : "s"} to today?`, "Everything shown under Past due goes to the end of today's list.");
@@ -1449,6 +1655,41 @@ function openSettings() {
       ir.append(li, ab);
     }
     ir.appendChild(msg); s.appendChild(ir);
+    // Notes location: a WorkFlowy node to store notes under
+    const nr = document.createElement("div"); nr.className = "srow"; nr.style.flexWrap = "wrap";
+    const nt = document.createElement("span"); nt.innerHTML = "Notes location<small></small>"; nr.appendChild(nt);
+    const nmsg = document.createElement("div"); nmsg.className = "sub"; nmsg.style.flexBasis = "100%"; nmsg.style.margin = "0";
+    if (notesLoc) {
+      nt.querySelector("small").textContent = notesLoc.name;
+      nmsg.textContent = "Id: " + notesLoc.id.slice(-12) + " (notes are stored as children of this node)";
+      const ncp = document.createElement("button"); ncp.type = "button"; ncp.textContent = "Copy id"; ncp.className = "sbtn"; ncp.style.cssText = "width:auto;border:1px solid var(--border);border-radius:8px;padding:8px 12px;";
+      ncp.onclick = async () => { try { await navigator.clipboard.writeText(notesLoc.id); toast("Full id copied"); } catch (e) { nmsg.textContent = "Full id: " + notesLoc.id; } };
+      nr.appendChild(ncp);
+      const nrm = document.createElement("button"); nrm.type = "button"; nrm.textContent = "Remove"; nrm.className = "sbtn danger"; nrm.style.cssText = "width:auto;border:1px solid var(--border);border-radius:8px;padding:8px 12px;";
+      nrm.onclick = () => { notesLoc = null; notesLocGone = true; store.set("m.notesLoc", "null"); if (view === "notes") view = "day"; closeSheet(); draw(); toast("Notes location removed"); };
+      nr.appendChild(nrm);
+    } else {
+      nt.querySelector("small").textContent = "Paste a node's link from WorkFlowy";
+      const nli = document.createElement("input"); nli.type = "text"; nli.placeholder = "Paste a WorkFlowy node link here"; nli.style.cssText = "flex-basis:100%;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);";
+      nli.setAttribute("autocapitalize", "off"); nli.setAttribute("autocorrect", "off");
+      const nab = document.createElement("button"); nab.type = "button"; nab.textContent = "Set location"; nab.className = "sbtn"; nab.style.cssText = "flex-basis:100%;text-align:center;color:var(--accent);font-weight:600;";
+      nab.onclick = async () => {
+        const id0 = parseNodeLink(nli.value);
+        if (!id0) { nmsg.textContent = "Paste the node's link (it ends in 12 letters and numbers) or its id."; return; }
+        nab.disabled = true; nmsg.textContent = id0.length === 12 ? "Looking the node up…" : "Checking…";
+        try {
+          let id = id0, found = "";
+          if (id0.length === 12) { const r = await getJson("/resolve?short=" + id0); id = r.id; found = r.name || ""; }
+          const data = await call("GET", `/nodes?parent_id=${id}`);
+          if (data === null) throw new Error("WorkFlowy doesn't know that id.");
+          if (!found) { try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = (nd && nd.name) || ""; } catch (e) { /* falls back to Notes */ } }
+          notesLoc = { id, name: shown(found).replace(/\s+/g, " ").trim().slice(0, 30) || "Notes" }; store.set("m.notesLoc", JSON.stringify(notesLoc));
+          closeSheet(); draw(); loadNotes().catch(() => {}); toast("Notes location set");
+        } catch (e) { nmsg.textContent = e.message; nab.disabled = false; }
+      };
+      nr.append(nli, nab);
+    }
+    nr.appendChild(nmsg); s.appendChild(nr);
     row("Week length", "Days across the top", pick([["7", "7 days (Mon–Sun)"], ["7s", "7 days (Sun–Sat)"], ["5", "5 days (Mon–Fri)"]], weekType, (v) => {
       weekType = v; span = v === "5" ? 5 : 7; store.set("m.span", v);
       weekStart = startOf(keyToDate(sel)); draw(); loadWeek();
