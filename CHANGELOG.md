@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.4.1 (2026-11-08)
+
+Time blocking is now plan-then-Save (planned template blocks, Save and Cancel), opens from a right-click, template blocks stay out of the lists, and a new **Features** tab in Settings lets you turn off the features that write into WorkFlowy.
+
+### Upgrading
+
+Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**. The switches are saved by the server in `weekboard-features.json` next to `server.js` (set `FEATURES_STATE` to put the file somewhere else). All four start on, so nothing changes until you turn one off.
+
+### What's new
+
+- **Feature switches (Settings → Features).** Four switches for the features that put things into WorkFlowy:
+  - **Time blocking:** the panel, `^9am` times, quick blocks, the Day template and the automatic ticking of finished template blocks.
+  - **Repeating tasks:** the server stops making copies of `!every` tasks, even with the board closed. `RECURRING=0` on the server still overrides the switch.
+  - **Notes bullets:** creating the notes bullet and new note lines (all-day notes, the Daily page's add box and **Move bullets into notes**, and Notes on the phone page).
+  - **Priority, estimate and reminder items:** the menu items that write `!p1`, `~30m` and `@2:30pm`.
+  A feature that is off stays visible but greyed out, marked "· off in Settings" in menus with a hint on hover. Nothing already in WorkFlowy is changed, existing markers still show, and you can still type a marker yourself. The switches apply to every browser and to the phone page.
+- **Blocks added to a day that doesn't exist yet now show up.** WorkFlowy creates a calendar day when the first thing is written under it, and its list of that new day can lag a moment. **Save** now reads the day again until the new blocks appear, and if the list still lags they show what was just created, so the block is on the timeline and the board straight away.
+- **Template blocks are sorted by time.** In **Edit template…** each weekday lists its blocks earliest first, and a block moves to its place when you change its start time.
+- **The Day template and quick blocks live on the server.** They used to sit in each browser (and travel only with **Share these settings between browsers**), so a second browser or computer showed an empty editor for a week that was already filled. They are now saved by the server in `weekboard-timeblocks.json` next to `server.js` (set `TIMEBLOCKS_STATE` to move it), and every browser reads the same ones. A browser that already has a template sends it up the first time it connects, if the server has none yet.
+- **Start a weekday's template from the day.** In **Edit template…**, a **Use the N blocks on Wed, Oct 28** button copies the time-blocked tasks on the day shown in the panel into the weekday tab you are on (it asks first if that tab already has blocks). The template is separate from the tasks on a day, so an empty editor no longer looks like a mistake: it says so.
+- **Time block… opens the panel.** Right-clicking a card and choosing **Time block…** now opens the full time blocking panel on that card's day (it used to open a small popup for that one task). This is also the way in on weekends, when today's 🕐 isn't on the board.
+- **Template blocks stay out of Past due and Upcoming.** Blocks created from the template (tagged `!blk`) are left out of both lists, so a filled week doesn't flood Upcoming. Any template block still open on a day that has passed is marked done quietly when Past due loads, and loses its tag. Time-blocked tasks you made yourself still show.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | New `/features` switches (saved in `weekboard-features.json`, `FEATURES_STATE`), repeating tasks honour them; new `/timeblocks` store for the Day template, quick blocks, the show-template setting and left-out planned blocks (`weekboard-timeblocks.json`, `TIMEBLOCKS_STATE`); version 1.4.1 |
+| `index.html` | Features tab in Settings, greyed-out items, **Time block…** opens the panel, template blocks left out of Past due and Upcoming; version 1.4.1 |
+| `mobile.html` | Notes button and all-day note button follow the Notes switch; time blocks show as a chip and template blocks stay out of Past due and Upcoming; version 1.4.1 |
+| `README.md`, `CHANGELOG.md` | Updated |
+
+---
+
 ## 1.4.0 (2026-11-05)
 
 Two major features: Mobile Notes on the phone page, and Time Blocking on the desktop board.
@@ -55,11 +89,14 @@ Schedule tasks to specific times on today's column.
 - **Note titles are editable.** Tap the title at the top of the note editor to rename it. It saves with the note (a second after you stop typing, or when you tap Done). The new-note default "Notes · Thu, Nov 5" can be changed before you start. Titles of encrypted notes stay read-only. A title is plain text, so any bold or links in the old title are dropped when you rename.
 - **Time blocking works on any day.**
   - The 🕐 panel has a day switcher: ‹ › arrows, a date box and a **Today** button. Open it from today's 🕐 and step to any other day to see that day's schedule and unscheduled tasks, and to drag tasks onto it.
-  - Right-click any card and choose **Time block…** to pick a start time and a length (Start, Length, Save, and Remove when it already has a time). Undo works.
+  - Right-click any card and choose **Time block…** to open the panel on that card's day.
   - Time badges, the ⚠ conflict check and time-first sorting now apply on every day. ▶ NOW still shows only on today.
 - **Markers are hidden on cards you type in, until you click in.** With **Edit cards in place** on, `!p1`, `~60m` and `^15:00` no longer show in the card's text. Their badges (P1, ⏱ 1h, 3 PM · 1h) show instead, on a line under the text for priority and estimate. Click into the card and the whole text, markers included, comes back for editing, and the badges step aside; leave it and they return. Leaving without a change saves nothing, and an edit keeps the markers unless you delete them. This also applies to tasks inside group cards.
 - **A long time block fills its time in the panel.** A task of 1h from 3 PM now fills 3:00 to 4:00 as one block (and a 2h task fills two hours), instead of showing only in its first half hour. Blocks are drawn in half-hour steps, so a task that ends mid-slot fills that last slot.
-- **Day template for time blocking.** A **Day template** row in the panel has two buttons. **Fill Nov 9–15** (the dates follow the day the panel is showing; days already past are left out) counts what is missing, asks "Add N blocks across N days?", then adds the blocks, skipping any with the same start and name already on that day. **Edit template…** opens one editor with a tab per weekday (time, length, name, **Copy to Mon–Fri**; the number in brackets is how many blocks that weekday has). Blocks added from a template are tagged `!blk` (hidden like the other markers) and are marked done by themselves once their end time has passed; the tag is then removed, so un-ticking one keeps it open. Blocks you make by hand are never auto-completed. The template is kept in the browser and shared when **Share these settings between browsers** is on (`tbTemplate` is on the shared-settings list in `server.js` and `index.html`). **Restart the server** for the sharing.
+- **Time blocks on the phone page.** Cards no longer show `^9am` or `!blk` as text. A time-blocked task shows one chip, such as "🕐 9:00 AM · 30m" (the length is its `~` estimate, 30m if none), and template blocks (`!blk`) are left out of Past due and Upcoming, as on the desktop, and time-blocked tasks sort first, earliest first, then by priority, as on the desktop. The panel itself stays desktop-only.
+- **Time blocking templates can be added automatically (optional, off by default).** **Settings → Features** (the tab used to be called Writing; its wording now says which features write into WorkFlowy, with examples) has, under the Time blocking switch, a schedule for the server to write the Day template into WorkFlowy by itself: choose **Friday** (prepares next week) or **Monday** (prepares the current week), a time, and how many weeks (1 to 4, default 1), greyed out while Time blocking is off. It skips blocks already on a day and ones you left out, tags what it makes `!blk`, never adds a week twice, and catches up when the server starts if it was off. The panel works as before, and this is separate from it.
+- **Time blocking is now plan, then Save.** Open a day and you see its real tasks plus that weekday's template blocks, faded and labelled "Planned:". Drag tasks, resize or edit blocks, drop quick blocks, add a block with **+ New block** (optionally into the template too), or press ✕ to leave a planned block out of that date. Nothing is written to WorkFlowy until you press **Save**, which lists what it will write and asks you to confirm; **Cancel** discards everything, and changing day or closing the panel with unsaved changes asks first. **Show my template on every day** (in the Day template foldout) turns the faded blocks off; it is on by default and kept on the server. **Edit template…** has a tab per weekday (time, length, name, **Copy Wed to Mon–Fri**), and **Save Nov 9–15 to WorkFlowy** writes a whole week's planned blocks at once. Blocks created from the template are tagged `!blk` (hidden like the other markers) and are marked done by themselves once their end time has passed. The template, quick blocks, the show/hide setting and left-out blocks are kept on the server (see below).
+- **Plan day lists hide the markers.** The "Bring in" lists, the roll-forward dialog and the undo/confirm labels showed `!p1`, `~30m` and `^9am` as text. They now show the clean title with the P1 and ⏱ badges, as board cards do.
 - **Done blocks stay on the timeline.** A checked-off time block remains in the time blocking panel, greyed with a ✓, so the day shows what happened. It can't be dragged or resized, and it still leaves the day's open total.
 - **Quick blocks in the time blocking panel.** A new **Quick blocks** strip holds standard items: **Meeting** (30m), **Lunch** (1h) and **Appointment** (1h). Drag one onto the timeline and it asks how long (the usual length is filled in; Cancel adds nothing; an empty answer takes the usual length), then adds a task such as `Lunch ^12:00 ~45m` on the day the panel is showing. **+ New** adds your own (a name and a usual length), and ✕ on a chip removes it. The list is kept in the browser and shared with your other browsers when **Share these settings between browsers** is on (`tbPresets` is on the shared-settings list in `server.js` and `index.html`). **Restart the server** for the sharing.
 - **Edit a time block from the panel.**

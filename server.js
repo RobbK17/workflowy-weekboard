@@ -4,7 +4,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.4.0";
+const VERSION = "1.4.1";
 
 const http = require("http");
 const fs = require("fs");
@@ -667,7 +667,7 @@ async function guard(req, res, url) {
   }
   if (APP_ASSETS.has(url.pathname)) return true;          // the manifest and icons are fetched without the sign-in cookie
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/features", "/timeblocks", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -707,7 +707,7 @@ const APP_MANIFEST = {
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
   icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
 };
-const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/features", "/timeblocks", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
    (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
@@ -1343,7 +1343,101 @@ async function recMake(parentKey, body) {
   if (!r.ok) throw new Error(`WorkFlowy answered ${r.status} while creating a repeat`);
   return r.json().catch(() => ({}));
 }
+
+// ---- Writing features: switches for the features that put things into WorkFlowy. Kept in a small file so they apply to every browser and to the phone page.
+const FEATURES_FILE = process.env.FEATURES_STATE || path.join(__dirname, "weekboard-features.json");
+const FEATURE_KEYS = ["tb", "rep", "notes", "mark"];          // time blocking, repeating tasks, notes bullets, priority/estimate/reminder items
+let features = { tb: true, rep: true, notes: true, mark: true };
+try { const f = JSON.parse(fs.readFileSync(FEATURES_FILE, "utf8")); for (const k of FEATURE_KEYS) if (f && f[k] === false) features[k] = false; } catch (e) { /* none saved: all on */ }
+async function serveFeatures(req, res) {
+  if (req.method === "POST") {
+    let body; try { body = JSON.parse((await readBody(req, 4096)).toString() || "{}"); } catch (e) { return sendJson(res, 400, { error: "bad request" }); }
+    for (const k of FEATURE_KEYS) if (body && typeof body[k] === "boolean") features[k] = body[k];
+    try { fs.writeFileSync(FEATURES_FILE, JSON.stringify(features)); } catch (e) { return sendJson(res, 500, { error: "Couldn't save the writing-feature switches: " + e.message }); }
+  }
+  sendJson(res, 200, { ...features, repForced: !RECURRING_ON });   // repForced: RECURRING=0 on the server overrides the switch
+}
+// ---- Time blocking data (the Day template and the quick blocks list), kept here so every browser sees the same ones, with or without "Share these settings".
+const TIMEBLOCKS_FILE = process.env.TIMEBLOCKS_STATE || path.join(__dirname, "weekboard-timeblocks.json");
+const tbLoad = () => { try { return JSON.parse(fs.readFileSync(TIMEBLOCKS_FILE, "utf8")) || {}; } catch (e) { return {}; } };
+const tbSaveFile = (cur) => fs.writeFileSync(TIMEBLOCKS_FILE, JSON.stringify(cur));
+// "Prepare a week ahead": on a trigger day (Friday → next week, Monday → this week) and time, write the Day template's blocks for the coming week(s) into WorkFlowy.
+function weekAutoClean(v) {
+  if (!v || typeof v !== "object") return null;
+  const day = v.day === "mon" ? "mon" : "fri", m = /^(\d{1,2}):(\d{2})$/.exec(String(v.time || ""));
+  const time = m && +m[1] < 24 && +m[2] < 60 ? String(+m[1]).padStart(2, "0") + ":" + m[2] : "18:00";
+  const weeks = Math.min(4, Math.max(1, Math.round(Number(v.weeks)) || 1));
+  return { on: v.on === true, day, time, weeks };
+}
+async function serveTimeblocks(req, res) {
+  if (req.method === "POST") {
+    let body; try { body = JSON.parse((await readBody(req, 64 * 1024)).toString() || "{}"); } catch (e) { return sendJson(res, 400, { error: "bad request" }); }
+    const cur = tbLoad();
+    for (const k of ["tbTemplate", "tbPresets", "tbSkips", "tbAuto"]) { const v = body && body[k]; if (typeof v === "string" && v.length <= 30000) cur[k] = v; else if (v === null) delete cur[k]; }
+    if (body && body.weekAuto) {
+      const n = weekAutoClean(body.weekAuto), o = weekAutoClean(cur.weekAuto);
+      if (n) cur.weekAuto = { ...n, since: o && o.on === n.on && o.day === n.day && o.time === n.time ? (cur.weekAuto.since || Date.now()) : Date.now() };   // a new schedule never fills a trigger that has already passed
+    }
+    try { tbSaveFile(cur); } catch (e) { return sendJson(res, 500, { error: "Couldn't save the time blocking data: " + e.message }); }
+  }
+  const cur = tbLoad(); const out = {}; for (const k of ["tbTemplate", "tbPresets", "tbSkips", "tbAuto"]) out[k] = typeof cur[k] === "string" ? cur[k] : null;
+  out.weekAuto = weekAutoClean(cur.weekAuto) || { on: false, day: "fri", time: "18:00", weeks: 1 };
+  out.weekAutoLast = cur.weekAutoLast || null;
+  out.tb = features.tb;
+  sendJson(res, 200, out);
+}
+const wkAuto = { running: null };
+const wkDow = (key) => keyDate(key).getUTCDay();
+const wkMarkers = (name) => stripHtml(String(name || "")).replace(/(^|\s)(!p[1-4]|!blk|~(?:\d{1,2}(?:\.\d{1,2})?h(?:\d{1,2}m)?|\d{1,3}m)|\^\d{1,2}(?::\d{2})?\s*(?:am|pm)?)(?=$|[\s.,;!?)])/gi, " ").replace(/\s+/g, " ").trim().toLowerCase();
+function wkBlockMins(name) {
+  const m = /(^|\s)\^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?(?=$|[\s.,;!?)])/i.exec(stripHtml(String(name || "")));
+  if (!m) return null;
+  let h = +m[2], mi = +(m[3] || 0); const ap = (m[4] || "").toLowerCase();
+  if (ap === "pm" && h < 12) h += 12; if (ap === "am" && h === 12) h = 0;
+  return h * 60 + mi;
+}
+const wkToken = (h, mi) => (h >= 12 ? `^${h}:${String(mi).padStart(2, "0")}` : mi ? `^${h}:${String(mi).padStart(2, "0")}am` : `^${h}am`);
+const wkEst = (m) => { const h = Math.floor(m / 60), r = m % 60; return "~" + (h ? h + "h" + (r ? r + "m" : "") : r + "m"); };
+async function weekAutoRun() {
+  if (wkAuto.running) return wkAuto.running;
+  wkAuto.running = (async () => {
+    const cur = tbLoad(), cfg = weekAutoClean(cur.weekAuto);
+    if (!features.tb || !cfg || !cfg.on) return;
+    const now = Date.now(), today = zonedParts(now).key, want = cfg.day === "mon" ? 1 : 5, [th, tm] = cfg.time.split(":").map(Number);
+    let trig = today; while (wkDow(trig) !== want) trig = addDaysKey(trig, -1);
+    let at = zonedEpoch(trig, th, tm); if (at > now) { trig = addDaysKey(trig, -7); at = zonedEpoch(trig, th, tm); }
+    const done = cur.weekAutoDone || {};
+    if (at < (cur.weekAuto.since || 0) || done[trig]) return;
+    let tpl = {}, skips = {}; try { tpl = JSON.parse(cur.tbTemplate || "{}") || {}; } catch (e) {} try { skips = JSON.parse(cur.tbSkips || "{}") || {}; } catch (e) {}
+    const made = cur.weekAutoMade || {};
+    const first = cfg.day === "mon" ? trig : addDaysKey(trig, 3);
+    let n = 0, err = "";
+    try {
+      for (let i = 0; i < cfg.weeks * 7; i++) {
+        const dk = addDaysKey(first, i); if (dk < today) continue;
+        const list = Array.isArray(tpl[wkDow(dk)]) ? tpl[wkDow(dk)] : []; if (!list.length) continue;
+        const have = await remKids(dk), left = (skips[dk] || []).map((x) => String(x).toLowerCase());
+        for (const b of list) {
+          const mm = /^(\d{1,2}):(\d{2})$/.exec(b && b.start || ""), nm = String(b && b.name || "").trim(), len = Math.round(Number(b && b.mins));
+          if (!mm || !nm || !(len > 0)) continue;
+          const h = +mm[1], mi = +mm[2], mins = h * 60 + mi, sk = String(h).padStart(2, "0") + ":" + String(mi).padStart(2, "0") + "|" + nm.toLowerCase(), mk = dk + "|" + sk;
+          if (left.includes(sk) || made[mk] || have.some((x) => wkBlockMins(x.name) === mins && wkMarkers(x.name) === wkMarkers(nm))) continue;
+          const name = `${nm.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")} ${wkToken(h, mi)} ${wkEst(len)} !blk`;
+          await recMake(dk, { name }); made[mk] = 1; n++;
+        }
+      }
+    } catch (e) { err = e.message; console.error("Prepare a week ahead:", e.message); }
+    const fresh = tbLoad(); fresh.weekAutoMade = made;
+    for (const k of Object.keys(made)) if (k.slice(0, 10) < addDaysKey(today, -14)) delete made[k];
+    if (!err) { const d = fresh.weekAutoDone || {}; d[trig] = 1; for (const k of Object.keys(d)) if (k < addDaysKey(today, -60)) delete d[k]; fresh.weekAutoDone = d; }
+    fresh.weekAutoLast = { at: Date.now(), made: n, error: err, from: first, weeks: cfg.weeks };
+    try { tbSaveFile(fresh); } catch (e) { console.error("Prepare a week ahead: couldn't save progress:", e.message); }
+  })().finally(() => { wkAuto.running = null; });
+  return wkAuto.running;
+}
+setInterval(() => { weekAutoRun().catch(() => {}); }, 5 * 60 * 1000).unref(); setTimeout(() => { weekAutoRun().catch(() => {}); }, 30000).unref();
 async function recurringRun() {
+  if (!features.rep) return 0;                              // switched off in Settings → Writing features
   if (rec.running) return rec.running;
   rec.running = (async () => {
     let made = 0;
@@ -1385,6 +1479,7 @@ async function recurringRun() {
 if (RECURRING_ON) { setInterval(() => { recurringRun().catch(() => {}); }, 10 * 60 * 1000).unref(); setTimeout(() => { recurringRun().catch(() => {}); }, 20000).unref(); }
 async function serveRecurringRun(res) {
   if (!RECURRING_ON) return sendJson(res, 400, { error: "Repeating tasks are switched off on this server (RECURRING=0)." });
+  if (!features.rep) return sendJson(res, 400, { error: "Repeating tasks are switched off in Settings → Writing features." });
   const made = await recurringRun();
   sendJson(res, 200, { made, error: rec.error });
 }
@@ -1416,6 +1511,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/reminders") return serveReminders(url, res);
   if (req.method === "POST" && url.pathname === "/reminders/test") return serveReminderTest(res);
   if (req.method === "POST" && url.pathname === "/recurring/run") return serveRecurringRun(res);
+  if (url.pathname === "/timeblocks" && (req.method === "GET" || req.method === "POST")) return serveTimeblocks(req, res);
+  if (url.pathname === "/features" && (req.method === "GET" || req.method === "POST")) return serveFeatures(req, res);
   if (url.pathname === "/m/settings" && (req.method === "GET" || req.method === "POST")) return serveMobileSettings(req, res);
   if (url.pathname === "/d/settings" && (req.method === "GET" || req.method === "POST")) return serveDesktopSettings(req, res);
   if (url.pathname === "/colors" && (req.method === "GET" || req.method === "POST")) return serveColors(req, res);

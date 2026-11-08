@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.4.0">
+<meta name="version" content="1.4.1">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -740,6 +740,7 @@
   #tbPanel .tbx:hover { color: var(--text); }
   #tbPool { flex: none; padding: 8px; border-bottom: 1px solid var(--border); max-height: 200px; overflow-y: auto; }
   #tbQuick { flex: none; padding: 8px; border-bottom: 1px solid var(--border); }
+  .wfoff, button.wfoff:disabled, #kbMenu button.wfoff { opacity: .5; cursor: not-allowed; }
   .tbfold { display: block; width: 100%; text-align: left; border: none; background: none; padding: 2px 0; margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
   .tbfold:hover { color: var(--text); }
   #tbQuick .tbfold ~ .tbfold, #tbQuick .tbqs ~ .tbfold { margin-top: 6px; }
@@ -790,7 +791,17 @@
   #tbEdit .tbeL { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
   #tbEdit input, #tbEdit select, #tbEdit textarea { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
   #tbEdit textarea { width: 100%; box-sizing: border-box; resize: vertical; }
-  #tbEdit .tbeB { display: flex; gap: 6px; margin-top: 10px; }
+  #tbEdit .tbeB { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  #tbEdit .tbeChk { display: flex; gap: 6px; align-items: center; font-size: 12px; margin: 8px 0 0; }
+  #tbFoot { flex: none; border-top: 1px solid var(--border); padding: 8px 12px; background: var(--card); }
+  #tbFoot .tbfn { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  #tbFoot .tbfb { display: flex; gap: 6px; align-items: center; }
+  #tbFoot .tbfsp { flex: 1; }
+  #tbFoot button:disabled { opacity: .45; cursor: default; }
+  .tbTask.tbPlan, .tbCont.tbPlan { background: color-mix(in srgb, var(--accent) 16%, var(--card)); color: var(--text); border: 1px dashed var(--accent); cursor: pointer; }
+  .tbCont.tbPlan { border-top: none; border-bottom: none; }
+  .tbCont.tbPlan.last { border-bottom: 1px dashed var(--accent); }
+  .tbTask.tbEdited, .tbCont.tbEdited { outline: 2px solid #f59e0b; outline-offset: -2px; }
   .tbTask, .tbCont { position: relative; }
   .tbTask { cursor: pointer; }
   .tbTask .tbl { display: flex; flex-direction: column; gap: 1px; }
@@ -906,7 +917,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.4.0</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.4.1</span></div>
   </div>
 </footer>
 
@@ -921,6 +932,7 @@
         <button type="button" role="tab" data-sec="plan">Plan day</button>
         <button type="button" role="tab" data-sec="kanban">Panes</button>
         <button type="button" role="tab" data-sec="remind">Reminders</button>
+        <button type="button" role="tab" data-sec="write">Features</button>
         <!--@addons:tab-->
       </nav>
       <div class="set-pane setpane" data-sec="board">
@@ -962,6 +974,21 @@
         <div id="inboxMsg" role="status"></div>
       </div>
       <label><input type="checkbox" id="optShare"><span>Share these settings between browsers<small id="shareNote">Your layout and options are kept on the server, so every browser you turn this on in shows the same ones.</small></span></label>
+      </div>
+      <div class="set-pane setpane" data-sec="write" hidden>
+      <div class="srcs"><div class="sh">Choose which features are available<small>Some features write into your WorkFlowy: a time like <b>^9am</b> or an estimate like <b>~30m</b> in a task, template blocks and repeat copies as new tasks, and notes lines. Switch a feature off if you don't want that written. Its buttons stay on screen but greyed out. Anything already in WorkFlowy stays as it is. Saved on the server, so every browser and the phone page follow it.</small></div></div>
+      <label><input type="checkbox" id="wf_tb"><span>Time blocking<small>Writes <b>^9am</b> times and template blocks (tagged <b>!blk</b>) into your tasks, and ticks template blocks done after their time</small></span></label>
+      <div id="wkGroup" style="margin:0 0 6px 26px;padding-left:10px;border-left:2px solid var(--line,#ccc)">
+      <div class="srcs"><div class="sh">Time blocking templates<small>The time blocking panel only shows your weekday template until you press Save. This lets the server add the template's blocks to WorkFlowy for you, on a day and time you choose. Blocks a day already has, and ones you left out of a date, are skipped. It only runs while the server is running; if the server was off, it catches up when it starts.</small></div></div>
+      <label><input type="checkbox" id="wk_on"><span>Add my template to the coming week automatically<small id="wkNote">Off</small></span></label>
+      <div class="setrow"><span>Every<small>Friday adds next week. Monday adds the week you're in.</small></span><span><select id="wk_day"><option value="fri">Friday</option><option value="mon">Monday</option></select> at <input type="time" id="wk_time" value="18:00"></span></div>
+      <div class="setrow"><span>Weeks to add<small>1 is the first week; 2 adds the one after, up to 4.</small></span><input type="number" id="wk_weeks" min="1" max="4" value="1" style="width:60px"></div>
+      <div class="setrow"><span><small id="wkLast"></small></span></div>
+      </div>
+      <label><input type="checkbox" id="wf_rep"><span>Repeating tasks<small>The server creates the next copy of a task marked <b>!every week</b>, even with the board closed</small></span></label>
+      <div class="setrow" id="wfRepNote" hidden><span><small>The server was started with RECURRING=0, so repeating stays off whatever this switch says.</small></span></div>
+      <label><input type="checkbox" id="wf_notes"><span>Notes<small>Creates the notes line and new note lines under a day (all-day notes, the Daily page, Notes on the phone page)</small></span></label>
+      <label><input type="checkbox" id="wf_mark"><span>Priority, estimate and reminder items<small>Writes <b>!p1</b>, <b>~30m</b> and <b>@2:30pm</b> into a task from the menus. You can still type them yourself.</small></span></label>
       </div>
       <div class="set-pane setpane" data-sec="remind" hidden>
       <label><input type="checkbox" id="optRemind"><span>Reminder popups<small>Show a popup in the board when a task's time arrives</small></span></label>
@@ -1139,14 +1166,20 @@
   <div id="tbPool"><h4>Unscheduled</h4></div>
   <div id="tbQuick"></div>
   <div id="tbTimeline"></div>
+  <div id="tbFoot">
+    <div class="tbfn" id="tbFootNote"></div>
+    <div class="tbfb"><button type="button" id="tbNewBtn" title="Plan a new block on this day">+ New block</button><span class="tbfsp"></span><button type="button" id="tbCancelBtn">Cancel changes</button><button type="button" class="go" id="tbSaveBtn">Save day</button></div>
+  </div>
   <div id="tbTpl" hidden role="group" aria-label="Day template"></div>
   <div id="tbEdit" hidden role="group" aria-label="Edit time block">
     <div class="tbeT" id="tbeTitle"></div>
+    <div class="tber" id="tbeNameRow" hidden><label for="tbeName">Name</label><input type="text" id="tbeName" maxlength="60" placeholder="Name"></div>
     <div class="tber"><label for="tbeStart">Start</label><input type="time" id="tbeStart" step="300"></div>
     <div class="tber"><label for="tbeLen">Length</label><select id="tbeLen"></select><span class="tbeEnd" id="tbeEnd"></span></div>
-    <label for="tbeNote" class="tbeL">Description (the task's note)</label>
+    <label for="tbeNote" class="tbeL" id="tbeNoteL">Description (the task's note)</label>
     <textarea id="tbeNote" rows="4" placeholder="Add a description"></textarea>
-    <div class="tbeB"><button type="button" class="go" id="tbeSave">Save</button><button type="button" id="tbeUn">Unschedule</button><button type="button" id="tbeCancel">Cancel</button></div>
+    <label class="tbeChk" id="tbeTplRow" hidden><input type="checkbox" id="tbeTplChk"><span id="tbeTplTxt"></span></label>
+    <div class="tbeB"><button type="button" class="go" id="tbeSave">OK</button><button type="button" id="tbeUn">Unschedule</button><button type="button" id="tbeDelTpl" hidden>Remove from template</button><button type="button" id="tbeCancel">Cancel</button></div>
   </div>
 </div>
 
@@ -1235,6 +1268,30 @@ function setPref(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch (
 function loadNestedMode() { try { const v = localStorage.getItem("nested"); return v === "group" || v === "flatten" ? v : "off"; } catch (e) { return "off"; } }
 let kbReadEdit = (() => { try { return localStorage.getItem("kbReadEdit") !== "0"; } catch (e) { return true; } })();     // read mode: does clicking a line open the pop-up editor?
 const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), allDay: getBool("allDay", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true), prioSort: getBool("prioSort", true) };
+// ---- Writing features: Settings → Writing features turns off what puts things into WorkFlowy. The switches live on the server (/features), so every browser and the phone page agree.
+const wf = { tb: true, rep: true, notes: true, mark: true, repForced: false };
+const WF_WHAT = { tb: "Time blocking", rep: "Repeating tasks", notes: "Notes bullets", mark: "Priority, estimate and reminder items" };
+const wfHint = (k) => `${WF_WHAT[k]} ${k === "mark" ? "are" : "is"} turned off in Settings → Writing features`;
+function wfGate(k) { if (wf[k]) return true; try { showToast(wfHint(k) + ".", false); } catch (e) { /* toast not ready */ } return false; }
+function wfOffBtn(b, k, label) { b.disabled = true; b.classList.add("wfoff"); b.title = wfHint(k); if (label != null) b.textContent = label + " · off in Settings"; return b; }
+async function wfLoad() {
+  try { const j = await (await fetch("/features")).json(); for (const k of ["tb", "rep", "notes", "mark"]) if (typeof j[k] === "boolean") wf[k] = j[k]; wf.repForced = !!j.repForced; } catch (e) { return; /* keep everything on */ }
+  tbPull();
+  wfSync(["tb", "rep", "notes", "mark"].some((k) => !wf[k]));       // nothing to redraw while everything is on
+}
+function wfSync(redraw = true) {
+  for (const k of ["tb", "rep", "notes", "mark"]) { const el = document.getElementById("wf_" + k); if (el) el.checked = wf[k]; }
+  const f = document.getElementById("wfRepNote"); if (f) f.hidden = !wf.repForced;
+  try { wkLoad(); } catch (e) { /* the settings are not drawn yet */ }
+  for (const b of [document.getElementById("notesAdd"), document.getElementById("moveNotes")]) if (b) { if (b.dataset.wfTitle === undefined) b.dataset.wfTitle = b.title || ""; b.classList.toggle("wfoff", !wf.notes); b.title = wf.notes ? b.dataset.wfTitle : wfHint("notes"); }
+  if (!wf.tb && document.getElementById("tbPanel").classList.contains("open")) closeTimelinePanel(true);
+  if (redraw) { try { render(); renderPage(); } catch (e) { /* first paint not done yet */ } }
+}
+async function wfSave(k, v) {
+  wf[k] = v; wfSync();
+  try { const r = await fetch("/features", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [k]: v }) }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "The server said no"); }
+  catch (e) { wf[k] = !v; wfSync(); showError("Couldn't save that switch: " + e.message); }
+}
 
 /* ---------- Priorities and time estimates ----------
    "!p1" to "!p4" in a task's text is its priority (1 urgent, 2 high, 3 medium, 4 low; none is normal), and "~45m", "~1h",
@@ -1286,6 +1343,7 @@ function withMarker(raw, re, token) {                     // the stored name wit
 const BLK_RE = /(^|\s)!blk(?=$|[\s.,;!?)<])/i;        // marks a block that came from the day template; it is marked done by itself once its time has passed
 const dropMeta = (s) => withMarker(withMarker(withMarker(withMarker(s, PRIO_RE, ""), EST_RE, ""), TIME_BLOCK_RE, ""), BLK_RE, "");
 async function setMeta(n, k, bullet, which, value) {      // which: "prio" (0 to 4, 0 = none) or "est" (minutes, 0 = none)
+  if (!wfGate("mark")) return;
   const old = n.name;
   const name = which === "prio" ? withMarker(old, PRIO_RE, value ? "!p" + value : "") : withMarker(old, EST_RE, value ? estToken(value) : "");
   if (name === old) return;
@@ -1619,8 +1677,9 @@ function collect(keys, onlyOpen) {
 // Everything shown for one day, in outline order: its tasks, plus (when Nested is on) tasks indented under its bullets.
 //   kind "task": a todo directly under the day.  "group": one card for a bullet and its tasks (Group mode).
 //   kind "nested": one task that sits under a bullet (Flatten mode).
-function entries(k, onlyOpen) {
-  const hide = (n) => (onlyOpen || prefs.hideDone) && n.completedAt;
+function entries(k, onlyOpen, noBlk) {      // noBlk: leave template blocks (!blk) out, as Past due and Upcoming do
+  const isBlk = (n) => noBlk && BLK_RE.test(plain(n.name));
+  const hide = (n) => ((onlyOpen || prefs.hideDone) && n.completedAt) || isBlk(n);
   const out = [];
   const rank = (t) => (prefs.prioSort ? PRIO_RANK[prioOf(t)] : 0);
   const tbMins = (n) => { const tb = timeBlockOf(n); return tb ? tb.mins : 9999; };  // time-blocked tasks sort by their time, unscheduled at end
@@ -1631,7 +1690,7 @@ function entries(k, onlyOpen) {
       if (!info || (!info.todos.length && !(prefs.nested === "group" && emptyGroups.has(b.id)))) continue;
       if (prefs.nested === "group") {
         const r = Math.min(PRIO_RANK[0], ...info.todos.filter((t) => !t.completedAt).map(rank));      // a group sorts by its most urgent open task
-        if (info.todos.some((t) => !hide(t)) || !(onlyOpen || prefs.hideDone) || emptyGroups.has(b.id)) out.push({ kind: "group", b, k, todos: info.todos, hideDone: !!(onlyOpen || prefs.hideDone), p: b.priority, s: 0, r: prefs.prioSort ? r : 0, tb: 9999 });
+        if (info.todos.some((t) => !hide(t)) || !(onlyOpen || prefs.hideDone) || emptyGroups.has(b.id)) out.push({ kind: "group", b, k, todos: noBlk ? info.todos.filter((t) => !isBlk(t)) : info.todos, hideDone: !!(onlyOpen || prefs.hideDone), p: b.priority, s: 0, r: prefs.prioSort ? r : 0, tb: 9999 });
       } else {
         for (const t of info.todos) if (!hide(t)) out.push({ kind: "nested", n: t, b, k, p: b.priority, s: t.priority, r: rank(t), tb: tbMins(t) });
       }
@@ -1640,7 +1699,7 @@ function entries(k, onlyOpen) {
   // On today, time-blocked tasks come first (sorted by time), then priority, then outline order
   return out.sort((a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s);
 }
-const entriesFor = (keys, onlyOpen) => keys.flatMap((k) => entries(k, onlyOpen));
+const entriesFor = (keys, onlyOpen, noBlk) => keys.flatMap((k) => entries(k, onlyOpen, noBlk));
 function entryOpen(e) {
   if (e.kind === "group") return e.todos.filter((t) => !t.completedAt).length;
   return e.n.completedAt ? 0 : 1;
@@ -1686,7 +1745,30 @@ function tbPresets() {
   try { const v = JSON.parse(localStorage.getItem("tbPresets") || "null"); if (Array.isArray(v)) return v.filter((p) => p && typeof p.name === "string" && p.name.trim() && Number(p.mins) > 0).slice(0, 20).map((p) => ({ name: p.name.slice(0, 40), mins: Math.min(1440, Math.round(Number(p.mins))) })); } catch (e) { /* the starters */ }
   return TB_DEFAULT_PRESETS.map((p) => ({ ...p }));
 }
-function tbSavePresets(list) { try { localStorage.setItem("tbPresets", JSON.stringify(list)); } catch (e) { /* kept for this visit only */ } }
+function tbSavePresets(list) { try { localStorage.setItem("tbPresets", JSON.stringify(list)); } catch (e) { /* kept for this visit only */ } tbPush(); }
+// The Day template and the quick blocks are also kept on the server (/timeblocks), so a second browser or computer shows the same ones.
+let tbPushTimer = null;
+function tbPush() {
+  clearTimeout(tbPushTimer);
+  tbPushTimer = setTimeout(() => {
+    const body = {}; try { for (const k of ["tbTemplate", "tbPresets", "tbSkips", "tbAuto"]) body[k] = localStorage.getItem(k); } catch (e) { return; }
+    fetch("/timeblocks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => { /* the next change tries again */ });
+  }, 600);
+}
+async function tbPull() {
+  let j; try { j = await (await fetch("/timeblocks")).json(); } catch (e) { return false; }
+  let changed = false, push = false;
+  try {
+    for (const k of ["tbTemplate", "tbPresets", "tbSkips", "tbAuto"]) {
+      const sv = typeof j[k] === "string" ? j[k] : null, lv = localStorage.getItem(k);
+      if (sv !== null && sv !== lv) { localStorage.setItem(k, sv); changed = true; }
+      else if (sv === null && lv !== null) push = true;           // this browser has some the server hasn't seen yet
+    }
+  } catch (e) { return false; }
+  if (push) tbPush();
+  if (changed) { try { renderTbQuick(); if (document.getElementById("tbTpl") && !document.getElementById("tbTpl").hidden) openTbTpl(); renderTimelinePanel(); } catch (e) { /* the panel is not open */ } }
+  return changed;
+}
 function parseDurMins(t) {                                // "30m", "1h", "1h30m", "90" → minutes, or null
   t = String(t || "").trim().toLowerCase();
   let m = /^(\d{1,3})m?$/.exec(t); if (m) return Number(m[1]) || null;
@@ -1707,15 +1789,17 @@ function askDurMins(label, def) {                         // asks until it gets 
 const tbEsc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 // Day template: blocks that each weekday should have (Mon: Standup 9:00 30m, Lunch 12:00 1h…). Applying one adds them to a day as ordinary tasks, skipping any already there.
 // Each is tagged !blk and is marked done by itself once its time has passed, so a block you didn't tick never piles up in Past due.
+const tbStartMins = (b) => { const m = /^(\d{1,2}):(\d{2})$/.exec(b.start || ""); return m ? Number(m[1]) * 60 + Number(m[2]) : 0; };
 function tbTplGet() {
   const out = {}; for (let d = 0; d < 7; d++) out[d] = [];
   try {
     const v = JSON.parse(localStorage.getItem("tbTemplate") || "null");
     if (v && typeof v === "object") for (let d = 0; d < 7; d++) if (Array.isArray(v[d])) out[d] = v[d].filter((b) => b && typeof b.name === "string" && b.name.trim() && /^\d{1,2}:\d{2}$/.test(b.start) && Number(b.mins) > 0).slice(0, 30).map((b) => ({ name: b.name.slice(0, 60), start: b.start, mins: Math.min(1440, Math.round(Number(b.mins))) }));
   } catch (e) { /* none yet */ }
+  for (let d = 0; d < 7; d++) out[d].sort((a, b) => tbStartMins(a) - tbStartMins(b));      // earliest first
   return out;
 }
-function tbTplSave(tpl) { try { localStorage.setItem("tbTemplate", JSON.stringify(tpl)); } catch (e) { /* kept for this visit only */ } }
+function tbTplSave(tpl) { try { localStorage.setItem("tbTemplate", JSON.stringify(tpl)); } catch (e) { /* kept for this visit only */ } tbPush(); }
 const TB_DAYS = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
 const tbRangeLabel = (keys) => {                            // "Nov 9–15", or "Nov 30–Dec 6" across a month
   if (!keys.length) return "";
@@ -1729,7 +1813,21 @@ function tbWeekKeys() {                                    // the week of the da
   const tk = key(new Date()), w0 = startOfWeek(keyToDate(tbPanelDay));
   return [...Array(7)].map((_, i) => key(addDays(w0, i))).filter((k) => ISO_DAY.test(k) && k >= tk);
 }
+// A day that doesn't exist in WorkFlowy yet is created by the first write under it, and its list can lag a moment behind. Read it again until the new tasks are there; if it still lags, show them from what the create returned.
+async function tbReloadDay(k, made) {
+  const addMade = () => { for (const m of made) if (!(cache[k] || []).some((n) => n.id === m.id)) (cache[k] = cache[k] || []).push({ id: m.id, parent_id: k, name: m.name, note: "", priority: 1e9, data: { layoutMode: "todo" }, completedAt: null }); };
+  const before = (cache[k] || []).slice();
+  for (let i = 0; i < 4; i++) {
+    await loadDay(k);
+    if (made.every((m) => (cache[k] || []).some((n) => n.id === m.id))) return;
+    for (const o of before) if (!(cache[k] || []).some((n) => n.id === o.id)) (cache[k] = cache[k] || []).push(o);   // a lagging list can come back short
+    addMade(); if (typeof tbPanelDay !== "undefined" && tbPanelDay === k) renderTimelinePanel();
+    await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+  }
+  addMade();
+}
 async function tbFillWeek(keys) {
+  if (tbChanged()) { showToast("Save or cancel your changes on this day first.", false); return; }
   if (!keys.length) { showToast("That week is already past. Open a current or future week in the panel.", false); return; }
   const tpl = tbTplGet(), label = tbRangeLabel(keys), plan = [];
   try {
@@ -1739,6 +1837,7 @@ async function tbFillWeek(keys) {
       if (!cache[k]) await loadDay(k);
       for (const b of list) {
         const [h, mi] = b.start.split(":").map(Number);
+        if ((tbSkipsGet()[k] || []).includes(tbKey(b.start, b.name))) continue;
         const there = (cache[k] || []).some((t) => { const tb = timeBlockOf(t); return tb && tb.mins === h * 60 + mi && sameName(dropMeta(shownVisible(t.name)), b.name); });
         if (!there) plan.push({ k, b, h, mi });
       }
@@ -1751,19 +1850,21 @@ async function tbFillWeek(keys) {
   }
   const dayCount = new Set(plan.map((p) => p.k)).size;
   if (!confirm(`Add ${plan.length} block${plan.length > 1 ? "s" : ""} across ${dayCount} day${dayCount > 1 ? "s" : ""} (${label})?`)) return;
-  let made = 0;
+  let made = 0; const byDay = {};
   try {
     for (const p of plan) {
-      await call("POST", "/nodes", { parent_id: p.k, name: `${tbEsc(p.b.name)} ${timeBlockToken(p.h, p.mi)} ${estToken(p.b.mins)} !blk`, layoutMode: "todo", position: "bottom" });
+      const name = `${tbEsc(p.b.name)} ${timeBlockToken(p.h, p.mi)} ${estToken(p.b.mins)} !blk`;
+      const r = await call("POST", "/nodes", { parent_id: p.k, name, layoutMode: "todo", position: "bottom" });
+      if (r && r.item_id) (byDay[p.k] = byDay[p.k] || []).push({ id: r.item_id, name });
       made++;
     }
   } catch (err) { showError(err.message); }
-  for (const k of new Set(plan.map((p) => p.k))) { try { await loadDay(k); } catch (e) { /* shown next refresh */ } }
+  for (const k of new Set(plan.map((p) => p.k))) { try { await tbReloadDay(k, byDay[k] || []); } catch (e) { /* shown next refresh */ } }
   if (tbPanelDay) renderTimelinePanel();
   render();
   if (made) showToast(`Added ${made} block${made > 1 ? "s" : ""} to ${label}`, false);
 }
-function closeTbTpl() { document.getElementById("tbTpl").hidden = true; }
+function closeTbTpl() { document.getElementById("tbTpl").hidden = true; if (tbPanelDay) renderTimelinePanel(); }
 function openTbTpl(startWd) {
   const box = document.getElementById("tbTpl"); box.hidden = false;
   let wd = startWd != null ? startWd : (tbPanelDay ? keyToDate(tbPanelDay).getDay() : new Date().getDay());
@@ -1773,6 +1874,7 @@ function openTbTpl(startWd) {
     const tabs = document.createElement("div"); tabs.className = "tpTabs";
     for (const [d, label] of TB_DAYS) { const b = document.createElement("button"); b.type = "button"; b.textContent = label + (tpl[d].length ? ` (${tpl[d].length})` : ""); b.title = tpl[d].length ? `${tpl[d].length} block${tpl[d].length > 1 ? "s" : ""} in the ${label} template` : `No blocks in the ${label} template`; if (d === wd) b.className = "on"; b.onclick = () => { wd = d; draw(); }; tabs.appendChild(b); }
     box.appendChild(tabs);
+    const onDay = tbPanelDay ? (cache[tbPanelDay] || []).filter((t) => timeBlockOf(t) && !t.pending) : [];
     tpl[wd].forEach((b, i) => {
       const row = document.createElement("div"); row.className = "tpRow";
       const t = document.createElement("input"); t.type = "time"; t.step = 300; t.value = b.start; t.setAttribute("aria-label", "Start");
@@ -1782,16 +1884,28 @@ function openTbTpl(startWd) {
       const n = document.createElement("input"); n.type = "text"; n.value = b.name; n.maxLength = 60; n.placeholder = "Name"; n.setAttribute("aria-label", "Name");
       const x = document.createElement("button"); x.type = "button"; x.textContent = "✕"; x.title = "Remove"; x.setAttribute("aria-label", "Remove this block");
       const commit = () => { const cur = tbTplGet(); if (/^\d{1,2}:\d{2}$/.test(t.value)) cur[wd][i].start = t.value; cur[wd][i].mins = Number(l.value); cur[wd][i].name = n.value.trim() || b.name; tbTplSave(cur); };
-      t.onchange = l.onchange = n.onchange = commit;
+      l.onchange = n.onchange = commit;
+      t.onchange = () => { commit(); draw(); };                // a new time can move the block up or down the list
       x.onclick = () => { const cur = tbTplGet(); cur[wd].splice(i, 1); tbTplSave(cur); draw(); };
       row.append(t, l, n, x); box.appendChild(row);
     });
-    if (!tpl[wd].length) { const e = document.createElement("div"); e.className = "tpNote"; e.textContent = "No blocks for this day yet."; box.appendChild(e); }
+    if (!tpl[wd].length) { const e = document.createElement("div"); e.className = "tpNote"; e.textContent = "No blocks in this weekday's template yet. The template is separate from the tasks on the day: add blocks here" + (onDay.length ? ", or use the ones already on the day." : "."); box.appendChild(e); }
     const act = document.createElement("div"); act.className = "tpAct";
+    if (onDay.length) {                                    // start from what is already on the day shown in the panel
+      const use = document.createElement("button"); use.type = "button"; use.textContent = `Use the ${onDay.length} block${onDay.length > 1 ? "s" : ""} on ${dayLabel(tbPanelDay)}`;
+      use.title = `Replace the ${TB_DAYS.find((x) => x[0] === wd)[1]} template with the time-blocked tasks on ${dayLabel(tbPanelDay)}`;
+      use.onclick = () => {
+        const cur = tbTplGet();
+        if (cur[wd].length && !confirm(`Replace the ${TB_DAYS.find((x) => x[0] === wd)[1]} template (${cur[wd].length} block${cur[wd].length > 1 ? "s" : ""}) with the ${onDay.length} on ${dayLabel(tbPanelDay)}?`)) return;
+        cur[wd] = onDay.map((t) => { const tb = timeBlockOf(t); return { name: dropMeta(shownVisible(t.name)).trim().slice(0, 60) || "Block", start: String(tb.h).padStart(2, "0") + ":" + String(tb.mi).padStart(2, "0"), mins: estOf(t) || 30 }; }).sort((a, b) => a.start.localeCompare(b.start));
+        tbTplSave(cur); draw();
+      };
+      act.appendChild(use);
+    }
     const add = document.createElement("button"); add.type = "button"; add.textContent = "+ Add block";
     add.onclick = () => { const cur = tbTplGet(); const last = cur[wd][cur[wd].length - 1]; let st = "09:00"; if (last) { const e2 = Number(last.start.slice(0, 2)) * 60 + Number(last.start.slice(3)) + last.mins; st = String(Math.min(23, Math.floor(e2 / 60))).padStart(2, "0") + ":" + String(e2 % 60).padStart(2, "0"); } cur[wd].push({ name: "New block", start: st, mins: 30 }); tbTplSave(cur); draw(); };
-    const copy = document.createElement("button"); copy.type = "button"; copy.textContent = "Copy to Mon–Fri"; copy.title = "Replace Monday to Friday with this day's blocks";
-    copy.onclick = () => { const cur = tbTplGet(); if (!cur[wd].length) return; if (!confirm("Replace the other weekdays' templates (Mon–Fri) with this day's blocks?")) return; for (const d of [1, 2, 3, 4, 5]) if (d !== wd) cur[d] = cur[wd].map((b) => ({ ...b })); tbTplSave(cur); draw(); showToast("Copied to the other weekdays (Mon–Fri)", false); };
+    const copy = document.createElement("button"); copy.type = "button"; copy.textContent = `Copy ${TB_DAYS.find((x) => x[0] === wd)[1]} to Mon–Fri`; copy.title = "Replace the Monday to Friday templates with this tab's blocks. It only changes the saved templates, not any day in WorkFlowy.";
+    copy.onclick = () => { const cur = tbTplGet(); if (!cur[wd].length) return; if (!confirm(`Replace the Mon–Fri templates with the ${cur[wd].length} block${cur[wd].length > 1 ? "s" : ""} on the ${TB_DAYS.find((x) => x[0] === wd)[1]} tab?\n\nThis only changes your saved templates. Nothing is written to any day in WorkFlowy.`)) return; for (const d of [1, 2, 3, 4, 5]) if (d !== wd) cur[d] = cur[wd].map((b) => ({ ...b })); tbTplSave(cur); draw(); showToast("Copied to the other weekdays (Mon–Fri)", false); };
     const done = document.createElement("button"); done.type = "button"; done.className = "go"; done.textContent = "Done"; done.onclick = closeTbTpl;
     act.append(add, copy, done); box.appendChild(act);
     const note = document.createElement("div"); note.className = "tpNote"; note.textContent = "The number in brackets on a day is how many blocks its template holds. Blocks added from a template are marked done by themselves once their time has passed.";
@@ -1800,7 +1914,8 @@ function openTbTpl(startWd) {
   draw();
 }
 let blkBusy = false;
-async function autoCompleteBlocks() {                      // template blocks whose time has passed are ticked, once; their !blk marker is removed so un-ticking one keeps it open
+async function autoCompleteBlocks() {
+  if (!wf.tb) return;                      // template blocks whose time has passed are ticked, once; their !blk marker is removed so un-ticking one keeps it open
   if (blkBusy) return; blkBusy = true;
   try {
     const now = new Date(), tk = key(now), nowM = now.getHours() * 60 + now.getMinutes(); let did = 0;
@@ -1822,13 +1937,18 @@ async function autoCompleteBlocks() {                      // template blocks wh
 setInterval(() => { if (!document.hidden) autoCompleteBlocks(); }, 60000);
 function renderTbTplBar(box) {
   if (!tbFold(box, "Tpl", "Day template", renderTbQuick)) return;
+  const auto = document.createElement("label"); auto.className = "tbauto"; auto.style.cssText = "display:flex;gap:6px;align-items:flex-start;font-size:12px;margin:2px 0 6px";
+  const ac = document.createElement("input"); ac.type = "checkbox"; ac.checked = tbAuto(); ac.style.marginTop = "2px";
+  const at = document.createElement("span"); at.textContent = "Show my template on every day (faded, until you save). Off: nothing appears on its own.";
+  ac.onchange = () => { try { localStorage.setItem("tbAuto", ac.checked ? "1" : "0"); } catch (e) { /* this visit only */ } tbPush(); renderTimelinePanel(); };
+  auto.append(ac, at); box.appendChild(auto);
   const bar = document.createElement("div"); bar.className = "tbtplbar";
   const keys = tbWeekKeys(), label = tbRangeLabel(keys);
   const fill = document.createElement("button"); fill.type = "button"; fill.className = "go";
-  fill.textContent = keys.length ? `Fill ${label}` : "Fill week";
-  fill.title = keys.length ? `Add the template blocks to ${label}. Blocks already there are skipped, and it asks before adding.` : "This week is already past";
+  fill.textContent = keys.length ? `Save ${label} to WorkFlowy` : "Save this week";
+  fill.title = keys.length ? `Write the template blocks for ${label} into WorkFlowy in one go. Blocks already there or left out are skipped, and it asks first.` : "This week is already past";
   fill.disabled = !keys.length; fill.onclick = () => tbFillWeek(tbWeekKeys());
-  const edit = document.createElement("button"); edit.type = "button"; edit.textContent = "Edit template…"; edit.title = "Choose the standard blocks for each weekday"; edit.onclick = () => openTbTpl();
+  const edit = document.createElement("button"); edit.type = "button"; edit.textContent = "Edit template…"; edit.title = "See and change the standard blocks for every weekday"; edit.onclick = () => openTbTpl();
   bar.append(fill, edit); box.appendChild(bar);
 }
 const tbOpen = (k) => { try { return localStorage.getItem("tbOpen" + k) === "1"; } catch (e) { return false; } };     // folded unless the person opened it
@@ -1867,36 +1987,121 @@ function renderTbQuick() {
   }
   renderTbTplBar(box);
 }
-async function tbCreateBlock(preset, h, mi) {             // a quick block dropped on the timeline: ask the length, then add the task on the panel's day
+// ---- Time blocking panel: everything you do here is held as a draft until you press Save; Cancel throws it away.
+// A draft belongs to one day: { patch: changes to real tasks, adds: new tasks, skips: planned blocks left out of this day, tplAdds/tplDels: changes to that weekday's template }.
+let tbDraft = null;
+const tbHM = (m) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const tbKey = (start, name) => tbHM(tbStartMins({ start })) + "|" + String(name || "").trim().toLowerCase();
+const tbAuto = () => { try { return localStorage.getItem("tbAuto") !== "0"; } catch (e) { return true; } };      // show the template on every day (on unless switched off)
+function tbSkipsGet() { try { const v = JSON.parse(localStorage.getItem("tbSkips") || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { return {}; } }
+function tbSkipsSave(o) {
+  const tk = key(new Date()); for (const k of Object.keys(o)) if (k < tk || !Array.isArray(o[k]) || !o[k].length) delete o[k];
+  try { localStorage.setItem("tbSkips", JSON.stringify(o)); } catch (e) { /* kept for this visit only */ }
+  tbPush();
+}
+function tbDraftFor(k) { if (!tbDraft || tbDraft.day !== k) tbDraft = { day: k, patch: {}, adds: [], skips: new Set(), tplAdds: [], tplDels: new Set() }; return tbDraft; }
+const tbDraftOn = (k) => (tbDraft && tbDraft.day === k ? tbDraft : null);
+const tbChanged = () => !!tbDraft && (Object.keys(tbDraft.patch).length + tbDraft.adds.length + tbDraft.skips.size + tbDraft.tplAdds.length + tbDraft.tplDels.size) > 0;
+function tbViewTasks(k) {                                   // the day's real tasks with the draft's changes applied, plus its new ones
+  const d = tbDraftOn(k), out = [];
+  for (const n of cache[k] || []) { const p = d && d.patch[n.id]; out.push(p ? Object.assign({}, n, p, { _orig: n }) : n); }
+  if (d) for (const a of d.adds) out.push({ id: a.tmp, name: a.name, note: a.note || "", completedAt: null, priority: 1e9, data: { layoutMode: "todo" }, _new: true });
+  return out;
+}
+const tbHas = (k, mins, name) => tbViewTasks(k).some((t) => { const tb = timeBlockOf(t); return tb && tb.mins === mins && sameName(dropMeta(shownVisible(t.name)), name); });
+function tbTplFor(k) {                                      // that weekday's template with the draft's template changes applied
+  const d = tbDraftOn(k); let list = tbTplGet()[keyToDate(k).getDay()].slice();
+  if (d) { list = list.filter((b) => !d.tplDels.has(tbKey(b.start, b.name))); for (const a of d.tplAdds) list.push({ ...a }); }
+  return list.sort((a, b) => tbStartMins(a) - tbStartMins(b));
+}
+function tbPlanned(k) {                                     // template blocks this day doesn't have yet (and hasn't skipped). Today and later only.
+  if (!wf.tb || !tbAuto() || !ISO_DAY.test(k) || k < key(new Date()) || !(k in cache)) return [];
+  const d = tbDraftOn(k), saved = tbSkipsGet()[k] || [], out = [];
+  for (const b of tbTplFor(k)) {
+    const kk = tbKey(b.start, b.name), [h, mi] = b.start.split(":").map(Number);
+    if (saved.includes(kk) || (d && d.skips.has(kk)) || tbHas(k, h * 60 + mi, b.name)) continue;
+    out.push({ id: "p:" + kk, _planned: true, key: kk, tname: b.name, start: b.start, mins: b.mins, name: `${tbEsc(b.name)} ${timeBlockToken(h, mi)} ${estToken(b.mins)}`, note: "", completedAt: null });
+  }
+  return out;
+}
+function tbTplDrop(d, kk) { const i = d.tplAdds.findIndex((a) => tbKey(a.start, a.name) === kk); if (i >= 0) d.tplAdds.splice(i, 1); else d.tplDels.add(kk); }
+function tbStageNode(n, fields) {                           // hold a change to a real or new task until Save
+  const k = tbPanelDay, d = tbDraftFor(k);
+  if (n._new) { const a = d.adds.find((x) => x.tmp === n.id); if (a) Object.assign(a, fields); }
+  else {
+    const orig = n._orig || n, p = Object.assign({}, d.patch[orig.id] || {}, fields);
+    if ((p.name === undefined || p.name === orig.name) && (p.note === undefined || p.note === (orig.note || ""))) delete d.patch[orig.id]; else d.patch[orig.id] = p;
+  }
+  renderTimelinePanel();
+}
+function tbAddDraft(fields) { const d = tbDraftFor(tbPanelDay); d.adds.push({ tmp: "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: fields.name, note: fields.note || "" }); renderTimelinePanel(); }
+function tbSkipPlanned(n) { const d = tbDraftFor(tbPanelDay); const i = d.tplAdds.findIndex((a) => tbKey(a.start, a.name) === n.key); if (i >= 0) d.tplAdds.splice(i, 1); else d.skips.add(n.key); renderTimelinePanel(); }
+function tbCancelDraft() { tbDraft = null; renderTimelinePanel(); }
+async function tbCreateBlock(preset, h, mi) {             // a quick block dropped on the timeline: ask the length, then plan it on the panel's day
   const mins = askDurMins(preset.name, preset.mins);
   if (!mins) return;
-  const name = `${tbEsc(preset.name)} ${timeBlockToken(h, mi)} ${estToken(mins)}`;
-  const day = tbPanelDay;
-  try {
-    await call("POST", "/nodes", { parent_id: day, name, layoutMode: "todo", position: "bottom" });
-    await loadDay(day);
-    if (tbPanelDay === day) renderTimelinePanel();
-    render();
-    showToast(`${preset.name} added at ${fmtTimeBlock(h, mi)}`, false);
-  } catch (err) { showError(err.message); }
+  tbAddDraft({ name: `${tbEsc(preset.name)} ${timeBlockToken(h, mi)} ${estToken(mins)}` });
 }
 const TOKEN_TEST = (t) => /wbenc1\./.test(String(t || ""));
-// Save changed fields ({ name } and/or { note }) of a task in the panel's day, with Undo.
-async function tbApply(n, fields, what) {
-  const old = { name: n.name, note: n.note || "" }, day = tbPanelDay;
-  const body = {}; for (const f of ["name", "note"]) if (fields[f] !== undefined && fields[f] !== old[f]) body[f] = fields[f];
+async function tbApply(n, fields) {                       // an edit in the panel is held in the draft; nothing is written until Save
+  const body = {}; for (const f of ["name", "note"]) if (fields[f] !== undefined) body[f] = fields[f];
   if (!Object.keys(body).length) return false;
+  tbStageNode(n, body); return true;
+}
+async function tbSaveDay() {
+  const k = tbPanelDay; if (!k || !wfGate("tb")) return;
+  const d = tbDraftOn(k), planned = tbPlanned(k), lines = [];
+  const when = (name) => { const t = timeBlockOf({ name }); return t ? fmtTimeBlock(t.h, t.mi) : "no time"; };
+  const lenOf = (name) => { const t = timeBlockOf({ name }), e = estOf({ name }); return t ? fmtMins(e || 30) : ""; };
+  if (d) {
+    for (const [id, p] of Object.entries(d.patch)) {
+      const o = (cache[k] || []).find((x) => x.id === id); if (!o) continue;
+      const title = dropMeta(shownVisible(o.name)).slice(0, 40) || "(empty)", nm = p.name !== undefined ? p.name : o.name;
+      const bits = []; if (when(o.name) !== when(nm)) bits.push(`${when(o.name)} → ${when(nm)}`); if (lenOf(o.name) !== lenOf(nm) && timeBlockOf({ name: nm })) bits.push(`length ${lenOf(o.name) || "30m"} → ${lenOf(nm)}`); if (p.note !== undefined) bits.push("description");
+      lines.push(`Change “${title}”: ${bits.join(", ") || "edited"}`);
+    }
+    for (const a of d.adds) lines.push(`Add ${when(a.name)} “${dropMeta(shownVisible(a.name)).slice(0, 40)}” (${lenOf(a.name) || "30m"})`);
+  }
+  for (const p of planned) lines.push(`Add ${fmtTimeBlock(...p.start.split(":").map(Number))} “${p.tname}” (${fmtMins(p.mins)}) from your template`);
+  if (d) {
+    for (const kk of d.skips) lines.push(`Leave out “${kk.split("|")[1]}” on ${dayLabel(k)}`);
+    if (d.tplAdds.length || d.tplDels.size) lines.push(`Update your ${TB_DAYS.find((x) => x[0] === keyToDate(k).getDay())[1]} template (${d.tplAdds.length} added, ${d.tplDels.size} removed)`);
+  }
+  if (!lines.length) { showToast("Nothing to save.", false); return; }
+  const shown = lines.slice(0, 14).concat(lines.length > 14 ? [`…and ${lines.length - 14} more`] : []);
+  if (!confirm(`Save to WorkFlowy on ${dayLabel(k)}?\n\n${shown.join("\n")}`)) return;
+  const made = [];
   try {
-    await call("POST", `/nodes/${n.id}`, body);
-    Object.assign(n, body); n._chk = Date.now();
-    await loadDay(day);
-    if (tbPanelDay === day) renderTimelinePanel();
-    render();
-  } catch (err) { showError(err.message); return false; }
-  showToast(what, false);
-  const undo = {}; for (const f of Object.keys(body)) undo[f] = old[f];
-  pushUndo(`${what}: “${shortName(n)}”`, async () => { await call("POST", `/nodes/${n.id}`, undo); await reloadParents([day]); if (tbPanelDay === day) { await loadDay(day); renderTimelinePanel(); } });
-  return true;
+    if (d) for (const [id, p] of Object.entries(d.patch)) { await call("POST", `/nodes/${id}`, p); const n = (cache[k] || []).find((x) => x.id === id); if (n) Object.assign(n, p); delete d.patch[id]; }
+    if (d) for (const a of d.adds.slice()) {
+      const r = await call("POST", "/nodes", { parent_id: k, name: a.name, ...(a.note ? { note: a.note } : {}), layoutMode: "todo", position: "bottom" });
+      if (r && r.item_id) made.push({ id: r.item_id, name: a.name }); d.adds.splice(d.adds.indexOf(a), 1);
+    }
+    for (const p of planned) {
+      const name = p.name + " !blk", r = await call("POST", "/nodes", { parent_id: k, name, layoutMode: "todo", position: "bottom" });
+      if (r && r.item_id) made.push({ id: r.item_id, name });
+    }
+  } catch (err) { showError(err.message); try { await tbReloadDay(k, made); } catch (e) { /* shown on the next refresh */ } renderTimelinePanel(); render(); return; }
+  if (d) {
+    if (d.tplAdds.length || d.tplDels.size) {
+      const t = tbTplGet(), wd = keyToDate(k).getDay();
+      t[wd] = t[wd].filter((b) => !d.tplDels.has(tbKey(b.start, b.name)));
+      for (const a of d.tplAdds) if (!t[wd].some((b) => tbKey(b.start, b.name) === tbKey(a.start, a.name))) t[wd].push({ ...a });
+      tbTplSave(t);
+    }
+    if (d.skips.size) { const sk = tbSkipsGet(); sk[k] = [...new Set([...(sk[k] || []), ...d.skips])]; tbSkipsSave(sk); }
+  }
+  tbDraft = null;
+  try { await tbReloadDay(k, made); } catch (e) { /* shown on the next refresh */ }
+  if (tbPanelDay === k) renderTimelinePanel();
+  render();
+  showToast(`Saved ${dayLabel(k)}`, false);
+}
+function tbFootSync(plannedN) {
+  const sv = document.getElementById("tbSaveBtn"), cn = document.getElementById("tbCancelBtn"), nt = document.getElementById("tbFootNote");
+  if (!sv) return;
+  const ch = tbChanged(); sv.disabled = !(ch || plannedN); cn.disabled = !ch;
+  nt.textContent = (ch || plannedN) ? "Not saved to WorkFlowy yet. Cancel leaves everything as it is." : "Everything on this day is saved.";
 }
 // Drag the bottom edge of a block to change its length, in 15-minute steps (the length is the task's ~estimate).
 function addResizeHandle(block, n, tb, dur) {
@@ -1922,61 +2127,96 @@ function addResizeHandle(block, n, tb, dur) {
 // Click a block: change its start, its length and its description (the WorkFlowy note) without leaving the panel.
 let tbEditNode = null;
 function closeTbEdit() { tbEditNode = null; document.getElementById("tbEdit").hidden = true; }
-function openTbEdit(n) {
-  const tb = timeBlockOf(n); if (!tb) return;
+// Click a block: change its start, length (and name or description). Changes wait for Save. A planned block can be changed for this day only, or in the template too.
+function openTbEdit(n, creating) {
+  const isPlan = !!n._planned, isNew = !!n._new || !!creating, real = !isPlan && !isNew;
+  const tb = creating ? { h: 9, mi: 0, mins: 540 } : timeBlockOf(n); if (!tb) return;
+  const k = tbPanelDay, wdName = TB_DAYS.find((x) => x[0] === keyToDate(k).getDay())[1];
   tbEditNode = n;
-  const ed = document.getElementById("tbEdit"), len = document.getElementById("tbeLen"), start = document.getElementById("tbeStart"), note = document.getElementById("tbeNote");
-  document.getElementById("tbeTitle").textContent = dropMeta(shownVisible(n.name)) || "(empty)";
+  const $ = (id) => document.getElementById(id);
+  const ed = $("tbEdit"), len = $("tbeLen"), start = $("tbeStart"), note = $("tbeNote"), nameIn = $("tbeName"), chk = $("tbeTplChk");
+  $("tbeTitle").textContent = creating ? "New block" : (isPlan ? n.tname : dropMeta(shownVisible(n.name)) || "(empty)") + (isPlan ? " (planned from your template)" : "");
+  $("tbeNameRow").hidden = real; nameIn.value = creating ? "" : isPlan ? n.tname : dropMeta(shownVisible(n.name));
   start.value = String(tb.h).padStart(2, "0") + ":" + String(tb.mi).padStart(2, "0");
-  const est = estOf(n), def = est || 30; len.innerHTML = "";
-  const steps = []; for (let m = 15; m <= 480; m += 15) steps.push(m); if (!steps.includes(def)) steps.push(def); steps.sort((a, b) => a - b);
-  for (const m of steps) { const o = document.createElement("option"); o.value = m; o.textContent = fmtMins(m) + (!est && m === 30 ? " (default)" : ""); len.appendChild(o); }
+  const est = isPlan ? n.mins : creating ? 30 : estOf(n), def = est || 30; len.innerHTML = "";
+  const steps = []; for (let m = 15; m <= 480; m += 15) steps.push(m); if (!steps.includes(def)) steps.push(def); steps.sort((x, y) => x - y);
+  for (const m of steps) { const o = document.createElement("option"); o.value = m; o.textContent = fmtMins(m) + (real && !est && m === 30 ? " (default)" : ""); len.appendChild(o); }
   len.value = String(def);
-  const enc = TOKEN_TEST(n.note);
-  note.value = enc ? "(Encrypted note: open it on the card to edit)" : visibleText(n.note || ""); note.readOnly = enc;
-  const showEnd = () => { const m = /^(\d{1,2}):(\d{2})$/.exec(start.value); if (!m) { document.getElementById("tbeEnd").textContent = ""; return; } const e2 = Number(m[1]) * 60 + Number(m[2]) + Number(len.value); document.getElementById("tbeEnd").textContent = "ends " + fmtTimeBlock(Math.floor(e2 / 60) % 24, e2 % 60); };
+  const enc = !isPlan && !creating && TOKEN_TEST(n.note);
+  $("tbeNoteL").hidden = note.hidden = isPlan; note.value = isPlan ? "" : creating ? "" : enc ? "(Encrypted note: open it on the card to edit)" : visibleText(n.note || ""); note.readOnly = enc;
+  $("tbeTplRow").hidden = real || (isNew && !creating);
+  chk.checked = !!creating && tbAuto();
+  $("tbeTplTxt").textContent = creating ? `Also add it to my ${wdName} template (every ${wdName})` : `Change my ${wdName} template too (every ${wdName})`;
+  const showEnd = () => { const m = /^(\d{1,2}):(\d{2})$/.exec(start.value); if (!m) { $("tbeEnd").textContent = ""; return; } const e2 = Number(m[1]) * 60 + Number(m[2]) + Number(len.value); $("tbeEnd").textContent = "ends " + fmtTimeBlock(Math.floor(e2 / 60) % 24, e2 % 60); };
   start.oninput = len.onchange = showEnd; showEnd();
-  document.getElementById("tbeSave").onclick = async () => {
+  const un = $("tbeUn"), dt = $("tbeDelTpl");
+  un.hidden = !!creating; un.textContent = isPlan ? "Skip this day" : isNew ? "Remove" : "Unschedule";
+  dt.hidden = !isPlan;
+  $("tbeSave").onclick = async () => {
     const m = /^(\d{1,2}):(\d{2})$/.exec(start.value);
     if (!m) { showToast("Pick a start time.", false); return; }
+    const h2 = Number(m[1]), mi2 = Number(m[2]), d2 = Number(len.value), hm = tbHM(h2 * 60 + mi2);
+    if (isPlan || creating) {
+      const nm = nameIn.value.trim().slice(0, 60);
+      if (!nm) { showToast("Give it a name.", false); return; }
+      const d = tbDraftFor(k), marked = `${tbEsc(nm)} ${timeBlockToken(h2, mi2)} ${estToken(d2)}`;
+      if (isPlan) {
+        if (nm === n.tname && hm === tbHM(tbStartMins(n)) && d2 === n.mins) { closeTbEdit(); return; }
+        if (chk.checked) { tbTplDrop(d, n.key); d.tplAdds.push({ name: nm, start: hm, mins: d2 }); }
+        else { const i = d.tplAdds.findIndex((a) => tbKey(a.start, a.name) === n.key); if (i >= 0) d.tplAdds.splice(i, 1); else d.skips.add(n.key); d.adds.push({ tmp: "n" + Date.now().toString(36), name: marked, note: "" }); }
+      } else if (chk.checked && tbAuto()) d.tplAdds.push({ name: nm, start: hm, mins: d2 });
+      else d.adds.push({ tmp: "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: marked, note: note.value.trim() });
+      closeTbEdit(); renderTimelinePanel(); return;
+    }
     const fields = {};
-    let name = (Number(m[1]) === tb.h && Number(m[2]) === tb.mi) ? n.name : withMarker(n.name, TIME_BLOCK_RE, timeBlockToken(Number(m[1]), Number(m[2])));      // an unchanged time is left where it is in the text
-    const d = Number(len.value); if (d !== def) name = withMarker(name, EST_RE, estToken(d));
+    let name;
+    if (isNew) name = `${tbEsc(nameIn.value.trim() || "Block")} ${timeBlockToken(h2, mi2)} ${estToken(d2)}`;
+    else { name = (h2 === tb.h && mi2 === tb.mi) ? n.name : withMarker(n.name, TIME_BLOCK_RE, timeBlockToken(h2, mi2)); if (d2 !== def) name = withMarker(name, EST_RE, estToken(d2)); }
     fields.name = name;
     if (!enc) {
       const next = note.value.replace(/\s+$/, "");
       if (next !== visibleText(n.note || "").replace(/\s+$/, "")) {
-        const theirs = await guardFresh(n, "note");
-        if (theirs != null) { note.value = visibleText(theirs); showToast("This note changed elsewhere. Check it and save again.", false); return; }
-        fields.note = next === "" ? "" : applyEdit(n.note || "", next);
+        if (!isNew) { const theirs = await guardFresh(n._orig || n, "note"); if (theirs != null) { note.value = visibleText(theirs); showToast("This note changed elsewhere. Check it and save again.", false); return; } }
+        fields.note = next === "" ? "" : (isNew ? next : applyEdit(n.note || "", next));
       }
     }
     closeTbEdit();
-    await tbApply(n, fields, fields.note !== undefined && name === n.name ? "Description saved" : "Time block updated");
+    await tbApply(n, fields);
   };
-  document.getElementById("tbeUn").onclick = async () => { closeTbEdit(); await tbApply(n, { name: withMarker(n.name, TIME_BLOCK_RE, "") }, "Time block removed"); };
-  document.getElementById("tbeCancel").onclick = closeTbEdit;
-  ed.hidden = false; note.focus({ preventScroll: true });
+  un.onclick = async () => {
+    closeTbEdit();
+    if (isPlan) tbSkipPlanned(n);
+    else if (isNew) { const d = tbDraftFor(k), i = d.adds.findIndex((x) => x.tmp === n.id); if (i >= 0) d.adds.splice(i, 1); renderTimelinePanel(); }
+    else await tbApply(n, { name: withMarker(n.name, TIME_BLOCK_RE, "") });
+  };
+  dt.onclick = () => { closeTbEdit(); const d = tbDraftFor(k); tbTplDrop(d, n.key); renderTimelinePanel(); };
+  $("tbeCancel").onclick = closeTbEdit;
+  ed.hidden = false; (isPlan || isNew ? nameIn : note).focus({ preventScroll: true });
 }
 async function tbGoDay(k) {                               // show another day in the panel (loading it first when the board hasn't)
   if (!ISO_DAY.test(k)) return;
+  if (tbDraft && tbDraft.day !== k && tbChanged()) {
+    if (!confirm(`You have changes on ${dayLabel(tbDraft.day)} that aren't saved.\n\nOK = discard them and go to ${dayLabel(k)}\nCancel = stay`)) { document.getElementById("tbDate").value = tbPanelDay || tbDraft.day; return; }
+  }
+  if (tbDraft && tbDraft.day !== k) tbDraft = null;
   tbPanelDay = k; closeTbEdit();
   document.getElementById("tbDate").value = k;
   try { if (!cache[k]) await loadDay(k); } catch (err) { showError(err.message); }
   if (tbPanelDay === k) renderTimelinePanel();
 }
 function openTimelinePanel(k) {
-  tbPanelDay = k;
-  document.getElementById("tbDate").value = k;
-  tbGoDay(k);
-  const panel = document.getElementById("tbPanel");
-  const shade = document.getElementById("tbShade");
+  if (!wfGate("tb")) return;
+  tbPull();
+  const panel = document.getElementById("tbPanel"), shade = document.getElementById("tbShade");
+  if (!panel.classList.contains("open")) { tbPanelDay = k; tbDraft = null; document.getElementById("tbDate").value = k; }
   panel.classList.add("open");
   shade.classList.add("open");
+  tbGoDay(k);
   renderTimelinePanel();
 }
-function closeTimelinePanel() {
-  tbPanelDay = null; closeTbEdit(); closeTbTpl();
+function closeTimelinePanel(force) {
+  if (force !== true && tbChanged() && !confirm("You have changes that aren't saved. Close and discard them?")) return;
+  tbDraft = null; tbPanelDay = null; closeTbEdit(); closeTbTpl();
   document.getElementById("tbPanel").classList.remove("open");
   document.getElementById("tbShade").classList.remove("open");
 }
@@ -1989,13 +2229,16 @@ function renderTimelinePanel() {
   renderTbQuick();
   timeline.innerHTML = "";
   
-  const tasks = cache[tbPanelDay] || [];
+  const tasks = tbViewTasks(tbPanelDay);
   const scheduled = [], unscheduled = [];
   for (const n of tasks) {
     const tb = timeBlockOf(n);
     if (tb) scheduled.push({ n, tb, dur: estOf(n) || 30, done: !!n.completedAt });   // done blocks stay, greyed
     else if (!n.completedAt) unscheduled.push(n);
   }
+  const planned = tbPlanned(tbPanelDay);                      // template blocks this day doesn't have yet: shown faded, written only on Save
+  for (const p of planned) scheduled.push({ n: p, tb: timeBlockOf(p), dur: p.mins, done: false });
+  tbFootSync(planned.length);
   
   // Pool of unscheduled tasks
   for (const n of unscheduled) {
@@ -2020,17 +2263,11 @@ function renderTimelinePanel() {
   let lo = TB_WORK_START, hi = TB_WORK_END;
   for (const sc of scheduled) { lo = Math.min(lo, Math.floor(sc.tb.mins / 60)); hi = Math.max(hi, Math.min(24, Math.ceil((sc.tb.mins + sc.dur) / 60))); }
   const setTime = async (id, token, durToken) => {          // schedule or move: the old ^marker is replaced, not repeated
-    const node = (cache[tbPanelDay] || []).find((n) => n.id === id);
+    const node = tbViewTasks(tbPanelDay).find((n) => n.id === id);
     if (!node) return;
     const name = withMarker(node.name, TIME_BLOCK_RE, token) + (durToken || "");
     if (name === node.name) return;
-    try {
-      await call("POST", `/nodes/${id}`, { name });
-      node.name = name;
-      await loadDay(tbPanelDay);
-      renderTimelinePanel();
-      render();
-    } catch (err) { showError(err.message); }
+    tbStageNode(node, { name });                              // held until Save
   };
   for (let h = lo; h < hi; h++) {
     for (let half = 0; half < 2; half++) {
@@ -2053,23 +2290,26 @@ function renderTimelinePanel() {
         task.className = "tbTask";
         const lab = document.createElement("span"); lab.className = "tbl";
         const lt = document.createElement("span");
-        lt.textContent = (done ? "✓ " : "") + (tb.mins === slotMins ? "" : fmtTimeBlock(tb.h, tb.mi) + " ") + dropMeta(shownVisible(n.name)).slice(0, 40) + (dur > 30 ? ` (${fmtMins(dur)})` : "");
+        lt.textContent = (done ? "✓ " : "") + (n._planned ? "Planned: " : "") + (tb.mins === slotMins ? "" : fmtTimeBlock(tb.h, tb.mi) + " ") + dropMeta(shownVisible(n.name)).slice(0, 40) + (dur > 30 ? ` (${fmtMins(dur)})` : "");
         lab.appendChild(lt);
         const nline = (n.note && !TOKEN_TEST(n.note)) ? shownVisible(n.note).split("\n")[0].trim().slice(0, 80) : "";
         if (nline) { const ln = document.createElement("span"); ln.className = "tbn"; ln.textContent = nline; lab.appendChild(ln); }
-        const rm = document.createElement("button"); rm.type = "button"; rm.className = "tbu"; rm.textContent = "✕"; rm.title = "Take it off the schedule"; rm.setAttribute("aria-label", "Unschedule");
+        const isPlan = !!n._planned;
+        const rm = document.createElement("button"); rm.type = "button"; rm.className = "tbu"; rm.textContent = "✕"; rm.title = isPlan ? "Leave it out of this day" : n._new ? "Remove it" : "Take it off the schedule"; rm.setAttribute("aria-label", rm.title);
         rm.onclick = async (e) => {
           e.stopPropagation();
-          const name = withMarker(n.name, TIME_BLOCK_RE, "");
-          try { await call("POST", `/nodes/${n.id}`, { name }); n.name = name; await loadDay(tbPanelDay); renderTimelinePanel(); render(); } catch (err) { showError(err.message); }
+          if (isPlan) tbSkipPlanned(n);
+          else if (n._new) { const d = tbDraftFor(tbPanelDay), i = d.adds.findIndex((x) => x.tmp === n.id); if (i >= 0) d.adds.splice(i, 1); renderTimelinePanel(); }
+          else tbStageNode(n, { name: withMarker(n.name, TIME_BLOCK_RE, "") });
         };
         task.append(lab); if (!done) task.append(rm);
         if (done) task.classList.add("done");
-        task.draggable = !done;                                // drag to another time to move it
+        if (isPlan) task.classList.add("tbPlan"); else if (n._new || n._orig) task.classList.add("tbEdited");
+        task.draggable = !done && !isPlan;                     // drag to another time to move it
         task.addEventListener("dragstart", (e) => { e.dataTransfer.setData("application/x-timeblock", JSON.stringify({ id: n.id, name: shortName(n) })); });
         task.title = fmtTimeBlock(tb.h, tb.mi) + " – " + fmtTimeBlock(Math.floor((tb.mins + dur) / 60), (tb.mins + dur) % 60);
         if (tb.mins + dur > slotMins + 30) task.classList.add("cont");     // runs on into the next slot(s)
-        else if (!done) addResizeHandle(task, n, tb, dur);
+        else if (!done && !n._planned) addResizeHandle(task, n, tb, dur);
         task.addEventListener("click", () => openTbEdit(n));
         area.appendChild(task);
       }
@@ -2078,11 +2318,11 @@ function renderTimelinePanel() {
         if (tb.mins >= slotMins || tb.mins + dur <= slotMins) continue;
         const bar = document.createElement("div");
         bar.className = "tbCont" + (tb.mins + dur <= slotMins + 30 ? " last" : "");
-        bar.draggable = !done; if (done) bar.classList.add("done");
+        bar.draggable = !done && !n._planned; if (done) bar.classList.add("done"); if (n._planned) bar.classList.add("tbPlan"); else if (n._new || n._orig) bar.classList.add("tbEdited");
         bar.title = dropMeta(shownVisible(n.name)).slice(0, 40) + ": " + fmtTimeBlock(tb.h, tb.mi) + " – " + fmtTimeBlock(Math.floor((tb.mins + dur) / 60), (tb.mins + dur) % 60);
         bar.addEventListener("dragstart", (e) => { e.dataTransfer.setData("application/x-timeblock", JSON.stringify({ id: n.id, name: shortName(n) })); });
         bar.addEventListener("click", () => openTbEdit(n));
-        if (!done && tb.mins + dur <= slotMins + 30) addResizeHandle(bar, n, tb, dur);
+        if (!done && !n._planned && tb.mins + dur <= slotMins + 30) addResizeHandle(bar, n, tb, dur);
         area.appendChild(bar);
       }
 
@@ -2097,7 +2337,7 @@ function renderTimelinePanel() {
         const dropped = JSON.parse(data);
         if (dropped.preset) { await tbCreateBlock(dropped.preset, Number(area.dataset.h), Number(area.dataset.mi)); return; }
         const { id } = dropped;
-        const node = (cache[tbPanelDay] || []).find((n) => n.id === id);
+        const node = tbViewTasks(tbPanelDay).find((n) => n.id === id);
         if (!node) return;
         const token = timeBlockToken(Number(area.dataset.h), Number(area.dataset.mi));
         let durToken = "";
@@ -2136,8 +2376,11 @@ document.getElementById("tbPrev").onclick = () => tbPanelDay && tbGoDay(addDayKe
 document.getElementById("tbNext").onclick = () => tbPanelDay && tbGoDay(addDayKey(tbPanelDay, 1));
 document.getElementById("tbToday").onclick = () => tbGoDay(key(new Date()));
 document.getElementById("tbDate").onchange = (e) => { if (e.target.value) tbGoDay(e.target.value); };
-document.getElementById("tbShade").onclick = closeTimelinePanel;
-document.getElementById("tbPanel").querySelector(".tbx").onclick = closeTimelinePanel;
+document.getElementById("tbSaveBtn").onclick = tbSaveDay;
+document.getElementById("tbCancelBtn").onclick = () => { if (tbChanged() && confirm("Throw away the changes you haven't saved on this day?")) tbCancelDraft(); };
+document.getElementById("tbNewBtn").onclick = () => { if (tbPanelDay) openTbEdit({ id: "new", name: "", note: "" }, true); };
+document.getElementById("tbShade").onclick = () => closeTimelinePanel();
+document.getElementById("tbPanel").querySelector(".tbx").onclick = () => closeTimelinePanel();
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tbPanelDay) { if (!document.getElementById("tbTpl").hidden) closeTbTpl(); else if (tbEditNode) closeTbEdit(); else closeTimelinePanel(); } });
 
 function render() {
@@ -2179,6 +2422,7 @@ function render() {
       const tbBtn = document.createElement("button");
       tbBtn.type = "button"; tbBtn.className = "tbbtn"; tbBtn.textContent = "🕐"; tbBtn.title = "Open time blocking panel"; tbBtn.setAttribute("aria-label", tbBtn.title);
       tbBtn.onclick = () => openTimelinePanel(k);
+      if (!wf.tb) wfOffBtn(tbBtn, "tb");
       head.querySelector("h2").appendChild(tbBtn);
     }
     const list = document.createElement("div");
@@ -2248,12 +2492,12 @@ function render() {
   extras.innerHTML = "";
   if (prefs.showLate || peek.showLate) {
     const span = lateRange === "all" ? "All" : `${lateRange} ${lateRange === "1" ? "week" : "weeks"}`;
-    extras.appendChild(extraColumn(`Past due (${span})`, "", entriesFor(extra.late, true), "late",
+    extras.appendChild(extraColumn(`Past due (${span})`, "", entriesFor(extra.late, true, true), "late",
       loadingExtras ? "Loading…" : "Nothing past due", !prefs.showLate && "showLate", "optLate"));
   }
   if (prefs.showSoon || peek.showSoon) {
     extras.appendChild(extraColumn(`Upcoming (${LOOKAHEAD} days)`, "",
-      entriesFor(extra.soon, false), "soon", loadingExtras ? "Loading…" : "Nothing upcoming", !prefs.showSoon && "showSoon", "optSoon"));
+      entriesFor(extra.soon, false, true), "soon", loadingExtras ? "Loading…" : "Nothing upcoming", !prefs.showSoon && "showSoon", "optSoon"));
   }
   extras.querySelectorAll(".col").forEach((c) => { const t = c.querySelector(".tasks"); if (t && scrolls[c.className]) t.scrollTop = scrolls[c.className]; });
   renderCounters();
@@ -2836,11 +3080,11 @@ function card(n, k, showDate, opts) {
     if (selMode || ev.target.closest("button, a, input, textarea, .pl-edit")) return;
     ev.preventDefault();
     kbMenu.textContent = "";
-    const add = (label, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
+    const add = (label, fn, feat) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { kbMenu.hidden = true; fn(); }; if (feat && !wf[feat]) wfOffBtn(b, feat, label); kbMenu.appendChild(b); };
     add(n.completedAt ? "Mark not done" : "Mark done", () => cb.click());
-    add(parseTag(n.name) || parseTime(plain(n.name)) ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => openRemPop(el, n, k, nested ? opts.bullet : null, parseTag(n.name) || parseTime(plain(n.name))), 0));
-    add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, nested ? opts.bullet : null), 0));
-    if (ISO_DAY.test(k)) add("Time block…", () => setTimeout(() => openTimeBlockPop(el, n, k, nested ? opts.bullet : null), 0));
+    add(parseTag(n.name) || parseTime(plain(n.name)) ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => openRemPop(el, n, k, nested ? opts.bullet : null, parseTag(n.name) || parseTime(plain(n.name))), 0), "mark");
+    add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, nested ? opts.bullet : null), 0), "rep");
+    if (ISO_DAY.test(k)) add("Time block…", () => setTimeout(() => openTimelinePanel(k), 0), "tb");
     kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(ev.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px";
   });
   return el;
@@ -3022,19 +3266,19 @@ function cardField(n, k, el, bullet, group) {      // group: the task sits in a 
     if (n.pending || selMode) return;
     ev.preventDefault(); ev.stopPropagation();
     kbMenu.textContent = ""; kbMenuLine = ta;
-    const add = (label, fn, hint) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
+    const add = (label, fn, hint, feat) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { kbMenu.hidden = true; fn(); }; if (feat && !wf[feat]) wfOffBtn(b, feat, label); kbMenu.appendChild(b); };
     const cb = (ta.closest(".si") || el).querySelector("input[type=checkbox]");
     if (cb && !cb.disabled) add(n.completedAt ? "Mark not done" : "Mark done", () => cb.click());
     add("Edit the note…", () => ta.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true })), "Shift+Enter");
     const remNow = () => parseTag(n.name || "") || parseTime(plain(n.name || ""));
-    add(remNow() ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => ta._flush().then(() => openRemPop(el, n, k, bullet, remNow())), 0));
-    add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, bullet), 0));
-    if (ISO_DAY.test(k)) add("Time block…", () => setTimeout(() => ta._flush().then(() => openTimeBlockPop(el, n, k, bullet)), 0));
+    add(remNow() ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => ta._flush().then(() => openRemPop(el, n, k, bullet, remNow())), 0), "", "mark");
+    add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, bullet), 0), "", "rep");
+    if (ISO_DAY.test(k)) add("Time block…", () => setTimeout(() => ta._flush().then(() => openTimelinePanel(k)), 0), "", "tb");
     const metaRow = (label, picks, cur, which) => {          // Priority: P1 P2 P3 P4 ✕   /   Estimate: 15m 30m … ✕
       const row = document.createElement("div"); row.className = "kmrow";
-      const l = document.createElement("span"); l.textContent = label; row.appendChild(l);
+      const l = document.createElement("span"); l.textContent = label + (wf.mark ? "" : " · off in Settings"); row.appendChild(l);
       for (const [v, text, title] of picks) {
-        const b = document.createElement("button"); b.type = "button"; b.textContent = text; b.title = title;
+        const b = document.createElement("button"); b.type = "button"; b.textContent = text; b.title = title; if (!wf.mark) wfOffBtn(b, "mark");
         b.className = (v === 0 ? "none" : "") + (v === cur ? " on" : "");
         b.onclick = () => { kbMenu.hidden = true; ta._flush().then(() => setMeta(n, k, bullet, which, v === cur ? 0 : v)); };
         row.appendChild(b);
@@ -3158,6 +3402,7 @@ function allDayBand(k) {
   if (!notes.length && !pend) {
     const a = document.createElement("button"); a.type = "button"; a.className = "adadd"; a.textContent = "+ All-day note"; a.title = "Add a note for the whole day";
     a.addEventListener("click", () => { adPending.add(k); adFocus = k; render(); });
+    if (!wf.notes) wfOffBtn(a, "notes", "+ All-day note");
     return a;
   }
   const band = document.createElement("div"); band.className = "adband"; band.dataset.key = k;
@@ -3353,6 +3598,7 @@ async function findNotes(todayK, name) {
 
 // Finds today's notes bullet by name, or creates it at the bottom of today's page.
 async function ensureNotesId(todayK) {
+  if (!wf.notes) throw new Error(wfHint("notes"));
   const hit = await findNotes(todayK, notesName);
   if (hit) return hit.id;
   const res = await call("POST", "/nodes", { parent_id: todayK, name: notesName, position: "bottom" });
@@ -3408,6 +3654,7 @@ function updateComposerLabel() {
 // Moves the shown day's plain top-level bullets (with their sub-bullets) under the notes bullet, keeping their order.
 // Todos, headings and the notes bullet itself stay where they are.
 async function moveNotes() {
+  if (!wfGate("notes")) return;
   if (saving) return;
   const todayK = pageKey();    // the day shown in the Daily page above
   let nodes;
@@ -3505,6 +3752,7 @@ async function quickAdd(text) {
 notesAdd.addEventListener("keydown", async (e) => {
   if (e.key !== "Enter" || e.isComposing || !notesAdd.value.trim()) return;
   e.preventDefault();
+  if (!wfGate("notes")) return;
   if (await quickAdd(notesAdd.value)) notesAdd.value = "";
 });
 notesAdd.addEventListener("paste", async (e) => {
@@ -4069,6 +4317,26 @@ nestedSel.onchange = () => {
   po.checked = prefs.prioSort;
   po.onchange = () => { prefs.prioSort = po.checked; setPref("prioSort", po.checked); render(); renderPlan(); };
 }
+for (const k of ["tb", "rep", "notes", "mark"]) { const el = document.getElementById("wf_" + k); el.checked = wf[k]; el.onchange = () => wfSave(k, el.checked); }
+
+// Time blocking templates (automatic): the server does the writing at the chosen day and time; this only sets and shows it.
+const wkEls = () => ({ on: document.getElementById("wk_on"), day: document.getElementById("wk_day"), time: document.getElementById("wk_time"), weeks: document.getElementById("wk_weeks"), note: document.getElementById("wkNote"), last: document.getElementById("wkLast") });
+function wkDraw(j) {
+  const e = wkEls(), c = j.weekAuto || { on: false, day: "fri", time: "18:00", weeks: 1 };
+  e.on.checked = !!c.on; e.day.value = c.day; e.time.value = c.time; e.weeks.value = c.weeks;
+  const off = !wf.tb; for (const k of ["on", "day", "time", "weeks"]) e[k].disabled = off;
+  const dayName = c.day === "mon" ? "Monday" : "Friday", what = c.day === "mon" ? (c.weeks > 1 ? `this week and the next ${c.weeks - 1}` : "this week") : (c.weeks > 1 ? `the next ${c.weeks} weeks` : "next week");
+  e.note.textContent = off ? "Off · switch Time blocking on above to use this" : c.on ? `On: every ${dayName} at ${c.time} it adds ${what}` : "Off";
+  const l = j.weekAutoLast; e.last.textContent = l ? (l.error ? `Last run had a problem: ${l.error}` : `Last run ${new Date(l.at).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}: added ${l.made} block${l.made === 1 ? "" : "s"}.`) : "";
+}
+async function wkLoad() { try { wkDraw(await (await fetch("/timeblocks")).json()); } catch (e) { /* the server is not reachable */ } }
+async function wkSave() {
+  const e = wkEls(); let w = Math.round(Number(e.weeks.value)) || 1; w = Math.min(4, Math.max(1, w)); e.weeks.value = w;
+  try { const r = await fetch("/timeblocks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ weekAuto: { on: e.on.checked, day: e.day.value, time: e.time.value || "18:00", weeks: w } }) }); if (!r.ok) throw new Error("not saved"); wkDraw(await r.json()); }
+  catch (err) { showError("Couldn't save that: " + err.message); }
+}
+for (const id of ["wk_on", "wk_day", "wk_time", "wk_weeks"]) document.getElementById(id).onchange = wkSave;
+document.querySelector('[data-sec="write"][role="tab"]').addEventListener("click", wkLoad);
 for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["optSoon", "showSoon"], ["optSubs", "showSubs"], ["optLive", "liveCards"]]) {
   const el = document.getElementById(id);
   el.checked = prefs[pref];
@@ -4507,6 +4775,7 @@ async function setReminder(n, k, bullet, hhmm, after, leads) {       // leads: t
   remPoll(true);
 }
 function openRemPop(anchor, n, k, bullet, cur, after) {
+  if (!wfGate("mark")) return;
   const wasMine = movePop && movePop._anchor === anchor;
   closeMovePop();
   if (wasMine) return;
@@ -4597,6 +4866,7 @@ async function setRepeat(n, k, bullet, token, after) {
   }
 }
 function openRepeatPop(anchor, n, k, bullet, after) {
+  if (!wfGate("rep")) return;
   const wasMine = movePop && movePop._anchor === anchor;
   closeMovePop();
   if (wasMine) return;
@@ -4654,49 +4924,6 @@ function openRepeatPop(anchor, n, k, bullet, after) {
   sel.focus({ preventScroll: true });
 }
 // Time block… : pick a time and how long, for a task on any day (the panel and the card badge both read the same ^marker)
-function openTimeBlockPop(anchor, n, k, bullet) {
-  const wasMine = movePop && movePop._anchor === anchor;
-  closeMovePop();
-  if (wasMine) return;
-  const cur = timeBlockOf(n), est = estOf(n);
-  const pop = document.createElement("div");
-  pop.className = "movepop rpop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Time block"); pop._anchor = anchor; pop._t = Date.now();
-  pop.addEventListener("click", (e) => e.stopPropagation());
-  const row = (label, el) => { const d = document.createElement("div"); d.style.cssText = "display:flex;gap:6px;align-items:center;margin:6px 0"; const l = document.createElement("span"); l.textContent = label; l.style.minWidth = "58px"; d.append(l, el); return d; };
-  const time = document.createElement("input"); time.type = "time"; time.step = 300; time.setAttribute("aria-label", "Start time");
-  time.value = cur ? String(cur.h).padStart(2, "0") + ":" + String(cur.mi).padStart(2, "0") : "09:00";
-  const dur = document.createElement("select"); dur.setAttribute("aria-label", "How long");
-  const picks = [[0, est ? "Keep " + fmtMins(est) : "No estimate (30m shown)"], [15, "15m"], [30, "30m"], [45, "45m"], [60, "1h"], [90, "1h 30m"], [120, "2h"], [180, "3h"]];
-  if (est && !picks.some((p) => p[0] === est)) picks.push([est, fmtMins(est)]);
-  for (const [v, t] of picks) { const o = document.createElement("option"); o.value = v; o.textContent = t; dur.appendChild(o); }
-  dur.value = "0";
-  const save = document.createElement("button"); save.type = "button"; save.className = "go"; save.textContent = "Save";
-  const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel"; cancel.textContent = "Cancel"; cancel.addEventListener("click", closeMovePop);
-  const apply = async (name, what) => {
-    const old = n.name; if (name === old) { closeMovePop(); return; }
-    closeMovePop();
-    const parent = bullet ? bullet.id : k;
-    await act(async () => { await call("POST", `/nodes/${n.id}`, { name }); n.name = name; if (bullet) await reloadBullet(bullet.id); else await loadDay(k); });
-    if (tbPanelDay) renderTimelinePanel();
-    showToast(what, false);
-    pushUndo(`${what}: “${shortName(n)}”`, async () => { await call("POST", `/nodes/${n.id}`, { name: old }); await reloadParents([parent]); if (tbPanelDay) { await loadDay(tbPanelDay); renderTimelinePanel(); } });
-  };
-  save.addEventListener("click", () => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(time.value);
-    if (!m) { showToast("Pick a start time.", false); return; }
-    let name = withMarker(n.name, TIME_BLOCK_RE, timeBlockToken(Number(m[1]), Number(m[2])));
-    const d = Number(dur.value);
-    if (d && d !== est) name = withMarker(name, EST_RE, estToken(d));
-    apply(name, "Time blocked " + fmtTimeBlock(Number(m[1]), Number(m[2])));
-  });
-  pop.append(row("Start", time), row("Length", dur), save);
-  if (cur) { const rm = document.createElement("button"); rm.type = "button"; rm.className = "cancel"; rm.textContent = "Remove"; rm.addEventListener("click", () => apply(withMarker(n.name, TIME_BLOCK_RE, ""), "Time block removed")); pop.appendChild(rm); }
-  pop.appendChild(cancel);
-  document.body.appendChild(pop);
-  placeCardPop(pop, anchor);
-  movePop = pop;
-  time.focus({ preventScroll: true });
-}
 let remItems = [], remInfo = { push: {} };
 const remFired = (() => { try { return JSON.parse(localStorage.getItem("remFired") || "{}"); } catch (e) { return {}; } })();
 const remSnooze = {};
@@ -5984,7 +6211,7 @@ function kbCalBar(n, ctx) {
   const k = kbCalState(ctx.col).sel;
   const mk = (cls, svg, title) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.innerHTML = svg; b.title = title; b.setAttribute("aria-label", title); return b; };
   const settle = async (b) => { if (n.pending && !(b.closest(".pl").querySelector("textarea.pe-live") || {}).value) return false; const ta = b.closest(".pl").querySelector("textarea.pe-live"); if (ta && ta._flush) { try { await ta._flush(); } catch (e) { return false; } ta.blur(); } return true; };
-  const rb = mk("rm", BELL_ICON, "Set a reminder…"), mv = mk("mv", CAL_ICON, "Move to a date…"), dl = mk("del", X_ICON, "Delete");
+  const rb = mk("rm", BELL_ICON, "Set a reminder…"); if (!wf.mark) wfOffBtn(rb, "mark"); const mv = mk("mv", CAL_ICON, "Move to a date…"), dl = mk("del", X_ICON, "Delete");
   rb.addEventListener("click", async (e) => { e.stopPropagation(); if (!(await settle(rb))) return; const tag = parseTag(n.name), tm = parseTime(plain(n.name)); openRemPop(rb, n, k, null, tag || tm, async () => { await ctx.reload(); }); });
   mv.addEventListener("click", async (e) => {
     e.stopPropagation(); if (!(await settle(mv))) return;
@@ -6595,7 +6822,7 @@ function kbMoveToDay(n, ta, sib, ctx) {
 }
 function kbLineMenu(e, n, ta, sib, ctx) {
   kbMenu.textContent = ""; kbMenuLine = ta;
-  const add = (label, fn, hint) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { kbMenu.hidden = true; fn(); }; kbMenu.appendChild(b); };
+  const add = (label, fn, hint, feat) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.onclick = () => { kbMenu.hidden = true; fn(); }; if (feat && !wf[feat]) wfOffBtn(b, feat, label); kbMenu.appendChild(b); };
   if (kbSel.ids.length > 1 && kbSel.ids.includes(n.id)) {
     add(`Delete ${kbSel.ids.length} selected lines`, () => kbSelDelete(ctx, ta), "Delete"); add("Clear the selection", () => kbSelClear(), "Esc");
     kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(e.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(e.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px"; return;
@@ -6607,7 +6834,7 @@ function kbLineMenu(e, n, ta, sib, ctx) {
   if (ctx.col.kind !== "calendar") for (const [ty, label] of [["bullets", "Bullet"], ["todo", "Task"], ["numbered", "Numbered"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]]) if (type !== ty) add("Make it " + (ty === "todo" ? "a task" : ty === "bullets" ? "a bullet" : ty === "numbered" ? "a numbered line" : label.toLowerCase()), () => kbSetLineType(n, ta, ctx, ty));
   if (ctx.col.kind !== "calendar") add("Change the type (next one)", () => kbCycleType(n, ta, ctx), kbK("Alt+Shift+T", "Option+Shift+T"));
   if (window.wbcryptLive && window.wbcryptLive.ready()) add("Encrypt, or remove encryption", () => kbCryptKey(n, ta, ctx), kbK("Alt+Shift+E", "Option+Shift+E"));
-  if (ctx.col.kind === "calendar" && !n.pending && type === "todo") add("Repeat…", () => setTimeout(() => openRepeatPop(ta, n, kbCalState(ctx.col).sel, null, async () => { await ctx.reload(); }), 0));
+  if (ctx.col.kind === "calendar" && !n.pending && type === "todo") add("Repeat…", () => setTimeout(() => openRepeatPop(ta, n, kbCalState(ctx.col).sel, null, async () => { await ctx.reload(); }), 0), "", "rep");
   if (ctx.col.kind !== "calendar" && !n.pending && sib && sib.parentId && !kbIsRootLine(n)) add("Move to a day…", () => kbMoveToDay(n, ta, sib, ctx));
   if (ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline") add("Zoom into this line", () => kbZoomLine(n, ta, ctx, true), "Ctrl+Shift+→");
   if (ctx.lane && sib.real === ctx.top) for (const t of (kbData[ctx.col.id] || {}).cards || []) if (t.id !== ctx.lane.id) add("Move to “" + (shownVisible(t.name) || "(empty)").slice(0, 30) + "”", () => kbMoveToTitle(n, ta, ctx, t));
@@ -7445,6 +7672,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pageMen
 document.getElementById("notesEdit").onclick = changeNotesName;
 applyNotesLabels();
 
+wfLoad();
 loadWeek();
 loadPage();
 </script>
