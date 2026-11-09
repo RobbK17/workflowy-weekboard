@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.4.1">
+<meta name="version" content="1.5.0">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -147,6 +147,7 @@
   #board .col { flex: 1 1 0; min-width: 140px; }   /* days share the width evenly; they only scroll sideways when they would get narrower than this */
   #side .col { flex: 0 1 auto; width: 100%; max-height: 30vh; min-height: 70px; }
   .col.wkend .wksec { margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px dashed rgba(127,127,127,.35); } .col.wkend .wksec:last-child { border-bottom: 0; }
+  .col.wkend .tasks { padding-top: 2px; } .col.wkend .wksec:first-child .wkh { margin-top: 0; }
   .col.wkend .wkh { font-weight: 600; font-size: 13px; margin: 6px 0 4px; } .col.wkend .wksec.over { background: rgba(80,140,255,.10); border-radius: 6px; }
   .colhead { flex: none; padding-bottom: 4px; }
   .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 14px; }   /* room above the first card for its hover buttons */
@@ -252,6 +253,7 @@
   .add { display: block; width: 100%; padding: 7px 8px; border: 1px dashed var(--border); border-radius: 6px;
          background: transparent; color: var(--text); font: inherit; }
   .empty { color: var(--muted); font-size: 12px; padding: 2px 4px 8px; }
+  .col > .tasks > .empty, .wksec > .empty { text-align: center; font-size: 13px; padding: 10px 4px 14px; }
 
   /* Calendar */
   .calhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; }
@@ -270,7 +272,7 @@
   /* Daily page: read from WorkFlowy, nested like the outline */
   /* Daily page fills the space left in the sidebar and scrolls inside itself. */
   #outliner { flex: 1 1 0; min-height: 300px; display: flex; flex-direction: column; }
-  #outliner > h3, #outliner > .notesadd, #outliner > .outbar, #outliner > .viewbar { flex: none; }
+  #outliner > h3, #outliner > .outbar, #outliner > .viewbar { flex: none; }
   .pagetree { flex: 1 1 0; min-height: 60px; overflow-y: auto; scrollbar-width: thin; background: var(--card);
               border-radius: 6px; padding: 6px 8px; margin-bottom: 12px; font-size: 13px; }
   /* Expanded: the calendar and Past due / Upcoming panels hide, so the page (and the add pad) get the whole sidebar. */
@@ -421,10 +423,6 @@
   .outbar { gap: 3px; }
   .outbar button { padding: 4px 5px; font-size: 12px; white-space: nowrap; }
   .outright { display: flex; gap: 4px; align-items: center; }
-  .notesadd { margin: 0 0 8px; }
-  .notesadd input { display: block; width: 100%; padding: 7px 8px; border: 1px dashed var(--border); border-radius: 6px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; }
-  .notesadd input.away { border-color: var(--accent); }
-  .notesadd input:focus { outline: none; border-style: solid; border-color: var(--accent); }
   .reports { position: relative; }
   #kanban { flex: 1; min-width: 0; display: none; flex-direction: column; gap: 8px; overflow: hidden; }
   body.kb #kanban { display: flex; }
@@ -510,7 +508,10 @@
   .adband textarea.ad-line { display: block; width: 100%; box-sizing: border-box; border: 0; background: transparent; color: inherit; font: inherit; font-size: 13px; padding: 2px 0; resize: none; overflow: hidden; outline: none; }
   .adband textarea.ad-line:focus { background: rgba(255,255,255,.35); }
   .adband .admore { background: none; border: 0; color: inherit; opacity: .65; font-size: 11.5px; text-decoration: underline; cursor: pointer; padding: 1px 0; }
-  .adadd { background: none; border: 0; color: inherit; opacity: .55; font-size: 12px; text-decoration: underline; cursor: pointer; padding: 2px 0; margin: 2px 0; } .adadd:hover { opacity: 1; }
+  .daytools { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; } .dtgrp { flex: 1; min-width: 0; }
+  .daytools-wrap { margin: 4px 0 0; } .daytools-wrap .daytools { margin: 0 0 4px; } .dtool.on { opacity: 1; background: rgba(0,0,0,.08); }
+  .dtool { display: inline-flex; align-items: center; color: var(--muted); background: none; border: 0; padding: 4px 7px; margin: 0; font-size: 14px; line-height: 1.2; cursor: pointer; opacity: .6; text-decoration: none; border-radius: 6px; } .dtool:hover { opacity: 1; color: var(--accent); background: rgba(0,0,0,.06); }
+  .adadd:not(.dtool) { background: none; border: 0; color: inherit; opacity: .55; font-size: 12px; text-decoration: underline; cursor: pointer; padding: 2px 0; margin: 2px 0; } .adadd:not(.dtool):hover { opacity: 1; }
   .ktgrid { margin-left: 10px; background: none; border: 0; color: inherit; opacity: .7; text-decoration: underline; cursor: pointer; font-size: 11.5px; padding: 0; }
   .ktw { margin: 2px 0 8px; }
   .ktb { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 13px; }
@@ -887,12 +888,11 @@
     <section class="panel" id="outliner">
       <h3 id="pageHead"><strong id="pageHeading">Daily page</strong><button class="mini nav" id="pagePrev" title="Previous day's page" aria-label="Previous day's page">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's page" aria-label="Next day's page">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar" aria-label="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload" aria-label="Reload">&#8635;</button><button class="mini" id="pageMore" aria-haspopup="true" aria-expanded="false" title="More: rename the notes bullet, move notes in" aria-label="More: rename the notes bullet, move notes in">&#8943;</button></h3>
       <div class="pop fixed" id="pageMenu" role="menu" hidden>
-        <button id="notesEdit" role="menuitem" type="button"><span>&#9998; Rename the notes bullet&hellip;<small>Used on every day's page (saved in this browser)</small></span></button>
-        <button id="moveNotes" role="menuitem" type="button"><span>&#8627; Move notes in<small>Move the shown day's plain bullets into the notes bullet</small></span></button>
+
+
       </div>
       <div class="pagetree" id="pageTree">Loading…</div>
       <div class="pagebar"><span class="kbsave pagesave" id="pageSave" role="status" aria-live="polite"></span><button class="mini" id="pageEdit" type="button" aria-label="Edit like a text editor"></button></div>
-      <div class="notesadd"><input id="notesAdd" type="text" autocomplete="off" spellcheck="true"></div>
       <div class="outbar">
         <span class="outright">
           <button id="selBtn" aria-pressed="false" title="Select several tasks to move, complete or delete together">&#9745; Selector</button>
@@ -917,7 +917,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.4.1</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.0</span></div>
   </div>
 </footer>
 
@@ -1255,6 +1255,17 @@ function loadNotesName() {
   return DEFAULT_NOTES_NAME;
 }
 function sameName(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase(); }   // ignores case and stray spaces
+// The all-day notes bullet is found by its current name, and by its old default name "WB-Notes" so days written before 1.5.0 keep working.
+const LEGACY_NOTES = "WB-Notes";
+const isNotesName = (text) => sameName(text, notesName) || sameName(text, LEGACY_NOTES);
+const findNotesBullet = (nodes) => nodes.find((n) => sameName(plain(n.name), notesName)) || nodes.find((n) => sameName(plain(n.name), LEGACY_NOTES)) || null;
+// An all-day note is a plain bullet on the day marked "!alld" (hidden like the other markers); "!alld1" to "!alld9" also sets its order, lowest first.
+const ALLD_RE = /(^|\s)!alld([1-9])?(?=$|[\s.,;!?)<])/i;
+const alldMark = (n) => { const m = ALLD_RE.exec(plain(n.name)); return m ? { n: m[2] ? Number(m[2]) : 0, text: "!alld" + (m[2] || "") } : null; };
+const stripAlld = (t) => String(t || "").replace(new RegExp(ALLD_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim();
+// A checklist is a plain bullet marked "!list" (hidden like the other markers): a note with tick boxes. It is never a group card on the board.
+const LIST_RE = /(^|\s)!list(?=$|[\s.,;!?)<])/i;
+const isChecklist = (n) => LIST_RE.test(plain(n.name));
 
 const cache = {};        // dateKey -> sorted node array
 const dayBullets = {};   // dateKey -> plain bullets / headings under that day (they may hold tasks; see Nested)
@@ -1283,7 +1294,6 @@ function wfSync(redraw = true) {
   for (const k of ["tb", "rep", "notes", "mark"]) { const el = document.getElementById("wf_" + k); if (el) el.checked = wf[k]; }
   const f = document.getElementById("wfRepNote"); if (f) f.hidden = !wf.repForced;
   try { wkLoad(); } catch (e) { /* the settings are not drawn yet */ }
-  for (const b of [document.getElementById("notesAdd"), document.getElementById("moveNotes")]) if (b) { if (b.dataset.wfTitle === undefined) b.dataset.wfTitle = b.title || ""; b.classList.toggle("wfoff", !wf.notes); b.title = wf.notes ? b.dataset.wfTitle : wfHint("notes"); }
   if (!wf.tb && document.getElementById("tbPanel").classList.contains("open")) closeTimelinePanel(true);
   if (redraw) { try { render(); renderPage(); } catch (e) { /* first paint not done yet */ } }
 }
@@ -1341,7 +1351,7 @@ function withMarker(raw, re, token) {                     // the stored name wit
   return token ? `${cleared} ${token}` : cleared;
 }
 const BLK_RE = /(^|\s)!blk(?=$|[\s.,;!?)<])/i;        // marks a block that came from the day template; it is marked done by itself once its time has passed
-const dropMeta = (s) => withMarker(withMarker(withMarker(withMarker(s, PRIO_RE, ""), EST_RE, ""), TIME_BLOCK_RE, ""), BLK_RE, "");
+const dropMeta = (s) => withMarker(withMarker(withMarker(withMarker(withMarker(withMarker(s, PRIO_RE, ""), EST_RE, ""), TIME_BLOCK_RE, ""), BLK_RE, ""), LIST_RE, ""), ALLD_RE, "");
 async function setMeta(n, k, bullet, which, value) {      // which: "prio" (0 to 4, 0 = none) or "est" (minutes, 0 = none)
   if (!wfGate("mark")) return;
   const old = n.name;
@@ -1482,31 +1492,45 @@ function xtabTry() {
 document.addEventListener("visibilitychange", () => { if (!document.hidden && xtabStale) xtabSoon(300); });
 
 /* ----- all-day notes: the lines under a day's notes bullet, shown at the top of the day's column ----- */
-const noteBullet = {};          // day key -> the notes bullet node (or null)
-const dayNotes = {};            // day key -> its note lines (the children of the notes bullet)
+const noteBullet = {};          // day key -> the OLD notes bullet ("WB-Notes") of days written before 1.5.0, or null
+const dayNotes = {};            // day key -> its all-day notes: bullets marked !alld (ordered), then the lines under an old notes bullet
+const dayAll = {};              // day key -> every node directly on the day
 const adOpen = new Set();       // days whose note band is unfolded to show every line
 const adPending = new Set();    // days showing an empty line waiting for its first text
 let adFocus = null;             // day key whose last note line should get the cursor after the next redraw
 const adLimit = () => { try { const v = Number(localStorage.getItem("allDayLines")); return [0, 1, 2, 3, 5].includes(v) && localStorage.getItem("allDayLines") !== null ? v : 3; } catch (e) { return 3; } };
 async function loadNotes(keys) {
   if (!prefs.allDay) return;
+  const todayK = key(new Date());
   await Promise.all(keys.map(async (k) => {
+    // Marked bullets come first (numbered ones by number, then the rest in their place on the day), then the lines under an old notes bullet.
+    const marked = (dayAll[k] || []).map((n) => ({ n, m: alldMark(n) })).filter((x) => x.m)
+      .sort((a, b) => (a.m.n || 99) - (b.m.n || 99) || a.n.priority - b.n.priority).map((x) => x.n);
+    let legacy = [];
     const b = noteBullet[k];
-    if (!b) { dayNotes[k] = []; return; }
-    try { const d = await call("GET", `/nodes?parent_id=${b.id}`); dayNotes[k] = ((d && d.nodes) || []).sort((x, y) => x.priority - y.priority); } catch (e) { dayNotes[k] = dayNotes[k] || []; }
+    if (b) {
+      try {
+        const d = await call("GET", `/nodes?parent_id=${b.id}`);
+        legacy = ((d && d.nodes) || []).sort((x, y) => x.priority - y.priority); for (const x of legacy) x._legacy = true;
+        if (!legacy.length && k < todayK && wf.notes && !b.children) {                    // an empty old notes bullet on a past day is removed quietly
+          try { await call("DELETE", `/nodes/${b.id}`); noteBullet[k] = null; dayAll[k] = (dayAll[k] || []).filter((x) => x.id !== b.id); } catch (e) { /* tried again next time */ }
+        }
+      } catch (e) { legacy = (dayNotes[k] || []).filter((x) => x._legacy); }
+    }
+    dayNotes[k] = marked.concat(legacy);
   }));
 }
 async function loadDay(k) {
   const data = await call("GET", `/nodes?parent_id=${k}`);
   const nodes = data && data.nodes ? data.nodes : [];
-  noteBullet[k] = nodes.find((n) => sameName(plain(n.name), notesName)) || null;
+  noteBullet[k] = findNotesBullet(nodes); dayAll[k] = nodes;
   // Tasks only: skip plain bullets, headers, quotes and code blocks (anything not layoutMode "todo").
   const tasks = nodes.filter((n) => n.data && n.data.layoutMode === "todo");
   cache[k] = tasks.sort((a, b) => a.priority - b.priority);
-  // Plain bullets and headings, kept so tasks indented under them can be found. The notes bullet is left out on purpose.
+  // Plain bullets and headings, kept so tasks indented under them can be found. Old notes bullets, checklists and all-day notes are left out on purpose.
   dayBullets[k] = nodes.filter((n) => {
     const mode = (n.data && n.data.layoutMode) || "bullets";
-    return /^(bullets|h[1-3])$/.test(mode) && !sameName(plain(n.name), notesName);
+    return /^(bullets|h[1-3])$/.test(mode) && !isNotesName(plain(n.name)) && !isChecklist(n) && !alldMark(n);
   }).sort((a, b) => a.priority - b.priority);
 }
 
@@ -1729,7 +1753,9 @@ function entryEl(e, showDate) {
 // While a line is being edited, redraws caused by background loads wait until the editor closes (they used to wipe it out).
 const redrawQueue = new Map();
 const editorOpen = () => !!document.querySelector(".pl-edit") || (document.activeElement && document.activeElement.classList && (document.activeElement.classList.contains("pe-live") || document.activeElement.classList.contains("pe-nt") || document.activeElement.classList.contains("cd-live") || document.activeElement.classList.contains("cd-note") || document.activeElement.classList.contains("ad-line") || document.activeElement.classList.contains("ktc")));
-function deferRedraw(key, fn) { if (!editorOpen()) return false; redrawQueue.set(key, fn); return true; }
+// Typing in a Daily page line doesn't hold the board back: the board's cards are a separate part of the screen.
+const pageLineFocused = () => { const a = document.activeElement; return !!(a && a.closest && a.closest("#pageTree")) && !document.querySelector(".col .pl-edit, .col .pe-live, .col .pe-nt, .col .cd-live, .col .cd-note"); };
+function deferRedraw(key, fn) { if (!editorOpen() || (key === "render" && pageLineFocused())) return false; redrawQueue.set(key, fn); return true; }
 function flushRedraws() {
   if (editorOpen() || !redrawQueue.size) return;
   const fns = [...redrawQueue.values()]; redrawQueue.clear();
@@ -2433,9 +2459,8 @@ function render() {
     }
     for (const e of ents) list.appendChild(entryEl(e, false));
 
+    head.appendChild(dayTools(k));
     { const band = allDayBand(k); if (band) head.appendChild(band); }
-    head.appendChild(makeAddBox(k));
-    if (prefs.nested === "group") head.appendChild(makeAddGroup(k));
     col.append(head, list);
 
     col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("over"); });
@@ -2466,9 +2491,8 @@ function render() {
       for (const { k, ents } of parts) {
         const sec = document.createElement("div"); sec.className = "wksec"; sec.dataset.key = k;
         const sh = document.createElement("div"); sh.className = "wkh"; sh.textContent = `${dn(k)} ${keyToDate(k).getDate()}`; sec.appendChild(sh);
+        sec.appendChild(dayTools(k));
         { const band = allDayBand(k); if (band) sec.appendChild(band); }
-        sec.appendChild(makeAddBox(k));
-        if (prefs.nested === "group") sec.appendChild(makeAddGroup(k));
         if (!ents.length) { const em = document.createElement("div"); em.className = "empty"; em.textContent = (cache[k] || []).length ? "All done 🎉" : "Nothing yet"; sec.appendChild(em); }
         for (const e of ents) sec.appendChild(entryEl(e, false));
         sec.addEventListener("dragover", (e) => { e.preventDefault(); sec.classList.add("over"); });
@@ -2870,20 +2894,17 @@ function makeGroupAdd(b, k, card) {
 // "+ Add group" under a day's add box (Nested set to Group): makes a plain bullet at the bottom of the day. It shows as a card
 // straight away, ready for its first task (an empty group stays visible in this tab; after a reload it shows again once it has a task).
 function makeAddGroup(k) {
-  const wrap = document.createElement("div");
-  const btn = document.createElement("button");
-  btn.type = "button"; btn.className = "addgrp"; btn.textContent = "+ Add group";
-  btn.title = "Make a group: a bullet that tasks can be added under";
-  btn.addEventListener("click", () => {
+  const wrap = document.createElement("div"); wrap.className = "dtgrp";
+  {
     const inp = document.createElement("input");
     inp.className = "gname"; inp.placeholder = "Group name, then Enter"; inp.maxLength = 200;
     wrap.replaceChildren(inp);
-    inp.focus();
+    if (dayFocus === k) { dayFocus = null; requestAnimationFrame(() => inp.focus()); }
     let busy = false;
-    const close = () => { if (!busy) render(); };
+    const close = () => { if (!busy) { dayOpen[k] = null; render(); } };
     inp.addEventListener("blur", close);
     inp.addEventListener("keydown", async (e) => {
-      if (e.key === "Escape") { render(); return; }
+      if (e.key === "Escape") { dayOpen[k] = null; render(); return; }
       if (e.key !== "Enter" || !inp.value.trim() || busy) return;
       busy = true;
       const name = inp.value.trim();
@@ -2899,10 +2920,9 @@ function makeAddGroup(k) {
         }
       });
       const first = [...document.querySelectorAll("input.gadd")].find((x) => x.dataset.gid && (dayBullets[k] || []).some((b) => b.id === x.dataset.gid && emptyGroups.has(b.id)));
-      if (first) first.focus();
+      if (first) first.focus(); else { dayOpen[k] = "group"; dayFocus = k; }
     });
-  });
-  wrap.appendChild(btn);
+  }
   return wrap;
 }
 
@@ -3320,17 +3340,11 @@ async function cardCryptKey(n, ta) {
 }
 // The note under a card's text. Shift+Enter in the name opens it (and goes back to the name from it); Enter adds a line; an empty note closes again.
 /* ----- the all-day note band of a day ----- */
-async function adEnsureBullet(k) {
-  if (noteBullet[k]) return noteBullet[k];
-  const res = await call("POST", "/nodes", { parent_id: k, name: notesName, position: "bottom" });
-  if (!res || !res.item_id) throw new Error(`Couldn't create the ${notesName} bullet`);
-  noteBullet[k] = { id: res.item_id, name: notesName }; dayNotes[k] = dayNotes[k] || [];
-  return noteBullet[k];
-}
+const adText = (n) => stripAlld(visibleText(n.name));                // the note as you read it, without its hidden !alld marker
 function adLine(k, n) {                                       // n: a note node, or null for a new line that has no text yet
   const ta = document.createElement("textarea"); ta.className = "ad-line"; ta.rows = 1; ta.setAttribute("aria-label", "All-day note");
   if (n) ta.dataset.id = n.id; else ta.placeholder = "All-day note";
-  if (n) { const lk = lockChips(visibleText(n.name)); if (lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } else ta.value = visibleText(n.name); }
+  if (n) { const lk = lockChips(adText(n)); if (lk.tokens.length) { ta._lock = lk; ta.value = lk.text; ta.title = LOCK_TIP; } else ta.value = adText(n); }
   let base = ta.value, timer = null, busy = null, saved = false; const fit = autoFit(ta);
   ta._flush = () => {
     clearTimeout(timer); timer = null; kbUnsaved.delete(ta);
@@ -3342,11 +3356,11 @@ function adLine(k, n) {                                       // n: a note node,
         await kbQueued(async () => {
           const t2 = await boardHooks.pipe("beforeSave", lp.text, { node: n || {}, field: "name" });
           if (!n) {
-            const b = await adEnsureBullet(k);
-            const r = await call("POST", "/nodes", { parent_id: b.id, name: t2, position: "bottom" });
-            n = { id: r.item_id, name: t2, priority: 1e9 }; ta.dataset.id = n.id; ta.placeholder = ""; (dayNotes[k] = dayNotes[k] || []).push(n); adPending.delete(k);
-          } else { const name = applyEdit(n.name, t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; }
-          base = ta._lock ? shown : visibleText(n.name); saved = true;
+            const nm = `${t2} !alld`;
+            const r = await call("POST", "/nodes", { parent_id: k, name: nm, layoutMode: "bullets", position: "bottom" });
+            n = { id: r.item_id, name: nm, priority: 1e9, parent_id: k }; ta.dataset.id = n.id; ta.placeholder = ""; (dayNotes[k] = dayNotes[k] || []).push(n); (dayAll[k] = dayAll[k] || []).push(n); adPending.delete(k);
+          } else { const mk = alldMark(n), name = applyEdit(n.name, mk ? `${t2} ${mk.text}` : t2); await call("POST", `/nodes/${n.id}`, { name }); n.name = name; }
+          base = ta._lock ? shown : adText(n); saved = true;
           const re = lockAfterSave(ta, n); if (re != null) base = re;
         });
       } catch (e) { /* kbQueued showed it */ }
@@ -3375,7 +3389,7 @@ function adLine(k, n) {                                       // n: a note node,
     } else if (e.key === "Backspace" && p1 && !ta.value && n) {              // Backspace on an empty saved line removes it
       e.preventDefault();
       const all = lines(), pv = all[all.indexOf(ta) - 1];
-      kbQueued(async () => { await call("DELETE", `/nodes/${n.id}`); dayNotes[k] = (dayNotes[k] || []).filter((x) => x.id !== n.id); }).then(() => { if (pv) { pv.focus(); pv.setSelectionRange(pv.value.length, pv.value.length); } ta.remove(); if (!deferRedraw("render", render)) render(); }).catch(() => {});
+      kbQueued(async () => { await call("DELETE", `/nodes/${n.id}`); dayNotes[k] = (dayNotes[k] || []).filter((x) => x.id !== n.id); dayAll[k] = (dayAll[k] || []).filter((x) => x.id !== n.id); }).then(() => { if (pv) { pv.focus(); pv.setSelectionRange(pv.value.length, pv.value.length); } ta.remove(); if (!deferRedraw("render", render)) render(); }).catch(() => {});
     } else if (e.key === "ArrowUp" && p1 && !e.shiftKey && ta.selectionStart === 0 && ta.selectionEnd === 0) { const a = lines(), t = a[a.indexOf(ta) - 1]; if (t) { e.preventDefault(); t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }
     else if (e.key === "ArrowDown" && p1 && !e.shiftKey && ta.selectionStart === ta.value.length) { const a = lines(), t = a[a.indexOf(ta) + 1]; if (t) { e.preventDefault(); t.focus(); t.setSelectionRange(0, 0); } }
   });
@@ -3388,23 +3402,63 @@ function adLine(k, n) {                                       // n: a note node,
       kbMenu.hidden = true;
       const below = (n.children || []).length;
       if (!confirm(`Delete this note permanently?\n\n"${(shownVisible(n.name) || "(empty)").slice(0, 80)}"` + (below ? `\n\nThe lines under it will be deleted too.` : ""))) return;
-      try { ta.blur(); const sibs = (dayNotes[k] || []).map((x) => x.id), pid = noteBullet[k] && noteBullet[k].id; await deleteWithUndo(n, pid, sibs, async () => { dayNotes[k] = (dayNotes[k] || []).filter((x) => x.id !== n.id); await loadDay(k); await loadNotes([k]); render(); }); } catch (e) { showError(e.message); }
+      try { ta.blur(); const sibs = (dayNotes[k] || []).map((x) => x.id), pid = n._legacy ? (noteBullet[k] && noteBullet[k].id) : k; await deleteWithUndo(n, pid, sibs, async () => { dayNotes[k] = (dayNotes[k] || []).filter((x) => x.id !== n.id); await loadDay(k); await loadNotes([k]); render(); }); } catch (e) { showError(e.message); }
     };
     kbMenu.appendChild(b);
+    if (n._legacy === undefined || n._legacy === false) if (alldMark(n)) {
+      const o = document.createElement("button"); o.type = "button"; o.textContent = "Order…";
+      o.onclick = async () => {
+        kbMenu.hidden = true; const cur = alldMark(n).n;
+        const a = prompt("Order of this note on its day: 1 to 9 (lowest shows first), or leave blank for no order.", cur ? String(cur) : "");
+        if (a === null) return; const v = a.trim();
+        if (v && !/^[1-9]$/.test(v)) { showError("The order is a number from 1 to 9, or blank."); return; }
+        try {
+          const raw = n.name.replace(new RegExp(ALLD_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim();
+          const name = `${raw} !alld${v}`; await call("POST", `/nodes/${n.id}`, { name }); n.name = name; showError("");
+          await loadNotes([k]); render();
+        } catch (e) { showError(e.message); }
+      };
+      kbMenu.appendChild(o);
+    }
     kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(ev.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px";
   });
   requestAnimationFrame(fit); setTimeout(fit, 0);
   return ta;
 }
+const dayOpen = {}, dayTouched = {};      // day key -> "task" | "group": the entry line open under that day's icon row
+let dayFocus = null;
+// Phosphor Icons (MIT, phosphoricons.com): list-plus (task), stack (group), note (all-day note).
+const DT_ICON = (d) => `<svg viewBox="0 0 256 256" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`;
+const DT_ICONS = {
+  task: DT_ICON("M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm104,48H40a8,8,0,0,0,0,16H144a8,8,0,0,0,0-16Zm88,0H216V168a8,8,0,0,0-16,0v16H184a8,8,0,0,0,0,16h16v16a8,8,0,0,0,16,0V200h16a8,8,0,0,0,0-16Z"),
+  group: DT_ICON("M230.91,172A8,8,0,0,1,228,182.91l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,36,169.09l92,53.65,92-53.65A8,8,0,0,1,230.91,172ZM220,121.09l-92,53.65L36,121.09A8,8,0,0,0,28,134.91l96,56a8,8,0,0,0,8.06,0l96-56A8,8,0,1,0,220,121.09ZM24,80a8,8,0,0,1,4-6.91l96-56a8,8,0,0,1,8.06,0l96,56a8,8,0,0,1,0,13.82l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,24,80Zm23.88,0L128,126.74,208.12,80,128,33.26Z"),
+  allday: DT_ICON("M88,96a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H96A8,8,0,0,1,88,96Zm8,40h64a8,8,0,0,0,0-16H96a8,8,0,0,0,0,16Zm32,16H96a8,8,0,0,0,0,16h32a8,8,0,0,0,0-16ZM224,48V156.69A15.86,15.86,0,0,1,219.31,168L168,219.31A15.86,15.86,0,0,1,156.69,224H48a16,16,0,0,1-16-16V48A16,16,0,0,1,48,32H208A16,16,0,0,1,224,48ZM48,208H152V160a8,8,0,0,1,8-8h48V48H48Zm120-40v28.7L196.69,168Z")
+};
+function dtBtn(ico, title, on, fn) {
+  const b = document.createElement("button"); b.type = "button"; b.className = "dtool" + (on ? " on" : ""); b.innerHTML = DT_ICONS[ico]; b.title = title; b.setAttribute("aria-label", title); b.addEventListener("click", fn); return b;
+}
+function adAddBtn(k) {
+  if (!prefs.allDay) return null;
+  const a = dtBtn("allday", "Add an all-day note", false, () => { adPending.add(k); adFocus = k; render(); }); a.classList.add("adadd");
+  if (!wf.notes) wfOffBtn(a, "notes");
+  return a;
+}
+// One icon row under a day title: task, group, all-day note. Task and group open an entry line beneath the row.
+function dayTools(k) {
+  const wrap = document.createElement("div"); wrap.className = "daytools-wrap";
+  const row = document.createElement("div"); row.className = "daytools";
+  const open = dayOpen[k] || null, flip = (w) => () => { dayOpen[k] = open === w ? null : w; dayFocus = dayOpen[k] ? k : null; render(); };
+  row.appendChild(dtBtn("task", "Add task", open === "task", flip("task"))); row.lastChild.classList.add("dtadd");
+  if (prefs.nested === "group") { const g = dtBtn("group", "Add group: a bullet that tasks can be added under", open === "group", flip("group")); g.classList.add("addgrp"); row.appendChild(g); }
+  const n = adAddBtn(k); if (n) row.appendChild(n);
+  wrap.appendChild(row);
+  if (open === "task") wrap.appendChild(makeAddBox(k)); else if (open === "group") wrap.appendChild(makeAddGroup(k));
+  return wrap;
+}
 function allDayBand(k) {
   if (!prefs.allDay) return null;
   const notes = dayNotes[k] || [], pend = adPending.has(k);
-  if (!notes.length && !pend) {
-    const a = document.createElement("button"); a.type = "button"; a.className = "adadd"; a.textContent = "+ All-day note"; a.title = "Add a note for the whole day";
-    a.addEventListener("click", () => { adPending.add(k); adFocus = k; render(); });
-    if (!wf.notes) wfOffBtn(a, "notes", "+ All-day note");
-    return a;
-  }
+  if (!notes.length && !pend) return null;          // a day with no notes gets the note icon in the tools row under the add box
   const band = document.createElement("div"); band.className = "adband"; band.dataset.key = k;
   const lim = adLimit(), open = adOpen.has(k), hide = !open && lim > 0 && notes.length > lim ? notes.length - lim : 0;
   notes.slice(0, notes.length - hide).forEach((n) => band.appendChild(adLine(k, n)));
@@ -3563,7 +3617,6 @@ document.getElementById("cal").addEventListener("click", (e) => {
 
 /* ---------- Outliner (saves to today's daily page) ---------- */
 
-const notesAdd = document.getElementById("notesAdd");
 const outStatus = document.getElementById("outStatus");
 let saving = false;
 try { localStorage.removeItem("outlineDraft"); } catch (e) {}   // the old notes box kept an unsent draft here
@@ -3593,103 +3646,16 @@ function parseOutline(text) {
 async function findNotes(todayK, name) {
   const data = await call("GET", `/nodes?parent_id=${todayK}`);
   const nodes = (data && data.nodes ? data.nodes : []).sort((a, b) => a.priority - b.priority);
-  return nodes.find((n) => sameName(plain(n.name), name)) || null;
-}
-
-// Finds today's notes bullet by name, or creates it at the bottom of today's page.
-async function ensureNotesId(todayK) {
-  if (!wf.notes) throw new Error(wfHint("notes"));
-  const hit = await findNotes(todayK, notesName);
-  if (hit) return hit.id;
-  const res = await call("POST", "/nodes", { parent_id: todayK, name: notesName, position: "bottom" });
-  if (!res || !res.item_id) throw new Error(`Couldn't create the ${notesName} bullet`);
-  return res.item_id;
-}
-
-// Pencil next to the heading: choose the notes bullet's name (saved in this browser; the server setting is the default).
-async function changeNotesName() {
-  if (saving) return;
-  const input = prompt(`Name of the notes bullet (the same on every day's page):\n(server default: "${DEFAULT_NOTES_NAME}")`, notesName);
-  if (input === null) return;
-  const next = input.trim().replace(/\s+/g, " ");
-  if (!next) { showError("The notes bullet needs a name."); return; }
-  if (next === notesName) return;
-  showError("");
-  const todayK = pageKey();    // the day shown in the Daily page above
-  let usingExisting = false;
-  try {
-    const current = await findNotes(todayK, notesName);
-    // If today already has a bullet with the new name, just use it instead of renaming (no duplicates).
-    const taken = sameName(next, notesName) ? null : await findNotes(todayK, next);
-    if (taken) usingExisting = true;
-    else if (current && confirm(`Also rename ${shownDayWord()} "${notesName}" bullet to "${next}"?\n\n` +
-        `OK renames it. Cancel leaves it as it is, and the board will start a separate "${next}" bullet the next time you save.`)) {
-      await call("POST", `/nodes/${current.id}`, { name: next });
-    }
-  } catch (e) { showError(e.message); return; }
-  notesName = next;
-  try {
-    if (next === DEFAULT_NOTES_NAME) localStorage.removeItem("notesName");   // back to the server default
-    else localStorage.setItem("notesName", next);
-  } catch (e) {}
-  applyNotesLabels();
-  if (usingExisting) setStatus(`Now using your existing "${next}" bullet`);
-  await loadPage();
+  return nodes.find((n) => sameName(plain(n.name), name)) || (sameName(name, notesName) ? nodes.find((n) => sameName(plain(n.name), LEGACY_NOTES)) || null : null);
 }
 
 function applyNotesLabels() {
-  moveBtn.querySelector("small").textContent = `Move ${shownDayWord()} plain bullets into ${notesName}`;
   updateComposerLabel();
 }
 // "today's" or "Fri, Oct 23's": the day the Daily page is showing, which is where notes are saved.
 function shownDayWord() { return pageOffset === 0 ? "today's" : dayLabel(pageKey()) + "'s"; }
 // The add box says where a new line will go; its border turns blue when that isn't today.
-function updateComposerLabel() {
-  const away = pageOffset !== 0;
-  notesAdd.placeholder = `Add to ${notesName} · ${away ? dayLabel(pageKey()) : "today"} `;
-  notesAdd.classList.toggle("away", away);
-  notesAdd.title = `Enter adds a line under the ${notesName} bullet on ${away ? dayLabel(pageKey()) : "today's page"}. Paste a list to add it nested.`;
-}
-
-// Moves the shown day's plain top-level bullets (with their sub-bullets) under the notes bullet, keeping their order.
-// Todos, headings and the notes bullet itself stay where they are.
-async function moveNotes() {
-  if (!wfGate("notes")) return;
-  if (saving) return;
-  const todayK = pageKey();    // the day shown in the Daily page above
-  let nodes;
-  try {
-    const data = await call("GET", `/nodes?parent_id=${todayK}`);
-    nodes = (data && data.nodes ? data.nodes : []).sort((a, b) => a.priority - b.priority);
-  } catch (e) { showError(e.message); return; }
-  const movable = nodes.filter((n) =>
-    !sameName(plain(n.name), notesName) && ((n.data && n.data.layoutMode) || "bullets") === "bullets");
-  if (!movable.length) { setStatus("No plain bullets to move"); return; }
-  const preview = movable.slice(0, 5).map((n) => "• " + (dropMeta(shownName(n.name)).slice(0, 60) || "(empty)")).join("\n") +
-    (movable.length > 5 ? `\n…and ${movable.length - 5} more` : "");
-  if (!confirm(`Move ${movable.length} bullet${movable.length === 1 ? "" : "s"} from ${shownDayWord()} page into ${notesName}?\n\n` +
-               `${preview}\n\nSub-bullets move with them. Todos and headings stay put.`)) return;
-
-  saving = true; notesAdd.disabled = true; moveBtn.disabled = true; showError("");
-  let moved = 0;
-  try {
-    const notesId = await ensureNotesId(todayK);
-    for (const n of movable) {
-      await call("POST", `/nodes/${n.id}/move`, { parent_id: notesId, position: "bottom" });
-      moved++;
-    }
-    setStatus(`Moved ${moved} into ${notesName}`);
-  } catch (e) {
-    showError(e.message);
-    setStatus(moved ? `Moved ${moved}, then stopped` : "Nothing moved");
-  }
-  saving = false; notesAdd.disabled = false; moveBtn.disabled = false;
-  try { await loadDay(todayK); } catch (e) {}
-  render();
-  await loadPage();
-}
-const moveBtn = document.getElementById("moveNotes");
-moveBtn.onclick = moveNotes;
+function updateComposerLabel() { /* the Daily page has no add box any more: lines are added in the page itself */ }
 
 // Adds parsed lines under a parent, nested by their indent (relative to the least-indented line). Returns what was created.
 async function addLines(parentId, items) {
@@ -3722,45 +3688,7 @@ async function reloadAfter() {
   render();
 }
 
-// The add box under the page: adds to the notes bullet of the day shown (created if missing).
-async function quickAdd(text) {
-  if (saving) return false;
-  const items = parseOutline(text);
-  if (!items.length) return false;
-  saving = true; notesAdd.disabled = true; showError("");
-  const dayK = pageKey();
-  let ok = false;
-  try {
-    const notesId = await ensureNotesId(dayK);
-    const r = await addLines(notesId, items);
-    if (r.error) { showError(r.error.message); setStatus(r.done ? `Added ${r.done} of ${items.length}, then stopped` : "Not added"); }
-    else { ok = true; setStatus(`Added ${r.done} ${r.done === 1 ? "line" : "lines"} to ${notesName}`); }
-    if (r.top.length) {
-      pushUndo(`Added ${r.done} ${r.done === 1 ? "line" : "lines"} to ${notesName}`, async () => {
-        for (const id of r.top) await call("DELETE", `/nodes/${id}`);
-        await loadDay(dayK);
-      });
-    }
-    try { await loadDay(dayK); } catch (e) {}
-  } catch (e) { showError(e.message); setStatus("Not added"); }
-  saving = false; notesAdd.disabled = false;
-  render();
-  await loadPage();
-  notesAdd.focus();
-  return ok;
-}
-notesAdd.addEventListener("keydown", async (e) => {
-  if (e.key !== "Enter" || e.isComposing || !notesAdd.value.trim()) return;
-  e.preventDefault();
-  if (!wfGate("notes")) return;
-  if (await quickAdd(notesAdd.value)) notesAdd.value = "";
-});
-notesAdd.addEventListener("paste", async (e) => {
-  const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
-  if (!/\n/.test(text.trim())) return;               // one line pastes like normal text
-  e.preventDefault();
-  if (await quickAdd(notesAdd.value + text)) notesAdd.value = "";
-});
+
 
 /* ---------- Editing a line in place (keeps bold, links and other formatting) ---------- */
 
@@ -3989,7 +3917,7 @@ function renderPage() {
   const walk = (all, level, inNotes, parent, grandId) => {
     const nodes = visible(all);
     nodes.forEach((n, i) => {
-      const isNotesBullet = !inNotes && !viewItem && level === 0 && sameName(plain(n.name), notesName);
+      const isNotesBullet = !inNotes && !viewItem && level === 0 && isNotesName(plain(n.name));
       const here = inNotes || isNotesBullet;
       const hasKids = !!(n.children && visible(n.children).length);
       const closed = hasKids && collapsed.has(n.id) && addingFor !== n.id;   // adding under a line opens it
@@ -4032,6 +3960,7 @@ async function outdentLine(n, parent, grandId) {
   await reloadAfter();
 }
 
+let addRowForce = null;
 // Small input that adds a new line as the last child of `parent`. Stays open for quick repeat adds.
 function addRow(parent, level) {
   const wrap = document.createElement("div");
@@ -4043,6 +3972,7 @@ function addRow(parent, level) {
   const TYPES = [["bullets", "•", "Bullet"], ["todo", "☐", "Task"], ["numbered", "1.", "Numbered"]];
   let type = "bullets";
   try { const t = localStorage.getItem("addType"); if (TYPES.some((x) => x[0] === t)) type = t; } catch (e) {}
+  if (addRowForce) { type = addRowForce; addRowForce = null; }      // a new checklist starts adding tasks
   const seg = document.createElement("div");
   seg.className = "addtype"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Type of new line");
   const paint = () => { for (const b of seg.children) b.classList.toggle("on", b.dataset.type === type); };
@@ -4151,7 +4081,7 @@ function pageLine(n, level, prev, removable, fold, out) {
   t.className = "t";
   const pr = prioOf(n);
   if (pr) row.classList.add("prio" + pr);
-  t.textContent = dropMeta(shownVisible(n.name)) || "(empty)";
+  t.textContent = (isChecklist(n) ? "☑ " : "") + (dropMeta(shownVisible(n.name)) || "(empty)");
   metaBadges(t, pr, estOf(n), n.completedAt);
   if (fold === "closed") {                             // how many lines are hidden
     const pc = document.createElement("span");
@@ -5199,8 +5129,11 @@ function makeAddBox(k) {
     hint.hidden = !p;
     if (p) hint.textContent = `→ ${dayLabel(p.k)} · Shift+Enter adds it here as typed`;
   });
+  if (dayFocus === k) { dayFocus = null; requestAnimationFrame(() => add.focus()); }
   add.addEventListener("keydown", async (e) => {
+    if (e.key === "Escape") { dayOpen[k] = null; render(); return; }
     if (e.key !== "Enter" || !add.value.trim()) return;
+    dayFocus = k;
     let name = add.value.trim(), target = k;
     if (!e.shiftKey) { const p = parseDateWords(name, todayDate()); if (p) { name = p.name; target = p.k; } }
     add.value = ""; hint.hidden = true;
@@ -6181,6 +6114,7 @@ function kbAddRow(ctx, parentId, level) {
   const inp = document.createElement("input"); inp.type = "text"; inp.className = "kaddin"; inp.dataset.col = ctx.col.id; inp.dataset.parent = parentId;
   inp.placeholder = level ? "Add under this line… (Enter adds, Esc closes)" : ctx.col.id === "_page" ? "+ Add a task or line" : "+ Add a card"; inp.setAttribute("aria-label", "Add a line to " + ctx.col.name);
   const kinds = [["bullets", "•", "Bullet"], ["todo", "☐", "Task"], ["numbered", "1.", "Numbered line"]];
+  if (ctx.col.id === "_page" && !level) kinds.push(["list", "☑", "Checklist: type its name, then add its items"]);       // a !list bullet whose items are tasks
   let ki = 0; try { const last = localStorage.getItem("kbAddType"), x = kinds.findIndex((k) => k[0] === last); if (x >= 0) ki = x; } catch (e) {}
   const sel = document.createElement("button"); sel.type = "button"; sel.className = "ktype";
   const paint = () => { sel.textContent = kinds[ki][1]; sel.title = `New line type: ${kinds[ki][2]} (click to change)`; sel.setAttribute("aria-label", sel.title); };
@@ -6193,10 +6127,22 @@ function kbAddRow(ctx, parentId, level) {
     if (e.key !== "Enter" || e.isComposing || !inp.value.trim()) return;
     const name = inp.value.trim(), kind = sel.value; inp.value = ""; inp.disabled = true;
     try {
+      if (kind === "list") {
+        if (!wfGate("notes")) { inp.disabled = false; inp.value = name; return; }
+        const lname = `${tbEsc(name)} !list`, lres = await call("POST", "/nodes", { parent_id: parentId, name: lname, layoutMode: "bullets", position: "bottom" });
+        if (!lres || !lres.item_id) throw new Error("WorkFlowy didn't confirm the new checklist");
+        const lid = lres.item_id; pushUndo(`Added checklist “${name.slice(0, 40)}”`, async () => { await call("DELETE", `/nodes/${lid}`); await ctx.reload(); });
+        await ctx.reload();
+        const base = kbFindNode(pageNodes, lid) || (pageNodes.push({ id: lid, name: lname, note: "", priority: 1e9, data: { layoutMode: "bullets" }, children: [] }), pageNodes[pageNodes.length - 1]);
+        const nn = { id: "new" + (++kbNewSeq), pending: true, name: "", note: "", children: [], data: { layoutMode: "todo" } };       // its first item line, ready to type
+        (base.children = base.children || []).push(nn); kbSetOpen(lid, true); kbPendingFocus = { id: nn.id, caret: 0 }; kbRender();
+        return;
+      }
       const req = { parent_id: parentId, name, position: "bottom" }; if (kind !== "bullets") req.layoutMode = kind;
       const res = await call("POST", "/nodes", req); const id = res && res.item_id;
       if (level) kbSetOpen(parentId, true);          // a line you add under stays visible
       await ctx.reload();
+      if (kbHostOn() && kbHost.kind === "page") pageBoardSync(parentId);      // a task added on the Daily page shows on the board at once
       const again = kbRoot().querySelector(`.kaddin[data-col="${ctx.col.id}"][data-parent="${parentId}"]`); if (again) again.focus();
       if (id) pushUndo(`Added “${name.slice(0, 40)}”`, async () => { await call("DELETE", `/nodes/${id}`); await ctx.reload(); });
     } catch (x) { showError(x.message); inp.disabled = false; inp.value = name; }
@@ -6330,12 +6276,24 @@ function itemLiveRender() {
 const kbPageCol = { id: "_page", name: "the Daily page" };
 const pageLiveOn = () => kbEditMap._page !== false;
 const kbIsRootLine = (n) => !!kbHost && kbHost.kind === "item" && n.id === viewItem;          // the opened item itself, shown as the first line
-const kbIsNotesLine = (n) => !!kbHost && kbHost.kind === "page" && kbHost.top.some((x) => x.id === n.id) && sameName(plain(n.name), notesName);
+const kbIsNotesLine = (n) => !!kbHost && kbHost.kind === "page" && kbHost.top.some((x) => x.id === n.id) && isNotesName(plain(n.name));
 let kbPageSync = null;
+// The board's cards read the day's data, so after a line is added on the Daily page the day is loaded again and the cards redrawn.
+// Lines added inside a checklist (!list) never show on the board, so they skip it.
+async function pageBoardReload(dk) {
+  await loadDay(dk);
+  if (prefs.nested !== "off") await Promise.all((dayBullets[dk] || []).map((b) => reloadBullet(b.id).catch(() => {})));      // tasks inside groups are cached per bullet
+  await loadNotes([dk]); render();
+}
+function pageBoardSync(parentId) {
+  if (viewItem) return;
+  const p = parentId ? kbFindNode(pageNodes, parentId) : null; if (p && isChecklist(p)) return;
+  pageBoardReload(pageKey()).catch(() => {});
+}
 function pageLiveRender() {
   const k = pageKey();
   if (kbHost && (kbHost.kind !== "page" || kbHost.key !== k)) kbHostEnd();
-  if (!kbHost) { kbHost = { kind: "page", key: k, root: pageTree, render: pageLiveRender, hide: () => prefs.hideDone, noTodoTop: true, top: pageNodes, after: () => { clearTimeout(kbPageSync); kbPageSync = setTimeout(() => { if (!viewItem) { const dk = pageKey(); loadDay(dk).then(() => loadNotes([dk])).then(() => render()).catch(() => {}); } }, 1200); } }; kbHostOpen = kbOpenSet; kbOpenSet = new Set(kbAllParents(pageNodes, [])); }
+  if (!kbHost) { kbHost = { kind: "page", key: k, root: pageTree, render: pageLiveRender, hide: () => prefs.hideDone, noTodoTop: true, top: pageNodes, after: () => { clearTimeout(kbPageSync); kbPageSync = setTimeout(() => { if (!viewItem) pageBoardReload(pageKey()).catch(() => {}); }, 1200); } }; kbHostOpen = kbOpenSet; kbOpenSet = new Set(kbAllParents(pageNodes, [])); }
   kbHost.top = pageNodes;
   const tree = pageTree, keep = tree.scrollTop; tree.textContent = "";
   const ctx = { col: kbPageCol, rootId: k, top: pageNodes, reload: async () => { await loadPage(); } };
@@ -6667,7 +6625,8 @@ async function kbEnter(n, ta, sib, ctx) {
   }
   const list = sib.real, last = list[list.length - 1];
   if (last && last.id !== n.id && ctx.col.kind !== "calendar") kbStat("New lines are added at the end of the list: WorkFlowy can't insert a line in the middle.", "note", 7000);
-  const nn = { id: "new" + (++kbNewSeq), pending: true, name: "", note: "", children: [], data: { layoutMode: ctx.col.kind === "calendar" ? "todo" : "bullets" } };
+  const tn = kbType(n), nextType = ctx.col.kind === "calendar" ? "todo" : (tn === "todo" || tn === "numbered") ? tn : "bullets";       // Enter on a task or numbered line continues with the same kind
+  const nn = { id: "new" + (++kbNewSeq), pending: true, name: "", note: "", children: [], data: { layoutMode: nextType } };
   list.push(nn);
   if (sib.virt) { const hs = list.filter((x) => kbType(x) === "h1"); if (hs.length) { kbHeadShut.delete(hs[hs.length - 1].id); kbSaveHeadShut(); } }     // make sure the group it lands in is open
   kbPendingFocus = { id: nn.id, caret: 0 }; ta.blur(); kbRender();
@@ -7669,7 +7628,6 @@ document.addEventListener("click", () => { if (!pageMenu.hidden) setPageMenu(fal
 window.addEventListener("scroll", () => { if (!pageMenu.hidden) setPageMenu(false); }, true);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pageMenu.hidden) { setPageMenu(false); pageMore.focus(); e.stopPropagation(); } }, true);
 
-document.getElementById("notesEdit").onclick = changeNotesName;
 applyNotesLabels();
 
 wfLoad();

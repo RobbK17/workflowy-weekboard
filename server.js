@@ -4,7 +4,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.4.1";
+const VERSION = "1.5.0";
 
 const http = require("http");
 const fs = require("fs");
@@ -16,6 +16,8 @@ const BASE = (process.env.WORKFLOWY_BASE_URL || "https://workflowy.com/api/v1").
 const PORT = Number(process.env.PORT || 3000);
 // Default name of the notes bullet on today's page. Each browser can override it with the pencil in the board.
 const NOTES_NAME = (process.env.NOTES_NAME || "").trim() || "WB-Notes";
+// An old all-day notes bullet (named by NOTES_NAME, and "WB-Notes") is skipped when scanning for tasks. Checklists ("!list") and all-day notes ("!alld") are skipped too.
+const skipsAsNotes = (rawName) => { const t = stripHtml(String(rawName || "")).trim().toLowerCase(); return t === NOTES_NAME.toLowerCase() || t === "wb-notes" || /(^|\s)!(?:list|alld[1-9]?)(?=$|[\s.,;!?)])/i.test(t); };
 const escapeAttr = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /* ---------- Where is this running? (a required choice, there is no default) ----------
@@ -1212,7 +1214,7 @@ async function remScan() {
       const items = [];
       const todos = nodes.filter((n) => n.data && n.data.layoutMode === "todo");
       if (REMINDER_NESTED) {
-        const bullets = nodes.filter((n) => !(n.data && n.data.layoutMode === "todo") && !/^WB-Notes$/i.test(stripHtml(n.name || "").trim())).slice(0, REM_MAX_BULLETS);
+        const bullets = nodes.filter((n) => !(n.data && n.data.layoutMode === "todo") && !skipsAsNotes(n.name)).slice(0, REM_MAX_BULLETS);
         for (const b of bullets) { try { for (const n of await remKids(b.id)) if (n.data && n.data.layoutMode === "todo") todos.push(n); } catch (e) {} }
       }
       for (const n of todos) items.push(...remItem(n, key));
@@ -1448,7 +1450,7 @@ async function recurringRun() {
         const page = addDaysKey(today, i);
         let list = (await kids(page)).slice();
         if (REMINDER_NESTED) {
-          const bullets = list.filter((n) => !(n.data && n.data.layoutMode === "todo") && !/^WB-Notes$/i.test(stripHtml(n.name || "").trim())).slice(0, REM_MAX_BULLETS);
+          const bullets = list.filter((n) => !(n.data && n.data.layoutMode === "todo") && !skipsAsNotes(n.name)).slice(0, REM_MAX_BULLETS);
           for (const b of bullets) { try { list.push(...(await remKids(b.id))); } catch (e) {} }
         }
         for (const n of list) {

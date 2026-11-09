@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.5.0 (2026-11-08)
+
+All-day notes no longer need a "WB-Notes" folder. They are plain bullets on the day, marked `!alld`, and the day can also hold checklists.
+
+### Upgrading
+
+Replace `server.js`, `index.html` and `mobile.html`, then **restart the server** and reload the phone page. Nothing is converted: old `WB-Notes` bullets keep showing their lines (after the new notes) until you delete them. An *empty* `WB-Notes` bullet on a past day is removed quietly (only while the Notes switch is on).
+
+### What's new
+
+- **All-day notes are bullets marked `!alld`.** The marker is hidden. Add `!alld1` to `!alld9` to set the order (lowest first; unnumbered notes follow in their place on the day). Desktop: right-click a note → **Order…**. Phone: the **Order** select in the note's edit sheet.
+- **Checklists (`!list`).** On the Daily page, the add row's type button has a ☑ **Checklist** choice (type the name, press Enter); on the phone it is **+ Checklist**. Either creates a bullet marked `!list`; the desktop then opens its first item line. Its items are tasks. Checklists are left out of groups, counts and reminders.
+- **The Daily page "Add to today" box is removed.** Add lines with the page's own **+ Add a task or line** row (a task there is a day task); Its type button (☐ / • / 1.) gained a ☑ Checklist choice. "Move notes in" and the rename pencil are gone.
+- **Server fix:** the reminder and repeating-task scans skipped a hard-coded "WB-Notes". They now follow `NOTES_NAME` (and the legacy "WB-Notes"), and also skip `!list` and `!alld` bullets. `NOTES_NAME` is now only used to read old days.
+- **Phone page link boxes start with `https://workflowy.com/#/`** (the unreleased 1.4.2 change).
+- **Enter on a task line starts another task** (and on a numbered line another numbered line) in the editable Daily page and the board's outlines; it used to start a bullet. This is what makes a checklist easy to fill in.
+- **A task added on the Daily page shows on the board straight away,** including one typed in the outline or added under a group. Typing in a Daily page line no longer holds back the board's redraw. (Lines added inside a checklist never show on the board.)
+- **Phone page:** tap the day heading ("Wednesday, Oct 28 · Today ›") to open that day's whole outline in the zoom view: plain bullets, notes, groups, checklists and tasks, with the usual add row. The all-day note button uses the same note icon as the board. Only day notes sit inside the amber band (matching the board); checklist rows appear in their own plain card below, showing the done count ("☑ Packing 2/5 ›") and opening when tapped. Note text is 16px (up from 14px) and task titles are 15px. The add boxes are sized so the Add button can't slip past the right edge, and the checklist add box uses a 16px font so iOS doesn't zoom the page in when you tap it.
+- **Day columns have one icon row:** a list-plus icon (Add task), a stack icon (Add group) and a note icon (All-day note). The task and group icons open an entry line beneath the row.
+- **`WB-Notes` is retired:** nothing creates it any more (see Upgrading for what happens to old ones).
+- The Notes switch (Settings → Features) covers checklists and all-day notes.
+
 ## 1.4.1 (2026-11-08)
 
 Time blocking is now plan-then-Save (planned template blocks, Save and Cancel), opens from a right-click, template blocks stay out of the lists, and a new **Features** tab in Settings lets you turn off the features that write into WorkFlowy.
