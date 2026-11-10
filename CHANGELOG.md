@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.1 (2026-11-09)
+
+- **Sync templates across machines via WorkFlowy.** When you run local mode on more than one computer, day templates and quick blocks can now be stored in a WorkFlowy node so every machine shares the same ones. In **Settings → Features → Sync templates via WorkFlowy**, name this server and paste the link to a WorkFlowy node you've created for it (e.g. `#weekboard-config`). The first machine pushes its local templates up; a second machine that connects sees the shared templates and, if its own differ, shows a side-by-side comparison so you can choose which to keep or defer the decision to next time. A `servers` child in the config node tracks which machines have synced and when. Off by default — templates stay local until you set this.
+- **Edit Template panel: card-style sections.** The three sections (block list, Add blocks, Copy selected template to) are wrapped in bordered cards for better readability. Block rows have their own card background and border.
+- **Edit Template panel: unified chip-based "Add blocks".** Quick blocks and schedule items are merged into one chip control with ⚡ icons, time labels, durations and a "+ Blank" chip. An action bar below has Select all / Deselect all, a date navigator for schedule items, and Add selected.
+- **Edit Template panel: granular copy targets.** "Copy Mon to Mon–Fri" is replaced with tappable day chips and an "All" toggle, so you can copy a day's template to any combination of other days.
+- **Timeline and pool autoscroll during drag.** Dragging an unscheduled task or quick block near the top or bottom edge of the timeline (or the unscheduled pool) now auto-scrolls smoothly.
+- **Weekend column headers match weekdays.** Each weekend day now shows its own full header with open count and estimated time (e.g. "Sat 14   3 open · 2h 30m"), matching the weekday columns. The "Weekend" label is removed.
+- **Edit Template panel: consistent row heights.** Time, duration and name fields in each block row are the same height.
+- **Edit Template panel: chip labels truncate at 25 characters.** Long block names in the "Add blocks" chips are clipped with an ellipsis instead of stretching the chip.
+- **Settings: Inbox and Sync forms hide when set.** Once the Inbox node or the Sync node is configured, the entry fields collapse to a summary line with a Remove button, matching the compact pattern used elsewhere.
+- **Hide weekend toggle (5-day view).** Settings → "Hide weekend" appears when the span is set to 5 days. When enabled, the Saturday/Sunday column is hidden even if those days have open tasks. Disabled by default.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | `/features` now includes the server's hostname (used as the default server name for sync); version 1.5.1 |
+| `index.html` | WorkFlowy template sync, Edit Template panel redesign (cards, unified chips, granular copy, autoscroll); version 1.5.1 |
+
 ## 1.5.0 (2026-11-08)
 
 All-day notes no longer need a "WB-Notes" folder. They are plain bullets on the day, marked `!alld`, and the day can also hold checklists.

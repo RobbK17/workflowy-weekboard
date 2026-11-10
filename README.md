@@ -4,7 +4,15 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.0**
+**Version 1.5.1**
+
+### What's new in 1.5.1
+
+Replace `server.js` and `index.html`, then **restart the server** and reload.
+
+- **Sync templates across machines via WorkFlowy.** If you run local mode on more than one computer, day templates and quick blocks can now be stored in a WorkFlowy node so every machine shares the same set. See [Sharing templates across machines](#sharing-templates-across-machines) below.
+- **Edit Template panel redesigned.** Block rows, "Add blocks" chips and "Copy selected template to" day chips each sit in their own bordered card for readability. Quick blocks and schedule items are merged into one chip bar, copy targets are individual day chips instead of the old "Copy Mon to Mon–Fri", row heights are consistent, and long chip labels truncate at 25 characters.
+- **Weekend column headers match weekdays.** Each weekend day shows its own full header with open count and estimated time, matching the weekday columns. The "Weekend" label is removed.
 
 ### What's new in 1.5.0
 
@@ -553,6 +561,32 @@ Some features put things into WorkFlowy: markers in a task's text, tasks, bullet
 **Time blocking templates** (in **Settings → Features**, under the Time blocking switch) is separate from the panel, which only shows your template until you press Save. Turn on **Add my template to the coming week automatically**, pick **Friday** or **Monday** and a time, and the server writes the Day template's blocks into WorkFlowy at that time. Friday adds **next week**; Monday adds **the week you're in**. **Weeks to add** (1 by default, up to 4) adds the weeks after that. It skips blocks already on a day and planned blocks you left out of a date, and it tags what it makes `!blk` like the panel does. It only runs while the server is running: if the server was off at the chosen time it catches up when it starts, and it never adds the same week twice. Saving a new schedule never fires for a time that has already passed. It is off until you turn it on, and **Time blocking** has to be on (the controls are greyed out when it is off).
 
 A feature that is off stays visible but greyed out, with "· off in Settings" in menus and a hint on hover. Nothing already in WorkFlowy is changed or removed, existing markers still show, and you can still type a marker yourself. The switches are kept on the server, so every browser and the phone page follow them. They are saved in `weekboard-features.json` next to `server.js` (set `FEATURES_STATE` for another place). `RECURRING=0` on the server still overrides the repeating switch.
+
+### Sharing templates across machines
+
+If you use local mode on more than one computer (e.g. a desktop and a laptop), each machine keeps its own day templates and quick blocks. **Sync templates via WorkFlowy** lets every machine read and write the same templates through a dedicated WorkFlowy node, so a change on one machine shows up on all the others.
+
+**Setup**
+
+1. In WorkFlowy, create a node to hold the config — for example `#weekboard-config`. It can be anywhere in your tree; the board only touches children it creates inside it.
+2. On the first machine, open **Settings → Features → Sync templates via WorkFlowy**.
+3. In **This server's name**, give the machine a recognisable label (it defaults to the hostname). The name is stored in the WorkFlowy config node so you can tell which machines are using it.
+4. Paste the WorkFlowy link or node ID into **WorkFlowy link or node id** and press **Set**.
+   - If this machine already has templates, they are pushed to the config node (first-machine setup).
+   - If the config node already has templates from another machine and this machine's differ, a side-by-side comparison shows both sets so you can choose **Use shared** (pull the shared ones) or **Use mine** (push yours). **Decide later** defers the choice until the next time you open the time-blocking panel.
+
+On a second (or third) machine, repeat steps 2–4 with the same node link. The machine sees the shared templates and, if its own differ, shows the same comparison.
+
+**How sync works**
+
+- **Pull:** templates are read from WorkFlowy each time you open the time-blocking panel. If the remote templates differ from local, the comparison appears.
+- **Push:** when you change a template or quick block, the update is written back to the WorkFlowy node (debounced, about a second after the last change).
+- **Server registry:** a `servers` child in the config node tracks each machine's name and last-sync time.
+- **Conflict resolution:** when remote and local templates disagree, the side-by-side modal lets you pick one set or defer. Deferred decisions re-appear next time the panel opens.
+
+**Clearing sync**
+
+Press **Clear** in the sync settings to disconnect this machine. Its local templates stay as they are; the shared config node is not changed.
 
 ### Repeating tasks
 

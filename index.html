@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.0">
+<meta name="version" content="1.5.1">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -146,9 +146,9 @@
          background: var(--col); border-radius: 8px; padding: 8px; min-height: 140px; }
   #board .col { flex: 1 1 0; min-width: 140px; }   /* days share the width evenly; they only scroll sideways when they would get narrower than this */
   #side .col { flex: 0 1 auto; width: 100%; max-height: 30vh; min-height: 70px; }
-  .col.wkend .wksec { margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px dashed rgba(127,127,127,.35); } .col.wkend .wksec:last-child { border-bottom: 0; }
-  .col.wkend .tasks { padding-top: 2px; } .col.wkend .wksec:first-child .wkh { margin-top: 0; }
-  .col.wkend .wkh { font-weight: 600; font-size: 13px; margin: 6px 0 4px; } .col.wkend .wksec.over { background: rgba(80,140,255,.10); border-radius: 6px; }
+  .col.wkend .wksec { margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px dashed rgba(127,127,127,.35); } .col.wkend .wksec:last-child { border-bottom: 0; margin-bottom: 0; }
+  .col.wkend .tasks { padding-top: 0; } .col.wkend .wksec.over { background: rgba(80,140,255,.10); border-radius: 6px; }
+  .col.wkend .wksec .colhead { padding-bottom: 2px; }
   .colhead { flex: none; padding-bottom: 4px; }
   .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 14px; }   /* room above the first card for its hover buttons */
   .col.today { background: var(--today); }
@@ -224,6 +224,9 @@
   @media (hover: none) { .rm { opacity: 1; } }
   body.selmode .card .rm { visibility: hidden; }
   .bellb { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border); border-radius: 10px; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; vertical-align: baseline; }
+  .blktag { display: inline-block; padding: 0 6px; border-radius: 10px; background: rgba(255,255,255,.25); color: inherit; font-size: 10px; vertical-align: baseline; opacity: .8; }
+  .tbTask.done .blktag { background: rgba(127,127,127,.12); }
+  .tbTask.tbPlan .blktag { background: rgba(127,127,127,.12); }
   .bellb:hover { color: var(--accent); border-color: var(--accent); }
   .bellb.late { color: var(--late-text); border-color: var(--late-text); }
   #rems { position: fixed; top: 64px; right: 12px; z-index: 95; display: flex; flex-direction: column; gap: 8px; width: min(340px, calc(100vw - 24px)); }
@@ -771,16 +774,40 @@
   .tbTask.cont { flex: 1; border-radius: 6px 6px 0 0; margin-bottom: -5px; }   /* the negative margins let the block run through the slot gaps, so a 1h task reads as one block */
   .tbCont { flex: 1; min-height: 32px; background: color-mix(in srgb, var(--accent) 55%, var(--card)); margin: -4px 0 -5px; cursor: grab; }
   .tbCont.last { border-radius: 0 0 6px 6px; margin-bottom: 2px; }
-  #tbTpl { position: absolute; left: 0; right: 0; bottom: 0; top: 0; z-index: 4; background: var(--card); padding: 10px 12px; overflow-y: auto; }
+  #tbTpl { position: absolute; left: 0; right: 0; bottom: 0; top: 0; z-index: 4; background: var(--card); display: flex; flex-direction: column; }
   #tbTpl[hidden] { display: none; }
-  #tbTpl h3 { margin: 0 0 8px; font-size: 15px; }
+  #tbTpl .tpHead { padding: 10px 12px 0; flex-shrink: 0; }
+  #tbTpl .tpHead h3 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; justify-content: space-between; }
+  #tbTpl .tpHead h3 button { font-size: 18px; background: none; border: none; color: var(--muted); cursor: pointer; padding: 0 4px; }
   #tbTpl .tpTabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
   #tbTpl .tpTabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-  #tbTpl .tpRow { display: flex; gap: 4px; align-items: center; margin: 4px 0; }
+  #tbTpl .tpBody { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+  #tbTpl .tpCard { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  #tbTpl .tpCard .tpSec:first-child { margin-top: 0; }
+  #tbTpl .tpRow { display: flex; gap: 4px; align-items: center; padding: 6px 8px; margin: 4px 0; background: var(--card); border: 1px solid var(--border); border-radius: 6px; }
   #tbTpl .tpRow input[type=text] { flex: 1; min-width: 0; }
-  #tbTpl input, #tbTpl select { font: inherit; font-size: 13px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+  #tbTpl .tpRow button { flex-shrink: 0; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 2px; }
+  #tbTpl .tpRow button:hover { color: var(--text); }
+  #tbTpl input, #tbTpl select { font: inherit; font-size: 13px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); box-sizing: border-box; height: 30px; }
   #tbTpl .tpNote { font-size: 12px; color: var(--muted); margin: 8px 0; }
-  #tbTpl .tpAct { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  #tbTpl .tpSec { margin: 14px 0 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  #tbTpl .tpChips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+  #tbTpl .tpChip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 11px; border-radius: 16px; font-size: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; transition: background .15s, border-color .15s, box-shadow .15s; user-select: none; max-width: 100%; }
+  #tbTpl .tpChip .cLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 25ch; }
+  #tbTpl .tpChip:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  #tbTpl .tpChip.on { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+  #tbTpl .tpChip .cIcon { font-size: 11px; opacity: .7; }
+  #tbTpl .tpChip .cDur { opacity: .65; font-size: 11px; }
+  #tbTpl .tpChip.on .cIcon, #tbTpl .tpChip.on .cDur { opacity: .85; }
+  #tbTpl .addBar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  #tbTpl .addBar button { font-size: 12px; }
+  #tbTpl .srcNav { display: inline-flex; align-items: center; gap: 4px; }
+  #tbTpl .srcNav button { font-size: 10px; padding: 2px 5px; background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text); }
+  #tbTpl .srcNav input[type=date] { font-size: 11px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); }
+  #tbTpl .tpChip.blank { border-style: dashed; opacity: .7; }
+  #tbTpl .tpChip.blank:hover { opacity: 1; }
+  #tbTpl .tpFoot { flex-shrink: 0; padding: 8px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  #tbTpl .tpFoot .go { margin-left: auto; }
   .tbtplbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .tbtplbar button { padding: 3px 9px; font-size: 12px; }
   #tbEdit { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; background: var(--card); border-top: 1px solid var(--border); box-shadow: 0 -8px 20px rgba(0,0,0,.15); padding: 10px 12px 12px; max-height: 70%; overflow-y: auto; }
@@ -810,10 +837,18 @@
   .tbRz { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; background: linear-gradient(transparent, rgba(255,255,255,.35)); border-radius: 0 0 6px 6px; }
   .tbRz:hover, .tbRz.drag { background: linear-gradient(transparent, rgba(255,255,255,.7)); }
   .tbtip { position: fixed; z-index: 90; background: #111; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 4px; pointer-events: none; }
-  .tbTask.done { opacity: 1; text-decoration: none; background: color-mix(in srgb, var(--muted) 28%, var(--card)); color: var(--muted); cursor: pointer; }
-  .tbCont.done { background: color-mix(in srgb, var(--muted) 16%, var(--card)); cursor: pointer; }
+  .tbTask.done .tbl { text-decoration: line-through; }
+  .tbTask.done { cursor: pointer; }
+  .tbCont.done { cursor: pointer; }
   .tbtplbar .go { background: var(--accent); color: #fff; border-color: var(--accent); }
   .tbtplbar button:disabled { opacity: .5; cursor: default; }
+  .tbapply { position: relative; display: inline-flex; }
+  .tbapply .tbapmore { border-left: 1px solid rgba(255,255,255,.3); border-radius: 0 6px 6px 0; padding: 3px 5px; margin-left: -1px; }
+  .tbapply .go:first-child { border-radius: 6px; }
+  .tbapply:has(.tbapmore) .go:first-child { border-radius: 6px 0 0 6px; }
+  .tbdrop { position: absolute; top: 100%; right: 0; margin-top: 2px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 10; min-width: 160px; }
+  .tbdrop button { display: block; width: 100%; text-align: left; padding: 6px 10px; font-size: 12px; background: none; border: none; color: var(--text); cursor: pointer; }
+  .tbdrop button:hover { background: rgba(127,127,127,.1); }
   .tbTask { display: flex; align-items: center; gap: 6px; }
   .tbTask .tbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .tbTask .tbu { flex: none; border: none; background: none; color: #fff; opacity: .75; cursor: pointer; padding: 0 2px; font-size: 12px; line-height: 1; }
@@ -917,7 +952,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.0</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.1</span></div>
   </div>
 </footer>
 
@@ -942,6 +977,7 @@
           <button data-span="3">3</button><button data-span="5">5</button><button data-span="7">7</button>
         </div>
         </div>
+        <label id="hwRow" hidden><input type="checkbox" id="optHideWkend"><span>Hide weekend<small>Don't show Saturday and Sunday even when they have tasks</small></span></label>
         <div class="setrow" id="wsRow" hidden><span>Week starts on<small>With 7 days shown.</small></span>
         <div class="seg" id="wsSeg" title="First day of the week"><button data-ws="mon">Monday</button><button data-ws="sun">Sunday</button></div>
         </div>
@@ -964,12 +1000,14 @@
       <div class="srcs" id="inboxSetBox">
         <div class="sh">Inbox<small>The &#128229; Inbox button (or the I key) opens this node so you can edit everything in it. You can also drop a task on the button to send it there. Saved in this browser.</small></div>
         <div class="setrow"><span>Your Inbox<small id="inboxCur">Not set</small></span><button type="button" id="inboxClear" hidden>Remove</button></div>
+        <div id="inboxForm">
         <label class="sel"><span>Use a Plan day source<small>Pick one you already added</small></span>
           <select id="inboxPick"><option value="">Choose&hellip;</option></select></label>
         <div class="srcadd">
           <label for="inboxLink">Or paste a WorkFlowy link or node id <em>(copy the address from your browser)</em></label>
           <input id="inboxLink" type="text" placeholder="Paste a WorkFlowy node link here" autocomplete="off" spellcheck="false">
           <button id="inboxSetBtn" type="button">Set Inbox</button>
+        </div>
         </div>
         <div id="inboxMsg" role="status"></div>
       </div>
@@ -984,6 +1022,18 @@
       <div class="setrow"><span>Every<small>Friday adds next week. Monday adds the week you're in.</small></span><span><select id="wk_day"><option value="fri">Friday</option><option value="mon">Monday</option></select> at <input type="time" id="wk_time" value="18:00"></span></div>
       <div class="setrow"><span>Weeks to add<small>1 is the first week; 2 adds the one after, up to 4.</small></span><input type="number" id="wk_weeks" min="1" max="4" value="1" style="width:60px"></div>
       <div class="setrow"><span><small id="wkLast"></small></span></div>
+      </div>
+      <div id="tbSyncGroup" style="margin:0 0 6px 26px;padding-left:10px;border-left:2px solid var(--line,#ccc)">
+      <div class="srcs"><div class="sh">Sync templates via WorkFlowy<small>Store your day templates and quick blocks in a WorkFlowy node so every machine running local mode shares the same ones. Create a node in WorkFlowy (e.g. "#weekboard-config") and paste its link below. Off by default — templates stay local until you set this.</small></div></div>
+      <div class="setrow" id="tbSyncSetRow" hidden><span>Sync node<small id="tbSyncCur">Not set</small></span><button type="button" id="tbSyncClear">Remove</button></div>
+      <div class="srcadd" id="tbSyncForm">
+        <label for="tbSyncName">This server's name <em>(shown in the sync node so you know which machines use it)</em></label>
+        <input id="tbSyncName" type="text" placeholder="e.g. Mac mini, Laptop" maxlength="30" autocomplete="off" spellcheck="false">
+        <label for="tbSyncLink">WorkFlowy link or node id</label>
+        <input id="tbSyncLink" type="text" placeholder="Paste a WorkFlowy node link here" autocomplete="off" spellcheck="false">
+        <div style="display:flex;gap:6px;align-items:center"><button id="tbSyncSet" type="button">Set</button></div>
+        <small id="tbSyncMsg"></small>
+      </div>
       </div>
       <label><input type="checkbox" id="wf_rep"><span>Repeating tasks<small>The server creates the next copy of a task marked <b>!every week</b>, even with the board closed</small></span></label>
       <div class="setrow" id="wfRepNote" hidden><span><small>The server was started with RECURRING=0, so repeating stays off whatever this switch says.</small></span></div>
@@ -1184,6 +1234,8 @@
 </div>
 
 <script>
+const WF_LINK = "https://workflowy.com/#/";
+function wfPrefill(el) { el.value = WF_LINK; for (const ev of ["focus", "click"]) el.addEventListener(ev, () => setTimeout(() => { if (el.value === WF_LINK) try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} }, 0)); }
 // ---- Shared settings: with "Share these settings between browsers" on, this browser's preference keys are kept on the server (/d/settings) and read back by the others.
 const dsync = (() => {
   const KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters", "tbPresets", "tbTemplate"]);
@@ -1278,16 +1330,18 @@ function getPref(k) { try { return localStorage.getItem(k) === "1"; } catch (e) 
 function setPref(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} }
 function loadNestedMode() { try { const v = localStorage.getItem("nested"); return v === "group" || v === "flatten" ? v : "off"; } catch (e) { return "off"; } }
 let kbReadEdit = (() => { try { return localStorage.getItem("kbReadEdit") !== "0"; } catch (e) { return true; } })();     // read mode: does clicking a line open the pop-up editor?
-const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), allDay: getBool("allDay", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true), prioSort: getBool("prioSort", true) };
+const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), allDay: getBool("allDay", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true), prioSort: getBool("prioSort", true), hideWkend: getBool("hideWkend", false) };
 // ---- Writing features: Settings → Writing features turns off what puts things into WorkFlowy. The switches live on the server (/features), so every browser and the phone page agree.
 const wf = { tb: true, rep: true, notes: true, mark: true, repForced: false };
 const WF_WHAT = { tb: "Time blocking", rep: "Repeating tasks", notes: "Notes bullets", mark: "Priority, estimate and reminder items" };
 const wfHint = (k) => `${WF_WHAT[k]} ${k === "mark" ? "are" : "is"} turned off in Settings → Writing features`;
 function wfGate(k) { if (wf[k]) return true; try { showToast(wfHint(k) + ".", false); } catch (e) { /* toast not ready */ } return false; }
 function wfOffBtn(b, k, label) { b.disabled = true; b.classList.add("wfoff"); b.title = wfHint(k); if (label != null) b.textContent = label + " · off in Settings"; return b; }
+let serverHostname = "";
 async function wfLoad() {
-  try { const j = await (await fetch("/features")).json(); for (const k of ["tb", "rep", "notes", "mark"]) if (typeof j[k] === "boolean") wf[k] = j[k]; wf.repForced = !!j.repForced; } catch (e) { return; /* keep everything on */ }
+  try { const j = await (await fetch("/features")).json(); for (const k of ["tb", "rep", "notes", "mark"]) if (typeof j[k] === "boolean") wf[k] = j[k]; wf.repForced = !!j.repForced; if (j.hostname) serverHostname = j.hostname; } catch (e) { return; /* keep everything on */ }
   tbPull();
+  tbWfPull();                                                         // pull from WorkFlowy node if sync is configured
   wfSync(["tb", "rep", "notes", "mark"].some((k) => !wf[k]));       // nothing to redraw while everything is on
 }
 function wfSync(redraw = true) {
@@ -1771,7 +1825,7 @@ function tbPresets() {
   try { const v = JSON.parse(localStorage.getItem("tbPresets") || "null"); if (Array.isArray(v)) return v.filter((p) => p && typeof p.name === "string" && p.name.trim() && Number(p.mins) > 0).slice(0, 20).map((p) => ({ name: p.name.slice(0, 40), mins: Math.min(1440, Math.round(Number(p.mins))) })); } catch (e) { /* the starters */ }
   return TB_DEFAULT_PRESETS.map((p) => ({ ...p }));
 }
-function tbSavePresets(list) { try { localStorage.setItem("tbPresets", JSON.stringify(list)); } catch (e) { /* kept for this visit only */ } tbPush(); }
+function tbSavePresets(list) { try { localStorage.setItem("tbPresets", JSON.stringify(list)); } catch (e) { /* kept for this visit only */ } tbPush(); tbWfPush("presets"); }
 // The Day template and the quick blocks are also kept on the server (/timeblocks), so a second browser or computer shows the same ones.
 let tbPushTimer = null;
 function tbPush() {
@@ -1794,6 +1848,135 @@ async function tbPull() {
   if (push) tbPush();
   if (changed) { try { renderTbQuick(); if (document.getElementById("tbTpl") && !document.getElementById("tbTpl").hidden) openTbTpl(); renderTimelinePanel(); } catch (e) { /* the panel is not open */ } }
   return changed;
+}
+// ── WorkFlowy-based template sync (opt-in) ──
+// When set, templates and quick blocks are stored as child nodes of a user-chosen WorkFlowy node.
+// Child "templates" has note = JSON of the 7-day template; child "quick-blocks" has note = JSON array of presets.
+// Child "servers" has note = JSON array of { name, lastSync } tracking which machines use it.
+function tbSyncNode() { try { const v = localStorage.getItem("tbSyncNode"); return v && /^[0-9a-f-]{12,36}$/i.test(v) ? v : null; } catch (e) { return null; } }
+function tbSyncGetName() { try { return localStorage.getItem("tbSyncName") || ""; } catch (e) { return ""; } }
+function tbSyncPending() { try { return localStorage.getItem("tbSyncPending") === "1"; } catch (e) { return false; } }
+let tbSyncIds = null; // { tpl: nodeId, presets: nodeId, servers: nodeId } — cached child IDs after first fetch
+let tbWfPushTimer = null;
+// Summarise a template object for display: "Mon: 3 blocks (Standup, Deep work, Lunch)"
+function tbSyncSummary(tplJson) {
+  let tpl; try { tpl = JSON.parse(tplJson || "{}"); } catch (e) { return "(invalid)"; }
+  const lines = [];
+  for (const [d, label] of TB_DAYS) {
+    const blocks = Array.isArray(tpl[d]) ? tpl[d] : [];
+    if (!blocks.length) { lines.push(`${label}: (empty)`); continue; }
+    const names = blocks.slice(0, 4).map(b => b.name || "?").join(", ") + (blocks.length > 4 ? "…" : "");
+    lines.push(`${label}: ${blocks.length} block${blocks.length > 1 ? "s" : ""} (${names})`);
+  }
+  return lines.join("\n");
+}
+async function tbWfFetchChildren(syncId) {
+  const data = await call("GET", `/nodes?parent_id=${syncId}`);
+  if (!data || !data.nodes) return null;
+  tbSyncIds = {};
+  const result = { tplNote: null, presetsNote: null, serversNote: null };
+  for (const n of data.nodes) {
+    const lname = (n.name || "").toLowerCase().trim();
+    if (lname === "templates") { tbSyncIds.tpl = n.id; result.tplNote = n.note || null; }
+    else if (lname === "quick-blocks" || lname === "quick blocks") { tbSyncIds.presets = n.id; result.presetsNote = n.note || null; }
+    else if (lname === "servers") { tbSyncIds.servers = n.id; result.serversNote = n.note || null; }
+  }
+  return result;
+}
+async function tbWfPull() {
+  const syncId = tbSyncNode(); if (!syncId || tbSyncPending()) return false;
+  try {
+    const ch = await tbWfFetchChildren(syncId);
+    if (!ch) return false;
+    let changed = false;
+    if (ch.tplNote) { try { JSON.parse(ch.tplNote); localStorage.setItem("tbTemplate", ch.tplNote); changed = true; } catch (e) {} }
+    if (ch.presetsNote) { try { JSON.parse(ch.presetsNote); localStorage.setItem("tbPresets", ch.presetsNote); changed = true; } catch (e) {} }
+    if (changed) tbPush(); // keep local server in sync too
+    tbWfRegisterServer(syncId);
+    return changed;
+  } catch (e) { console.warn("tbWfPull error:", e.message); return false; }
+}
+async function tbWfRegisterServer(syncId) {
+  const name = tbSyncGetName(); if (!name) return;
+  try {
+    if (!tbSyncIds) await tbWfFetchChildren(syncId);
+    let servers = [];
+    if (tbSyncIds.servers) {
+      try { servers = JSON.parse((await call("GET", `/nodes/${tbSyncIds.servers}`)).note || "[]"); } catch (e) { servers = []; }
+      if (!Array.isArray(servers)) servers = [];
+    }
+    const now = new Date().toISOString();
+    const idx = servers.findIndex(s => s.name === name);
+    if (idx >= 0) servers[idx].lastSync = now; else servers.push({ name, lastSync: now });
+    const note = JSON.stringify(servers);
+    if (tbSyncIds.servers) {
+      await call("POST", `/nodes/${tbSyncIds.servers}`, { note });
+    } else {
+      const r = await call("POST", "/nodes", { parent_id: syncId, name: "servers", note, layoutMode: "bullets", position: "bottom" });
+      tbSyncIds.servers = r.id || (r.node && r.node.id);
+    }
+  } catch (e) { console.warn("tbWfRegisterServer:", e.message); }
+}
+function tbWfPush(which) {
+  const syncId = tbSyncNode(); if (!syncId || tbSyncPending()) return;
+  clearTimeout(tbWfPushTimer);
+  tbWfPushTimer = setTimeout(async () => {
+    try {
+      if (!tbSyncIds) { const ch = await tbWfFetchChildren(syncId); if (!ch) return; }
+      // Create children if they don't exist yet
+      if (!tbSyncIds.tpl) {
+        const r = await call("POST", "/nodes", { parent_id: syncId, name: "templates", note: localStorage.getItem("tbTemplate") || "{}", layoutMode: "bullets", position: "bottom" });
+        tbSyncIds.tpl = r.id || (r.node && r.node.id);
+      }
+      if (!tbSyncIds.presets) {
+        const r = await call("POST", "/nodes", { parent_id: syncId, name: "quick-blocks", note: localStorage.getItem("tbPresets") || "[]", layoutMode: "bullets", position: "bottom" });
+        tbSyncIds.presets = r.id || (r.node && r.node.id);
+      }
+      if (which === "tpl" || which === "both") {
+        await call("POST", `/nodes/${tbSyncIds.tpl}`, { note: localStorage.getItem("tbTemplate") || "{}" });
+      }
+      if (which === "presets" || which === "both") {
+        await call("POST", `/nodes/${tbSyncIds.presets}`, { note: localStorage.getItem("tbPresets") || "[]" });
+      }
+      tbWfRegisterServer(syncId);
+    } catch (e) { console.warn("tbWfPush error:", e.message); }
+  }, 800);
+}
+// Show a side-by-side comparison modal when local and remote templates differ.
+// Returns a promise: "pull" | "push" | "defer"
+function tbSyncCompare(remoteJson, localJson) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;";
+    const box = document.createElement("div");
+    box.style.cssText = "background:var(--bg,#fff);color:var(--text,#222);border-radius:10px;max-width:560px;width:90vw;max-height:80vh;overflow-y:auto;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.25);font-size:13px;";
+    box.innerHTML = `<h3 style="margin:0 0 12px;font-size:16px;">Template Sync: Review</h3>
+      <p style="margin:0 0 10px;color:var(--muted);font-size:12px;">The shared templates in WorkFlowy differ from what's on this machine. Choose which to keep.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;color:var(--accent,#3b82f6);">Shared (WorkFlowy)</div>
+          <pre style="white-space:pre-wrap;font-size:11px;background:var(--card,#f8f8f8);border:1px solid var(--border,#ddd);border-radius:6px;padding:8px;margin:0;max-height:220px;overflow-y:auto;"></pre>
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;color:var(--accent,#3b82f6);">This machine</div>
+          <pre style="white-space:pre-wrap;font-size:11px;background:var(--card,#f8f8f8);border:1px solid var(--border,#ddd);border-radius:6px;padding:8px;margin:0;max-height:220px;overflow-y:auto;"></pre>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap;">
+        <button type="button" data-act="defer" style="padding:6px 14px;border:1px solid var(--border,#ddd);border-radius:6px;background:none;cursor:pointer;color:var(--text);font-size:13px;">Decide later</button>
+        <button type="button" data-act="push" style="padding:6px 14px;border:1px solid var(--border,#ddd);border-radius:6px;background:none;cursor:pointer;color:var(--text);font-size:13px;">Use mine</button>
+        <button type="button" data-act="pull" style="padding:6px 14px;border-radius:6px;background:var(--accent,#3b82f6);color:#fff;border:none;cursor:pointer;font-size:13px;">Use shared</button>
+      </div>`;
+    const pres = box.querySelectorAll("pre");
+    pres[0].textContent = tbSyncSummary(remoteJson);
+    pres[1].textContent = tbSyncSummary(localJson);
+    box.querySelectorAll("button").forEach(btn => {
+      btn.onclick = () => { overlay.remove(); resolve(btn.dataset.act); };
+    });
+    overlay.appendChild(box);
+    overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve("defer"); } };
+    document.body.appendChild(overlay);
+  });
 }
 function parseDurMins(t) {                                // "30m", "1h", "1h30m", "90" → minutes, or null
   t = String(t || "").trim().toLowerCase();
@@ -1825,7 +2008,7 @@ function tbTplGet() {
   for (let d = 0; d < 7; d++) out[d].sort((a, b) => tbStartMins(a) - tbStartMins(b));      // earliest first
   return out;
 }
-function tbTplSave(tpl) { try { localStorage.setItem("tbTemplate", JSON.stringify(tpl)); } catch (e) { /* kept for this visit only */ } tbPush(); }
+function tbTplSave(tpl) { try { localStorage.setItem("tbTemplate", JSON.stringify(tpl)); } catch (e) { /* kept for this visit only */ } tbPush(); tbWfPush("tpl"); }
 const TB_DAYS = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"], [0, "Sun"]];
 const tbRangeLabel = (keys) => {                            // "Nov 9–15", or "Nov 30–Dec 6" across a month
   if (!keys.length) return "";
@@ -1871,7 +2054,7 @@ async function tbFillWeek(keys) {
   } catch (err) { showError(err.message); return; }
   if (!plan.length) {
     const any = keys.some((k) => (tpl[keyToDate(k).getDay()] || []).length);
-    showToast(any ? `${label} already has every template block.` : `No template blocks are saved for ${label}. Use Edit template… to add some.`, false);
+    showToast(any ? `${label} already has every template block.` : `No template blocks are saved for ${label}. Use Edit Template… to add some.`, false);
     return;
   }
   const dayCount = new Set(plan.map((p) => p.k)).size;
@@ -1894,13 +2077,25 @@ function closeTbTpl() { document.getElementById("tbTpl").hidden = true; if (tbPa
 function openTbTpl(startWd) {
   const box = document.getElementById("tbTpl"); box.hidden = false;
   let wd = startWd != null ? startWd : (tbPanelDay ? keyToDate(tbPanelDay).getDay() : new Date().getDay());
+  let tplSrcDay = tbPanelDay || key(new Date());
   const draw = () => {
     const tpl = tbTplGet(); box.innerHTML = "";
-    const h = document.createElement("h3"); h.textContent = "Day template"; box.appendChild(h);
+    // ── Header: title + close + day tabs ──
+    const head = document.createElement("div"); head.className = "tpHead";
+    const h = document.createElement("h3");
+    const hText = document.createElement("span"); hText.textContent = "Edit Template";
+    const hClose = document.createElement("button"); hClose.type = "button"; hClose.textContent = "✕"; hClose.title = "Close"; hClose.onclick = closeTbTpl;
+    h.append(hText, hClose); head.appendChild(h);
     const tabs = document.createElement("div"); tabs.className = "tpTabs";
     for (const [d, label] of TB_DAYS) { const b = document.createElement("button"); b.type = "button"; b.textContent = label + (tpl[d].length ? ` (${tpl[d].length})` : ""); b.title = tpl[d].length ? `${tpl[d].length} block${tpl[d].length > 1 ? "s" : ""} in the ${label} template` : `No blocks in the ${label} template`; if (d === wd) b.className = "on"; b.onclick = () => { wd = d; draw(); }; tabs.appendChild(b); }
-    box.appendChild(tabs);
-    const onDay = tbPanelDay ? (cache[tbPanelDay] || []).filter((t) => timeBlockOf(t) && !t.pending) : [];
+    head.appendChild(tabs); box.appendChild(head);
+    // ── Scrollable body: block rows + add section ──
+    const body = document.createElement("div"); body.className = "tpBody";
+    // ── Card 1: Block rows ──
+    const card1 = document.createElement("div"); card1.className = "tpCard";
+    if (tpl[wd].length) {
+      const sec = document.createElement("div"); sec.className = "tpSec"; sec.textContent = `${TB_DAYS.find((x) => x[0] === wd)[1]} blocks`; card1.appendChild(sec);
+    }
     tpl[wd].forEach((b, i) => {
       const row = document.createElement("div"); row.className = "tpRow";
       const t = document.createElement("input"); t.type = "time"; t.step = 300; t.value = b.start; t.setAttribute("aria-label", "Start");
@@ -1911,31 +2106,122 @@ function openTbTpl(startWd) {
       const x = document.createElement("button"); x.type = "button"; x.textContent = "✕"; x.title = "Remove"; x.setAttribute("aria-label", "Remove this block");
       const commit = () => { const cur = tbTplGet(); if (/^\d{1,2}:\d{2}$/.test(t.value)) cur[wd][i].start = t.value; cur[wd][i].mins = Number(l.value); cur[wd][i].name = n.value.trim() || b.name; tbTplSave(cur); };
       l.onchange = n.onchange = commit;
-      t.onchange = () => { commit(); draw(); };                // a new time can move the block up or down the list
+      t.onchange = () => { commit(); draw(); };
       x.onclick = () => { const cur = tbTplGet(); cur[wd].splice(i, 1); tbTplSave(cur); draw(); };
-      row.append(t, l, n, x); box.appendChild(row);
+      row.append(t, l, n, x); card1.appendChild(row);
     });
-    if (!tpl[wd].length) { const e = document.createElement("div"); e.className = "tpNote"; e.textContent = "No blocks in this weekday's template yet. The template is separate from the tasks on the day: add blocks here" + (onDay.length ? ", or use the ones already on the day." : "."); box.appendChild(e); }
-    const act = document.createElement("div"); act.className = "tpAct";
-    if (onDay.length) {                                    // start from what is already on the day shown in the panel
-      const use = document.createElement("button"); use.type = "button"; use.textContent = `Use the ${onDay.length} block${onDay.length > 1 ? "s" : ""} on ${dayLabel(tbPanelDay)}`;
-      use.title = `Replace the ${TB_DAYS.find((x) => x[0] === wd)[1]} template with the time-blocked tasks on ${dayLabel(tbPanelDay)}`;
-      use.onclick = () => {
-        const cur = tbTplGet();
-        if (cur[wd].length && !confirm(`Replace the ${TB_DAYS.find((x) => x[0] === wd)[1]} template (${cur[wd].length} block${cur[wd].length > 1 ? "s" : ""}) with the ${onDay.length} on ${dayLabel(tbPanelDay)}?`)) return;
-        cur[wd] = onDay.map((t) => { const tb = timeBlockOf(t); return { name: dropMeta(shownVisible(t.name)).trim().slice(0, 60) || "Block", start: String(tb.h).padStart(2, "0") + ":" + String(tb.mi).padStart(2, "0"), mins: estOf(t) || 30 }; }).sort((a, b) => a.start.localeCompare(b.start));
-        tbTplSave(cur); draw();
-      };
-      act.appendChild(use);
+    if (!tpl[wd].length) { const e = document.createElement("div"); e.className = "tpNote"; e.textContent = "No blocks yet — add from below."; card1.appendChild(e); }
+    body.appendChild(card1);
+    // ── Card 2: Add blocks ──
+    const card2 = document.createElement("div"); card2.className = "tpCard";
+    const qList = tbPresets();
+    const nextStart = () => { const cur = tbTplGet(); const last = cur[wd][cur[wd].length - 1]; if (!last) return "09:00"; const e2 = Number(last.start.slice(0, 2)) * 60 + Number(last.start.slice(3)) + last.mins; return String(Math.min(23, Math.floor(e2 / 60))).padStart(2, "0") + ":" + String(e2 % 60).padStart(2, "0"); };
+    const goSrcDay = async (d) => { tplSrcDay = d; if (!cache[d]) await loadDay(d); draw(); };
+    // Section header — just the label
+    const addSec = document.createElement("div"); addSec.className = "tpSec"; addSec.textContent = "Add blocks"; card2.appendChild(addSec);
+    // Build chip data: Quick blocks + schedule items (deduped)
+    const chipData = [];
+    for (const p of qList) chipData.push({ src: "quick", name: p.name, mins: p.mins, start: null, label: p.name, icon: "⚡" });
+    const srcTasks = (cache[tplSrcDay] || []).filter((t) => timeBlockOf(t) && !t.pending);
+    const qNamesLower = new Set(qList.map((p) => p.name.toLowerCase()));
+    const schSorted = srcTasks.map((t) => { const tb = timeBlockOf(t); return { t, tb, dur: estOf(t) || 30 }; }).sort((a, b) => a.tb.mins - b.tb.mins);
+    for (const { t: task, tb, dur } of schSorted) {
+      const taskName = dropMeta(shownVisible(task.name)).trim().slice(0, 40) || "Block";
+      if (qNamesLower.has(taskName.toLowerCase())) continue;
+      chipData.push({ src: "sched", name: taskName, mins: dur, start: String(tb.h).padStart(2, "0") + ":" + String(tb.mi).padStart(2, "0"), label: taskName, time: fmtTimeBlock(tb.h, tb.mi) });
     }
-    const add = document.createElement("button"); add.type = "button"; add.textContent = "+ Add block";
-    add.onclick = () => { const cur = tbTplGet(); const last = cur[wd][cur[wd].length - 1]; let st = "09:00"; if (last) { const e2 = Number(last.start.slice(0, 2)) * 60 + Number(last.start.slice(3)) + last.mins; st = String(Math.min(23, Math.floor(e2 / 60))).padStart(2, "0") + ":" + String(e2 % 60).padStart(2, "0"); } cur[wd].push({ name: "New block", start: st, mins: 30 }); tbTplSave(cur); draw(); };
-    const copy = document.createElement("button"); copy.type = "button"; copy.textContent = `Copy ${TB_DAYS.find((x) => x[0] === wd)[1]} to Mon–Fri`; copy.title = "Replace the Monday to Friday templates with this tab's blocks. It only changes the saved templates, not any day in WorkFlowy.";
-    copy.onclick = () => { const cur = tbTplGet(); if (!cur[wd].length) return; if (!confirm(`Replace the Mon–Fri templates with the ${cur[wd].length} block${cur[wd].length > 1 ? "s" : ""} on the ${TB_DAYS.find((x) => x[0] === wd)[1]} tab?\n\nThis only changes your saved templates. Nothing is written to any day in WorkFlowy.`)) return; for (const d of [1, 2, 3, 4, 5]) if (d !== wd) cur[d] = cur[wd].map((b) => ({ ...b })); tbTplSave(cur); draw(); showToast("Copied to the other weekdays (Mon–Fri)", false); };
-    const done = document.createElement("button"); done.type = "button"; done.className = "go"; done.textContent = "Done"; done.onclick = closeTbTpl;
-    act.append(add, copy, done); box.appendChild(act);
-    const note = document.createElement("div"); note.className = "tpNote"; note.textContent = "The number in brackets on a day is how many blocks its template holds. Blocks added from a template are marked done by themselves once their time has passed.";
-    box.appendChild(note);
+    // Render chips
+    const selected = new Set();
+    const chipWrap = document.createElement("div"); chipWrap.className = "tpChips";
+    const chips = [];
+    for (let ci = 0; ci < chipData.length; ci++) {
+      const cd = chipData[ci];
+      const chip = document.createElement("button"); chip.type = "button"; chip.className = "tpChip";
+      if (cd.src === "quick") { const ic = document.createElement("span"); ic.className = "cIcon"; ic.textContent = cd.icon; chip.appendChild(ic); }
+      if (cd.src === "sched" && cd.time) { const tm = document.createElement("span"); tm.className = "cIcon"; tm.textContent = cd.time; chip.appendChild(tm); }
+      const lbl = document.createElement("span"); lbl.className = "cLabel"; lbl.textContent = cd.label; chip.appendChild(lbl);
+      const dur = document.createElement("span"); dur.className = "cDur"; dur.textContent = fmtMins(cd.mins); chip.appendChild(dur);
+      chip.onclick = () => { if (selected.has(ci)) { selected.delete(ci); chip.classList.remove("on"); } else { selected.add(ci); chip.classList.add("on"); } updateBar(); };
+      chipWrap.appendChild(chip); chips.push(chip);
+    }
+    // "+ Blank" as a dashed chip
+    const blankChip = document.createElement("button"); blankChip.type = "button"; blankChip.className = "tpChip blank"; blankChip.textContent = "+ Blank";
+    blankChip.onclick = () => { const cur = tbTplGet(); cur[wd].push({ name: "New block", start: nextStart(), mins: 30 }); tbTplSave(cur); draw(); };
+    chipWrap.appendChild(blankChip);
+    card2.appendChild(chipWrap);
+    if (!chipData.length) { const empty = document.createElement("div"); empty.className = "tpNote"; empty.textContent = "No quick blocks or scheduled tasks — use + Blank or change the date."; card2.appendChild(empty); }
+    // Action bar: Select all | ◀ date ▶ | Add selected (right)
+    const addBar = document.createElement("div"); addBar.className = "addBar";
+    const selAllBtn = document.createElement("button"); selAllBtn.type = "button"; selAllBtn.textContent = "Select all"; selAllBtn.style.cssText = "font-size: 11px; padding: 3px 8px; background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text);";
+    selAllBtn.onclick = () => { const allOn = selected.size === chipData.length; selected.clear(); if (!allOn) chipData.forEach((_, i) => selected.add(i)); chips.forEach((c, i) => c.classList.toggle("on", selected.has(i))); updateBar(); };
+    const srcNav = document.createElement("span"); srcNav.className = "srcNav";
+    const srcPrev = document.createElement("button"); srcPrev.type = "button"; srcPrev.textContent = "◀"; srcPrev.title = "Previous day";
+    const srcDate = document.createElement("input"); srcDate.type = "date"; srcDate.value = tplSrcDay;
+    const srcNext = document.createElement("button"); srcNext.type = "button"; srcNext.textContent = "▶"; srcNext.title = "Next day";
+    srcPrev.onclick = () => goSrcDay(addDayKey(tplSrcDay, -1));
+    srcNext.onclick = () => goSrcDay(addDayKey(tplSrcDay, 1));
+    srcDate.onchange = () => { if (srcDate.value) goSrcDay(srcDate.value); };
+    srcNav.append(srcPrev, srcDate, srcNext);
+    const addSelBtn = document.createElement("button"); addSelBtn.type = "button"; addSelBtn.className = "go"; addSelBtn.textContent = "Add selected"; addSelBtn.style.cssText = "margin-left: auto;";
+    addSelBtn.onclick = () => { if (!selected.size) { showToast("Tap blocks to select them first", false); return; } const cur = tbTplGet(); for (const i of selected) { const cd = chipData[i]; cur[wd].push({ name: cd.name, start: cd.start || nextStart(), mins: cd.mins }); } tbTplSave(cur); draw(); };
+    const countLabel = document.createElement("span"); countLabel.style.cssText = "font-size: 11px; color: var(--muted);";
+    const updateBar = () => { countLabel.textContent = selected.size ? `${selected.size} selected` : ""; selAllBtn.textContent = selected.size === chipData.length && chipData.length ? "Deselect all" : "Select all"; };
+    updateBar();
+    addBar.append(selAllBtn, srcNav, addSelBtn, countLabel); card2.appendChild(addBar);
+    body.appendChild(card2);
+    // ── Card 3: Copy to days ──
+    const card3 = document.createElement("div"); card3.className = "tpCard";
+    const copySec = document.createElement("div"); copySec.className = "tpSec"; copySec.textContent = "Copy selected template to"; card3.appendChild(copySec);
+    const copyWrap = document.createElement("div"); copyWrap.className = "addBar"; copyWrap.style.cssText = "gap: 4px; flex-wrap: wrap;";
+    const copyTargets = new Set();
+    const copyChips = [];
+    for (const [d, label] of TB_DAYS) {
+      if (d === wd) continue;
+      const chip = document.createElement("button"); chip.type = "button"; chip.className = "tpChip"; chip.style.cssText = "padding: 3px 8px; font-size: 11px;";
+      chip.textContent = label;
+      chip.onclick = () => { if (copyTargets.has(d)) { copyTargets.delete(d); chip.classList.remove("on"); } else { copyTargets.add(d); chip.classList.add("on"); } };
+      copyWrap.appendChild(chip); copyChips.push({ d, chip });
+    }
+    const copyAllBtn = document.createElement("button"); copyAllBtn.type = "button"; copyAllBtn.style.cssText = "font-size: 10px; padding: 2px 6px; background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text);"; copyAllBtn.textContent = "All";
+    copyAllBtn.onclick = () => { const allOn = copyTargets.size === copyChips.length; copyTargets.clear(); if (!allOn) copyChips.forEach((c) => copyTargets.add(c.d)); copyChips.forEach((c) => c.chip.classList.toggle("on", copyTargets.has(c.d))); };
+    const copyBtn = document.createElement("button"); copyBtn.type = "button"; copyBtn.className = "go"; copyBtn.style.cssText = "margin-left: auto; font-size: 12px;"; copyBtn.textContent = "Copy";
+    copyBtn.onclick = () => {
+      if (!copyTargets.size) { showToast("Select days to copy to", false); return; }
+      const cur = tbTplGet(); if (!cur[wd].length) { showToast("Nothing to copy — add blocks first", false); return; }
+      const names = [...copyTargets].map((d) => TB_DAYS.find((x) => x[0] === d)[1]).join(", ");
+      if (!confirm(`Replace ${names} templates with the ${cur[wd].length} block${cur[wd].length > 1 ? "s" : ""} from ${TB_DAYS.find((x) => x[0] === wd)[1]}?`)) return;
+      for (const d of copyTargets) cur[d] = cur[wd].map((b) => ({ ...b }));
+      tbTplSave(cur); draw(); showToast(`Copied to ${names}`, false);
+    };
+    copyWrap.append(copyAllBtn, copyBtn); card3.appendChild(copyWrap);
+    body.appendChild(card3);
+    const note = document.createElement("div"); note.className = "tpNote"; note.textContent = "Blocks added from a template are marked done once their time has passed.";
+    body.appendChild(note);
+    box.appendChild(body);
+    // ── Fixed footer: Apply + Done ──
+    const foot = document.createElement("div"); foot.className = "tpFoot";
+    const aKeys = tbWeekKeys(), aLabel = tbRangeLabel(aKeys), aTk = key(new Date());
+    const aDayKey = tbPanelDay && tbPanelDay >= aTk ? tbPanelDay : null;
+    const applyWrap = document.createElement("span"); applyWrap.className = "tbapply";
+    const apply = document.createElement("button"); apply.type = "button"; apply.className = "go";
+    apply.textContent = aDayKey ? `Apply to ${dayLabel(aDayKey)}` : (aKeys.length ? `Apply to ${aLabel}` : "Apply");
+    apply.title = "Write template blocks into WorkFlowy. Blocks already there are skipped.";
+    apply.disabled = !aDayKey && !aKeys.length;
+    apply.onclick = () => { closeTbTpl(); aDayKey ? tbFillWeek([aDayKey]) : tbFillWeek(aKeys); };
+    applyWrap.appendChild(apply);
+    if (aDayKey && aKeys.length > 1) {
+      const more = document.createElement("button"); more.type = "button"; more.className = "go tbapmore"; more.textContent = "▾";
+      more.title = `Apply to ${aLabel} (all remaining days)`;
+      const menu = document.createElement("div"); menu.className = "tbdrop"; menu.hidden = true;
+      const allBtn2 = document.createElement("button"); allBtn2.type = "button"; allBtn2.textContent = `Apply to ${aLabel}`;
+      allBtn2.onclick = () => { menu.hidden = true; closeTbTpl(); tbFillWeek(tbWeekKeys()); };
+      menu.appendChild(allBtn2);
+      more.onclick = (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; };
+      document.addEventListener("click", () => { menu.hidden = true; });
+      applyWrap.append(more, menu);
+    }
+    const done = document.createElement("button"); done.type = "button"; done.textContent = "Done"; done.onclick = closeTbTpl;
+    foot.append(done, applyWrap); box.appendChild(foot);
   };
   draw();
 }
@@ -1970,12 +2256,9 @@ function renderTbTplBar(box) {
   auto.append(ac, at); box.appendChild(auto);
   const bar = document.createElement("div"); bar.className = "tbtplbar";
   const keys = tbWeekKeys(), label = tbRangeLabel(keys);
-  const fill = document.createElement("button"); fill.type = "button"; fill.className = "go";
-  fill.textContent = keys.length ? `Save ${label} to WorkFlowy` : "Save this week";
-  fill.title = keys.length ? `Write the template blocks for ${label} into WorkFlowy in one go. Blocks already there or left out are skipped, and it asks first.` : "This week is already past";
-  fill.disabled = !keys.length; fill.onclick = () => tbFillWeek(tbWeekKeys());
-  const edit = document.createElement("button"); edit.type = "button"; edit.textContent = "Edit template…"; edit.title = "See and change the standard blocks for every weekday"; edit.onclick = () => openTbTpl();
-  bar.append(fill, edit); box.appendChild(bar);
+  const tk = key(new Date());
+  const edit = document.createElement("button"); edit.type = "button"; edit.textContent = "Edit Template…"; edit.title = "See and change the standard blocks for every weekday"; edit.onclick = () => openTbTpl();
+  bar.appendChild(edit); box.appendChild(bar);
 }
 const tbOpen = (k) => { try { return localStorage.getItem("tbOpen" + k) === "1"; } catch (e) { return false; } };     // folded unless the person opened it
 function tbFold(box, k, title, redraw) {
@@ -2232,7 +2515,9 @@ async function tbGoDay(k) {                               // show another day in
 }
 function openTimelinePanel(k) {
   if (!wfGate("tb")) return;
-  tbPull();
+  tbPull(); tbWfPull();
+  // If there's a pending merge decision, show the comparison
+  if (tbSyncPending() && tbSyncNode()) tbWfResolvePending();
   const panel = document.getElementById("tbPanel"), shade = document.getElementById("tbShade");
   if (!panel.classList.contains("open")) { tbPanelDay = k; tbDraft = null; document.getElementById("tbDate").value = k; }
   panel.classList.add("open");
@@ -2240,12 +2525,81 @@ function openTimelinePanel(k) {
   tbGoDay(k);
   renderTimelinePanel();
 }
+async function tbWfResolvePending() {
+  const syncId = tbSyncNode(); if (!syncId) return;
+  try {
+    const ch = await tbWfFetchChildren(syncId);
+    if (!ch || !ch.tplNote) { try { localStorage.removeItem("tbSyncPending"); } catch (e) {} return; }
+    const localJson = localStorage.getItem("tbTemplate");
+    if (ch.tplNote === localJson) { try { localStorage.removeItem("tbSyncPending"); } catch (e) {} return; } // already in sync
+    const choice = await tbSyncCompare(ch.tplNote, localJson);
+    if (choice === "pull") {
+      localStorage.setItem("tbTemplate", ch.tplNote);
+      if (ch.presetsNote) localStorage.setItem("tbPresets", ch.presetsNote);
+      tbPush(); localStorage.removeItem("tbSyncPending");
+      showToast("Using shared templates from WorkFlowy", false);
+      renderTimelinePanel();
+    } else if (choice === "push") {
+      localStorage.removeItem("tbSyncPending");
+      tbWfPush("both");
+      showToast("Pushed your templates to WorkFlowy", false);
+    } else {
+      // Still deferred
+      showToast("Merge deferred — will ask again next time", false);
+    }
+  } catch (e) { console.warn("tbWfResolvePending:", e.message); }
+}
 function closeTimelinePanel(force) {
   if (force !== true && tbChanged() && !confirm("You have changes that aren't saved. Close and discard them?")) return;
   tbDraft = null; tbPanelDay = null; closeTbEdit(); closeTbTpl();
   document.getElementById("tbPanel").classList.remove("open");
   document.getElementById("tbShade").classList.remove("open");
 }
+// ── Autoscroll #tbTimeline while dragging near edges ──
+(function () {
+  const tl = document.getElementById("tbTimeline");
+  if (!tl) return;
+  let scrollRAF = 0;
+  const EDGE = 48, SPEED = 6;
+  tl.addEventListener("dragover", (e) => {
+    const rect = tl.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const h = rect.height;
+    let dir = 0;
+    if (y < EDGE) dir = -1;
+    else if (y > h - EDGE) dir = 1;
+    if (dir && !scrollRAF) {
+      const step = () => { tl.scrollTop += dir * SPEED; if (dir) scrollRAF = requestAnimationFrame(step); };
+      scrollRAF = requestAnimationFrame(step);
+    } else if (!dir && scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; }
+  });
+  tl.addEventListener("dragleave", () => { if (scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; } });
+  tl.addEventListener("drop", () => { if (scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; } });
+  tl.addEventListener("dragend", () => { if (scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; } });
+})();
+// Also autoscroll #tbPool when dragging near its edges
+(function () {
+  const pool = document.getElementById("tbPool");
+  if (!pool) return;
+  let scrollRAF = 0;
+  const EDGE = 36, SPEED = 4;
+  pool.addEventListener("dragover", (e) => {
+    const rect = pool.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const h = rect.height;
+    let dir = 0;
+    if (y < EDGE) dir = -1;
+    else if (y > h - EDGE) dir = 1;
+    if (dir && !scrollRAF) {
+      const step = () => { pool.scrollTop += dir * SPEED; if (dir) scrollRAF = requestAnimationFrame(step); };
+      scrollRAF = requestAnimationFrame(step);
+    } else if (!dir && scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; }
+  });
+  pool.addEventListener("dragleave", () => { if (scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; } });
+  pool.addEventListener("drop", () => { if (scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; } });
+  pool.addEventListener("dragend", () => { if (scrollRAF) { cancelAnimationFrame(scrollRAF); scrollRAF = 0; } });
+})();
+
 function renderTimelinePanel() {
   if (!tbPanelDay) return;
   { const dw = document.getElementById("tbDow"); if (dw) dw.textContent = keyToDate(tbPanelDay).toLocaleDateString(undefined, { weekday: "short" }); }
@@ -2318,6 +2672,8 @@ function renderTimelinePanel() {
         const lt = document.createElement("span");
         lt.textContent = (done ? "✓ " : "") + (n._planned ? "Planned: " : "") + (tb.mins === slotMins ? "" : fmtTimeBlock(tb.h, tb.mi) + " ") + dropMeta(shownVisible(n.name)).slice(0, 40) + (dur > 30 ? ` (${fmtMins(dur)})` : "");
         lab.appendChild(lt);
+        if (n._planned) { const bt = document.createElement("span"); bt.className = "blktag"; bt.textContent = "⏱ template"; bt.title = "From the day template — not yet written to WorkFlowy"; lab.appendChild(bt); }
+        else if (BLK_RE.test(plain(n.name))) { const bt = document.createElement("span"); bt.className = "blktag"; bt.textContent = "⏱ from template"; bt.title = "Written from the day template"; lab.appendChild(bt); }
         const nline = (n.note && !TOKEN_TEST(n.note)) ? shownVisible(n.note).split("\n")[0].trim().slice(0, 80) : "";
         if (nline) { const ln = document.createElement("span"); ln.className = "tbn"; ln.textContent = nline; lab.appendChild(ln); }
         const isPlan = !!n._planned;
@@ -2416,6 +2772,7 @@ function render() {
   const last = days[days.length - 1];
   document.getElementById("range").textContent = `${fmt(days[0])} – ${fmt(last)}, ${last.getFullYear()}`;
   document.querySelectorAll("#seg button").forEach((b) => b.classList.toggle("on", Number(b.dataset.span) === span));
+  document.getElementById("hwRow").hidden = span !== 5;
   document.getElementById("wsRow").hidden = span !== 7;
   document.querySelectorAll("#wsSeg button").forEach((b) => b.classList.toggle("on", b.dataset.ws === (weekStartDay || "mon")));
   updatePageHeader();
@@ -2479,18 +2836,16 @@ function render() {
   // With 5 days shown, the rest of that week (normally Saturday and Sunday) gets one extra column, but only while those days have tasks to show.
   if (span === 5) {
     const shown = new Set(days.map(key)), rest = fullWeekKeys().filter((k) => !shown.has(k)), parts = rest.map((k) => ({ k, ents: entries(k, false) }));
-    if (parts.some((x) => x.ents.length)) {
+    if (!prefs.hideWkend && parts.some((x) => x.ents.length)) {
       const col = document.createElement("div"); col.className = "col wkend"; col.dataset.key = "wkend";
-      const head = document.createElement("div"); head.className = "colhead";
       const dn = (k) => DAY_NAMES[keyToDate(k).getDay()];
-      const isWeekend = rest.length === 2 && dn(rest[0]) === "Sat" && dn(rest[1]) === "Sun";
-      const h2 = document.createElement("h2"); h2.textContent = (isWeekend ? "Weekend" : rest.map(dn).join(" / "));
-      const sub = document.createElement("span"); sub.textContent = parts.map((x) => `${dn(x.k)} ${openCount(x.k)}`).join(" / "); sub.title = "Open tasks on each day";
-      h2.appendChild(sub); head.appendChild(h2); col.appendChild(head);
       const list = document.createElement("div"); list.className = "tasks";
       for (const { k, ents } of parts) {
         const sec = document.createElement("div"); sec.className = "wksec"; sec.dataset.key = k;
-        const sh = document.createElement("div"); sh.className = "wkh"; sh.textContent = `${dn(k)} ${keyToDate(k).getDate()}`; sec.appendChild(sh);
+        const d = keyToDate(k), open = openCount(k), stale = prefs.pastAlert && k < todayKey && open > 0;
+        const secHead = document.createElement("div"); secHead.className = "colhead";
+        secHead.innerHTML = `<h2>${dn(k)} ${d.getDate()}<span${stale && prefs.pastCount ? ` title="This day has passed and still has ${open} open task${open === 1 ? "" : "s"}"` : ""}>${stale && prefs.pastCount ? "⚠ " : ""}${open} open${(() => { const t = estFor(k); return t.mins ? ` · <b class="esum" title="Time estimated for the open tasks${t.none ? ` (${t.none} without an estimate)` : ""}">${fmtMins(t.mins)}</b>` : ""; })()}</span></h2>`;
+        sec.appendChild(secHead);
         sec.appendChild(dayTools(k));
         { const band = allDayBand(k); if (band) sec.appendChild(band); }
         if (!ents.length) { const em = document.createElement("div"); em.className = "empty"; em.textContent = (cache[k] || []).length ? "All done 🎉" : "Nothing yet"; sec.appendChild(em); }
@@ -4276,6 +4631,7 @@ for (const [id, pref] of [["optHide", "hideDone"], ["optLate", "showLate"], ["op
   };
 }
 
+{ const hw = document.getElementById("optHideWkend"); hw.checked = prefs.hideWkend; hw.onchange = () => { prefs.hideWkend = hw.checked; setPref("hideWkend", hw.checked); render(); }; }
 { const ao = document.getElementById("optAllDay"), al = document.getElementById("adLines"), row = document.getElementById("adRow");
   ao.checked = prefs.allDay; al.value = String(adLimit()); row.hidden = !prefs.allDay;
   ao.onchange = () => { prefs.allDay = ao.checked; setPref("allDay", ao.checked); row.hidden = !ao.checked; if (ao.checked) loadWeek(); else render(); };
@@ -7126,10 +7482,11 @@ document.getElementById("kbAdd").onclick = async (e) => {
   try {
     const r = await kbResolve(linkEl.value), name = nameEl.value.trim().replace(/\s+/g, " ") || r.name;
     if (!kbAddCol(r.id, name)) throw new Error("That node is already a column.");
-    nameEl.value = ""; linkEl.value = ""; kbMsg(`Added “${name}”.`);
+    nameEl.value = ""; linkEl.value = WF_LINK; kbMsg(`Added “${name}”.`);
   } catch (x) { kbMsg(x.message, true); }
   btn.disabled = false;
 };
+wfPrefill(document.getElementById("kbLink"));
 document.getElementById("kbLink").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); document.getElementById("kbAdd").click(); } });
 function kbFillPick() {
   const keep = kbPick.value; kbPick.innerHTML = "";
@@ -7433,6 +7790,7 @@ function renderPlan() {
 // Settings: the list of extra nodes.
 const srcListEl = document.getElementById("srcList"), srcNameEl = document.getElementById("srcName");
 const srcLinkEl = document.getElementById("srcLink"), srcAddEl = document.getElementById("srcAdd"), srcMsgEl = document.getElementById("srcMsg");
+wfPrefill(srcLinkEl);
 function srcMsg(text, err) { srcMsgEl.textContent = text; srcMsgEl.classList.toggle("err", !!err); }
 function renderSrcList() {
   srcListEl.innerHTML = "";
@@ -7471,7 +7829,7 @@ srcAddEl.onclick = async () => {
     const open = (data.nodes || []).filter((n) => n.data && n.data.layoutMode === "todo" && !n.completedAt).length;
     const name = srcNameEl.value.trim().replace(/\s+/g, " ") || found.slice(0, 40) || "Inbox";
     planSources.push({ name, id }); saveSources();
-    srcNameEl.value = ""; srcLinkEl.value = "";
+    srcNameEl.value = ""; srcLinkEl.value = WF_LINK;
     srcMsg(`Added “${name}”: ${open} open task${open === 1 ? "" : "s"} directly under it.`);
     renderSrcList();
     if (planMode) loadPlan(false);
@@ -7502,6 +7860,7 @@ hoursInput.onchange = () => {
 const inboxBtn = document.getElementById("inboxBtn"), inboxCnt = document.getElementById("inboxCnt");
 const inboxCur = document.getElementById("inboxCur"), inboxClear = document.getElementById("inboxClear"), inboxPick = document.getElementById("inboxPick");
 const inboxLink = document.getElementById("inboxLink"), inboxSetBtn = document.getElementById("inboxSetBtn"), inboxMsg = document.getElementById("inboxMsg");
+wfPrefill(inboxLink);
 function loadInboxNode() {
   try { const v = JSON.parse(localStorage.getItem("inboxNode") || "null"); if (v && typeof v.id === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(v.id)) return { id: v.id, name: String(v.name || "Inbox").slice(0, 40) }; } catch (e) {}
   return null;
@@ -7509,12 +7868,14 @@ function loadInboxNode() {
 let inboxNode = loadInboxNode();
 function saveInboxNode() { try { if (inboxNode) localStorage.setItem("inboxNode", JSON.stringify(inboxNode)); else localStorage.removeItem("inboxNode"); } catch (e) {} }
 function inboxMsgSet(text, bad) { inboxMsg.textContent = text; inboxMsg.classList.toggle("err", !!bad); }
+const inboxFormEl = document.getElementById("inboxForm");
 function updateInboxUi() {
   inboxBtn.classList.toggle("unset", !inboxNode);
   inboxBtn.title = inboxNode ? `Open ${inboxNode.name} (I). Drop a task here to send it there.` : "Set your Inbox in Settings (I)";
   if (!inboxNode) inboxCnt.hidden = true;
-  inboxCur.textContent = inboxNode ? `${inboxNode.name} (${inboxNode.id.slice(-12)})` : "Not set. The Inbox button asks for it.";
+  inboxCur.textContent = inboxNode ? `${inboxNode.name} (${inboxNode.id.slice(-12)})` : "Not set";
   inboxClear.hidden = !inboxNode;
+  inboxFormEl.style.display = inboxNode ? "none" : "";
 }
 async function refreshInboxCount() {
   if (!inboxNode) return;
@@ -7561,7 +7922,7 @@ inboxSetBtn.onclick = async () => {
     const data = await call("GET", `/nodes?parent_id=${id}`);
     if (data === null) throw new Error("WorkFlowy doesn't know that id.");
     if (!found) { try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = shownName((nd && nd.name) || ""); } catch (e) { /* falls back to "Inbox" */ } }
-    setInboxNode(id, found || "Inbox"); inboxLink.value = "";
+    setInboxNode(id, found || "Inbox"); inboxLink.value = WF_LINK;
     inboxMsgSet(`Inbox set to “${inboxNode.name}”.`);
   } catch (e) { inboxMsgSet(e.message, true); }
   inboxSetBtn.disabled = false;
@@ -7595,6 +7956,93 @@ document.addEventListener("keydown", (e) => {
 setInterval(() => { if (!document.hidden) refreshInboxCount(); }, 120000);
 window.addEventListener("focus", () => refreshInboxCount());
 updateInboxUi(); refreshInboxCount();
+
+// ── WorkFlowy template sync settings ──
+const tbSyncNameEl = document.getElementById("tbSyncName"), tbSyncLinkEl = document.getElementById("tbSyncLink"), tbSyncSetEl = document.getElementById("tbSyncSet");
+const tbSyncClearEl = document.getElementById("tbSyncClear"), tbSyncMsgEl = document.getElementById("tbSyncMsg"), tbSyncCurEl = document.getElementById("tbSyncCur");
+const tbSyncSetRowEl = document.getElementById("tbSyncSetRow"), tbSyncFormEl = document.getElementById("tbSyncForm");
+wfPrefill(tbSyncLinkEl);
+// Default the server name to hostname if not yet set
+if (!tbSyncGetName() && serverHostname) { try { localStorage.setItem("tbSyncName", serverHostname); } catch (e) {} }
+tbSyncNameEl.value = tbSyncGetName() || serverHostname || "";
+tbSyncNameEl.onchange = () => { const v = tbSyncNameEl.value.trim().slice(0, 30); try { if (v) localStorage.setItem("tbSyncName", v); else localStorage.removeItem("tbSyncName"); } catch (e) {} };
+function tbSyncMsgSet(text, bad) { tbSyncMsgEl.textContent = text; tbSyncMsgEl.style.color = bad ? "var(--err,#c33)" : "var(--muted)"; }
+function updateTbSyncUi() {
+  const id = tbSyncNode(), pending = tbSyncPending(), name = tbSyncGetName();
+  const isSet = !!id;
+  tbSyncSetRowEl.hidden = !isSet;
+  tbSyncFormEl.style.display = isSet ? "none" : "";
+  if (isSet) {
+    const label = name ? `${name} — ` : "";
+    tbSyncCurEl.textContent = pending ? `${label}${id.slice(-12)} · merge pending` : `${label}${id.slice(-12)}`;
+  }
+}
+tbSyncSetEl.onclick = async () => {
+  tbSyncMsgSet("");
+  const name = tbSyncNameEl.value.trim();
+  if (!name) { tbSyncMsgSet("Give this server a name first (e.g. Mac mini).", true); tbSyncNameEl.focus(); return; }
+  try { localStorage.setItem("tbSyncName", name.slice(0, 30)); } catch (e) {}
+  const id0 = parseNodeLink(tbSyncLinkEl.value);
+  if (!id0) { tbSyncMsgSet("Paste the node's link (it ends in 12 letters and numbers) or its id.", true); return; }
+  tbSyncSetEl.disabled = true; tbSyncMsgSet("Checking…");
+  try {
+    let id = id0;
+    if (id0.length === 12) { const r = await api("/resolve?short=" + id0); id = r.id; }
+    const data = await call("GET", `/nodes?parent_id=${id}`);
+    if (data === null) throw new Error("WorkFlowy doesn't know that node id.");
+    // Save the sync node
+    localStorage.setItem("tbSyncNode", id);
+    try { localStorage.removeItem("tbSyncPending"); } catch (e) {}
+    tbSyncIds = null;
+    tbSyncLinkEl.value = "";
+    // Inspect what's already in the config node
+    const ch = await tbWfFetchChildren(id);
+    const remoteJson = ch && ch.tplNote;
+    const localJson = localStorage.getItem("tbTemplate");
+    const remoteHasData = remoteJson && remoteJson !== "{}" && remoteJson !== "null";
+    const localHasData = localJson && localJson !== "{}" && localJson !== "null";
+    if (!remoteHasData && localHasData) {
+      // Case 2: Config empty, local has data → first-machine setup, push
+      tbWfPush("both");
+      tbSyncMsgSet("Sync node set. Pushed your templates to WorkFlowy.");
+    } else if (!remoteHasData && !localHasData) {
+      // Case 3: Both empty
+      tbSyncMsgSet("Sync node set. No templates yet — they'll sync when you add some.");
+    } else if (remoteHasData && !localHasData) {
+      // Case 1: Remote has data, local is empty → pull (new machine)
+      await tbWfPull();
+      tbSyncMsgSet("Sync node set. Pulled shared templates from WorkFlowy.");
+    } else if (remoteHasData && localHasData && remoteJson !== localJson) {
+      // Case 4: Both have different data → show comparison
+      const choice = await tbSyncCompare(remoteJson, localJson);
+      if (choice === "pull") {
+        localStorage.setItem("tbTemplate", remoteJson);
+        if (ch.presetsNote) localStorage.setItem("tbPresets", ch.presetsNote);
+        tbPush();
+        tbSyncMsgSet("Using shared templates from WorkFlowy.");
+      } else if (choice === "push") {
+        tbWfPush("both");
+        tbSyncMsgSet("Pushed your local templates to WorkFlowy.");
+      } else {
+        // Defer: mark pending, don't sync either direction
+        try { localStorage.setItem("tbSyncPending", "1"); } catch (e) {}
+        tbSyncMsgSet("Deferred — will ask again next time you open time blocking.");
+      }
+    } else {
+      // Already in sync
+      tbSyncMsgSet("Sync node set. Templates are already in sync.");
+    }
+    tbWfRegisterServer(id);
+    updateTbSyncUi();
+  } catch (e) { tbSyncMsgSet(e.message, true); }
+  tbSyncSetEl.disabled = false;
+};
+tbSyncClearEl.onclick = () => {
+  localStorage.removeItem("tbSyncNode"); localStorage.removeItem("tbSyncPending"); tbSyncIds = null;
+  updateTbSyncUi(); tbSyncMsgSet("Sync removed. Templates stay local now.");
+};
+tbSyncLinkEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); tbSyncSetEl.click(); } });
+updateTbSyncUi();
 
 // Esc closes the Done and move-forward windows.
 document.addEventListener("keydown", (e) => {

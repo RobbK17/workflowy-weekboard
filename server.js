@@ -4,7 +4,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.0";
+const VERSION = "1.5.1";
 
 const http = require("http");
 const fs = require("fs");
@@ -1357,7 +1357,7 @@ async function serveFeatures(req, res) {
     for (const k of FEATURE_KEYS) if (body && typeof body[k] === "boolean") features[k] = body[k];
     try { fs.writeFileSync(FEATURES_FILE, JSON.stringify(features)); } catch (e) { return sendJson(res, 500, { error: "Couldn't save the writing-feature switches: " + e.message }); }
   }
-  sendJson(res, 200, { ...features, repForced: !RECURRING_ON });   // repForced: RECURRING=0 on the server overrides the switch
+  sendJson(res, 200, { ...features, repForced: !RECURRING_ON, hostname: require("os").hostname() });
 }
 // ---- Time blocking data (the Day template and the quick blocks list), kept here so every browser sees the same ones, with or without "Share these settings".
 const TIMEBLOCKS_FILE = process.env.TIMEBLOCKS_STATE || path.join(__dirname, "weekboard-timeblocks.json");
