@@ -4,7 +4,18 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.1**
+**Version 1.5.2**
+
+### What's new in 1.5.2
+
+Replace `index.html` and reload.
+
+- **Reminder and repeat badges on live cards.** The 🔔 bell and 🔁 repeat badges now appear on live-edit cards (they were previously hidden in live mode).
+- **All markers hidden everywhere.** `@time` markers (`@9am`, `@09:00`) and early-alert markers (`!1d`, `!1h`, `!1w`) are now stripped from every display context — timeline blocks, sidebar, editor titles — not just cards.
+- **Hide estimates on cards.** A new **Settings → Hide estimates on cards** toggle removes the ⏱ badge from cards while keeping estimates in column totals and time blocking.
+- **Spacing fixes.** Weekend and weekday column headers now have the same compact spacing. The first card in every column starts at the same height. Today's 🕐 button no longer pushes the header to multiple lines.
+- **Plan Day "Bring in" scrolls.** The Bring in column now scrolls properly when it has more items than fit on screen.
+- **Past due hidden when empty.** The "Past due" header in Bring in is hidden when there are no past-due tasks.
 
 ### What's new in 1.5.1
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.1">
+<meta name="version" content="1.5.2">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -147,10 +147,9 @@
   #board .col { flex: 1 1 0; min-width: 140px; }   /* days share the width evenly; they only scroll sideways when they would get narrower than this */
   #side .col { flex: 0 1 auto; width: 100%; max-height: 30vh; min-height: 70px; }
   .col.wkend .wksec { margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px dashed rgba(127,127,127,.35); } .col.wkend .wksec:last-child { border-bottom: 0; margin-bottom: 0; }
-  .col.wkend .tasks { padding-top: 0; } .col.wkend .wksec.over { background: rgba(80,140,255,.10); border-radius: 6px; }
-  .col.wkend .wksec .colhead { padding-bottom: 2px; }
-  .colhead { flex: none; padding-bottom: 4px; }
-  .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 14px; }   /* room above the first card for its hover buttons */
+  .col.wkend .wksec.over { background: rgba(80,140,255,.10); border-radius: 6px; }
+  .colhead { flex: none; padding-bottom: 2px; }
+  .tasks { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; }
   .col.today { background: var(--today); }
   .col.late { background: var(--late); }
   .col.soon { background: var(--soon); }
@@ -161,7 +160,7 @@
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .col.pastcount h2 span { color: #ff8a80; } }
   :root[data-theme="dark"] .col.pastcount h2 span { color: #ff8a80; }
   .col.over { outline: 2px dashed var(--accent); }
-  .col h2 { font-size: 13px; margin: 2px 4px 8px; display: flex; justify-content: space-between; }
+  .col h2 { font-size: 13px; margin: 2px 4px 8px; display: flex; justify-content: space-between; position: relative; }
   .col h2 span { color: var(--muted); font-weight: 400; }
   .col .sub { font-size: 12px; color: var(--muted); margin: -4px 4px 8px; }
   .card { display: flex; gap: 8px; align-items: flex-start; background: var(--card); border-radius: 6px;
@@ -512,7 +511,7 @@
   .adband textarea.ad-line:focus { background: rgba(255,255,255,.35); }
   .adband .admore { background: none; border: 0; color: inherit; opacity: .65; font-size: 11.5px; text-decoration: underline; cursor: pointer; padding: 1px 0; }
   .daytools { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; } .dtgrp { flex: 1; min-width: 0; }
-  .daytools-wrap { margin: 4px 0 0; } .daytools-wrap .daytools { margin: 0 0 4px; } .dtool.on { opacity: 1; background: rgba(0,0,0,.08); }
+  .daytools-wrap { margin: 2px 0 0; } .daytools-wrap .daytools { margin: 0 0 4px; } .dtool.on { opacity: 1; background: rgba(0,0,0,.08); }
   .dtool { display: inline-flex; align-items: center; color: var(--muted); background: none; border: 0; padding: 4px 7px; margin: 0; font-size: 14px; line-height: 1.2; cursor: pointer; opacity: .6; text-decoration: none; border-radius: 6px; } .dtool:hover { opacity: 1; color: var(--accent); background: rgba(0,0,0,.06); }
   .adadd:not(.dtool) { background: none; border: 0; color: inherit; opacity: .55; font-size: 12px; text-decoration: underline; cursor: pointer; padding: 2px 0; margin: 2px 0; } .adadd:not(.dtool):hover { opacity: 1; }
   .ktgrid { margin-left: 10px; background: none; border: 0; color: inherit; opacity: .7; text-decoration: underline; cursor: pointer; font-size: 11.5px; padding: 0; }
@@ -691,10 +690,10 @@
   .dr a:hover { color: var(--accent); }
 
   /* Plan day */
-  #plan { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  #plan { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
   .planbody { flex: 1; min-height: 0; display: flex; gap: 12px; overflow: hidden; }
   #plan[hidden], #board[hidden] { display: none; }
-  .planpane { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; background: var(--col); border-radius: 8px; padding: 10px; overflow: hidden; }
+  .planpane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--col); border-radius: 8px; padding: 10px; overflow: hidden; }
   .planpane.today { background: var(--today); }
   .planpane h2 { font-size: 14px; margin: 0 0 8px; }
   .planpane .tasks { padding: 14px 0 4px; }   /* room above the first card for its hover buttons */
@@ -734,7 +733,7 @@
   .tbbadge.conflict { background: #eab308; color: #000; }
   .card.done .tbbadge { opacity: .5; }
   /* Time blocking button and panel */
-  .tbbtn { margin-left: 8px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); font-size: 14px; cursor: pointer; vertical-align: middle; }
+  .tbbtn { position: absolute; right: 0; top: 0; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); font-size: 14px; cursor: pointer; }
   .tbbtn:hover { border-color: var(--accent); }
   #tbPanel { position: fixed; top: 0; right: 0; bottom: 0; width: 370px; max-width: 100vw; z-index: 70; background: var(--card); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(0,0,0,.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .2s; }
   #tbPanel.open { transform: translateX(0); }
@@ -875,7 +874,7 @@
   .dr.frow.done .dname { text-decoration: line-through; color: var(--muted); }
   .restbtn { flex: none; margin-bottom: 8px; align-self: flex-start; font-size: 13px; padding: 4px 10px; }
   .planpane .addhint { flex: none; }
-  .planpane > div:last-child { flex: none; }
+  .planpane > div:last-child:not(.bring-list) { flex: none; }
   .bring-list { flex: 1; min-height: 0; overflow-y: auto; padding-top: 14px; }
   .bgh { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 2px 4px; }
   .bgh:first-child { margin-top: 0; }
@@ -952,7 +951,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.1</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.2</span></div>
   </div>
 </footer>
 
@@ -986,6 +985,7 @@
         <select id="adLines" aria-label="Note lines shown"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="0">All</option></select></div>
       <label><input type="checkbox" id="optHide"><span>Hide completed<small>Leave ticked tasks out</small></span></label>
       <label><input type="checkbox" id="optPrio"><span>Sort by priority<small>Urgent (!p1) first, then high (!p2), medium (!p3), no priority, low (!p4). Off: outline order</small></span></label>
+      <label><input type="checkbox" id="optHideEst"><span>Hide estimates on cards<small>Don't show the ⏱ badge on cards (estimates still work for totals and time blocking)</small></span></label>
       <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
       <label class="sel"><span>Past due range<small>How far back Past due looks (and Plan day's Bring in, up to 4 weeks)</small></span>
         <select id="optRange"><option value="1">1 week</option><option value="2">2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option><option value="all">All</option></select></label>
@@ -1330,7 +1330,7 @@ function getPref(k) { try { return localStorage.getItem(k) === "1"; } catch (e) 
 function setPref(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} }
 function loadNestedMode() { try { const v = localStorage.getItem("nested"); return v === "group" || v === "flatten" ? v : "off"; } catch (e) { return "off"; } }
 let kbReadEdit = (() => { try { return localStorage.getItem("kbReadEdit") !== "0"; } catch (e) { return true; } })();     // read mode: does clicking a line open the pop-up editor?
-const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), allDay: getBool("allDay", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true), prioSort: getBool("prioSort", true), hideWkend: getBool("hideWkend", false) };
+const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), allDay: getBool("allDay", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true), prioSort: getBool("prioSort", true), hideWkend: getBool("hideWkend", false), hideEst: getBool("hideEst", false) };
 // ---- Writing features: Settings → Writing features turns off what puts things into WorkFlowy. The switches live on the server (/features), so every browser and the phone page agree.
 const wf = { tb: true, rep: true, notes: true, mark: true, repForced: false };
 const WF_WHAT = { tb: "Time blocking", rep: "Repeating tasks", notes: "Notes bullets", mark: "Priority, estimate and reminder items" };
@@ -1405,7 +1405,9 @@ function withMarker(raw, re, token) {                     // the stored name wit
   return token ? `${cleared} ${token}` : cleared;
 }
 const BLK_RE = /(^|\s)!blk(?=$|[\s.,;!?)<])/i;        // marks a block that came from the day template; it is marked done by itself once its time has passed
-const dropMeta = (s) => withMarker(withMarker(withMarker(withMarker(withMarker(withMarker(s, PRIO_RE, ""), EST_RE, ""), TIME_BLOCK_RE, ""), BLK_RE, ""), LIST_RE, ""), ALLD_RE, "");
+const LEAD_RE = /(^|\s)!(1[hdw])(?=$|[\s.,;!?)])/gi;  // early alerts: !1h, !1d, !1w
+const TIME_RE = /(^|\s)@(\d{1,2})(?::(\d{2}))?\s?([ap])\.?m\.?(?=$|[\s.,;!?)])|(^|\s)@(\d{1,2}):(\d{2})(?=$|[\s.,;!?)])/i;  // @9am, @9:00am, @09:00, @14:30
+const dropMeta = (s) => withMarker(withMarker(withMarker(withMarker(withMarker(withMarker(withMarker(withMarker(s, PRIO_RE, ""), EST_RE, ""), TIME_BLOCK_RE, ""), BLK_RE, ""), LIST_RE, ""), ALLD_RE, ""), LEAD_RE, ""), TIME_RE, "");
 async function setMeta(n, k, bullet, which, value) {      // which: "prio" (0 to 4, 0 = none) or "est" (minutes, 0 = none)
   if (!wfGate("mark")) return;
   const old = n.name;
@@ -1791,12 +1793,12 @@ function openCount(k) {
   return n;
 }
 function liveMeta(wrap, pr, est, done) {                  // cards you type in hide the markers until you click in, so their badges sit on a line under the text
-  if (!pr && !est) return;
+  if (!pr && (!est || prefs.hideEst)) return;
   const r = document.createElement("div"); r.className = "metarow"; metaBadges(r, pr, est, done); wrap.appendChild(r);
 }
 function metaBadges(where, pr, est, done) {               // "P1" and "⏱ 45m" after a task's text (cards you type in show the markers as text instead)
   if (pr) { const b = document.createElement("span"); b.className = "pbadge p" + pr; b.textContent = "P" + pr; b.title = PRIO_NAMES[pr] + " priority"; where.appendChild(b); }
-  if (est && !done) { const b = document.createElement("span"); b.className = "ebadge"; b.textContent = "⏱ " + fmtMins(est); b.title = "Time estimate"; where.appendChild(b); }
+  if (est && !done && !prefs.hideEst) { const b = document.createElement("span"); b.className = "ebadge"; b.textContent = "⏱ " + fmtMins(est); b.title = "Time estimate"; where.appendChild(b); }
 }
 function entryEl(e, showDate) {
   if (e.kind === "group") return groupCard(e, showDate);
@@ -2845,9 +2847,9 @@ function render() {
         const d = keyToDate(k), open = openCount(k), stale = prefs.pastAlert && k < todayKey && open > 0;
         const secHead = document.createElement("div"); secHead.className = "colhead";
         secHead.innerHTML = `<h2>${dn(k)} ${d.getDate()}<span${stale && prefs.pastCount ? ` title="This day has passed and still has ${open} open task${open === 1 ? "" : "s"}"` : ""}>${stale && prefs.pastCount ? "⚠ " : ""}${open} open${(() => { const t = estFor(k); return t.mins ? ` · <b class="esum" title="Time estimated for the open tasks${t.none ? ` (${t.none} without an estimate)` : ""}">${fmtMins(t.mins)}</b>` : ""; })()}</span></h2>`;
+        secHead.appendChild(dayTools(k));
+        { const band = allDayBand(k); if (band) secHead.appendChild(band); }
         sec.appendChild(secHead);
-        sec.appendChild(dayTools(k));
-        { const band = allDayBand(k); if (band) sec.appendChild(band); }
         if (!ents.length) { const em = document.createElement("div"); em.className = "empty"; em.textContent = (cache[k] || []).length ? "All done 🎉" : "Nothing yet"; sec.appendChild(em); }
         for (const e of ents) sec.appendChild(entryEl(e, false));
         sec.addEventListener("dragover", (e) => { e.preventDefault(); sec.classList.add("over"); });
@@ -3380,7 +3382,7 @@ function card(n, k, showDate, opts) {
   else setLinked(txt, dropMeta(tag ? dropLeads(shownName(n.name)) : tm ? dropTime(shownName(n.name)) : dropLeads(shownName(n.name))));
   if (!liveOk && cmode !== "locked") metaBadges(txt, pr, est, n.completedAt);
   const earlyL = parseLeads(plain(n.name));
-  if ((tm || earlyL.length) && !n.completedAt && !liveOk) {
+  if ((tm || earlyL.length) && !n.completedAt) {
     const bb = document.createElement("button");
     bb.type = "button"; bb.className = "bellb"; bb.textContent = "🔔 " + (tm ? fmtTime(tm.h, tm.mi) + (tag && tag.key !== k ? " · " + dayLabel(tag.key) : "") : "early") + (earlyL.length ? " · " + earlyL.join(" ") : "");
     bb.title = tag ? "Reminder from the date tag" : "Reminder: click to change";
@@ -3388,7 +3390,7 @@ function card(n, k, showDate, opts) {
     txt.appendChild(bb);
   }
   const repL = parseRepeat(plain(n.name));
-  if (repL && !liveOk) {
+  if (repL) {
     const rbg = document.createElement("button");
     rbg.type = "button"; rbg.className = "bellb"; rbg.textContent = "🔁 " + repeatLabel(repL); rbg.title = "Repeats: click to change";
     rbg.addEventListener("click", (e) => { e.stopPropagation(); openRepeatPop(rbg, n, k, nested ? opts.bullet : null); });
@@ -4602,6 +4604,10 @@ nestedSel.onchange = () => {
   po.checked = prefs.prioSort;
   po.onchange = () => { prefs.prioSort = po.checked; setPref("prioSort", po.checked); render(); renderPlan(); };
 }
+{ const he = document.getElementById("optHideEst");
+  he.checked = prefs.hideEst;
+  he.onchange = () => { prefs.hideEst = he.checked; setPref("hideEst", he.checked); render(); renderPlan(); };
+}
 for (const k of ["tb", "rep", "notes", "mark"]) { const el = document.getElementById("wf_" + k); el.checked = wf[k]; el.onchange = () => wfSave(k, el.checked); }
 
 // Time blocking templates (automatic): the server does the writing at the chosen day and time; this only sets and shows it.
@@ -4996,7 +5002,7 @@ function cardTagLinks(ta) {
 }
 const REPEAT_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V6a2 2 0 0 1 2-2h8"/><path d="M11 2l2 2-2 2"/><path d="M13 9v1a2 2 0 0 1-2 2H3"/><path d="M5 14l-2-2 2-2"/></svg>';
 const BELL_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M4 11V7a4 4 0 018 0v4l1 1.5H3zM6.5 14a1.5 1.5 0 003 0"/></svg>';
-const TIME_RE = /(^|\s)@(\d{1,2})(?::(\d{2}))?\s?([ap])\.?m\.?(?=$|[\s.,;!?)])|(^|\s)@(\d{1,2}):(\d{2})(?=$|[\s.,;!?)])/i;
+// Reminder times: "@9am", "@9:00am", "@09:00", "@14:30" — TIME_RE defined above with the other marker regexes.
 function parseTime(text) {
   const m = TIME_RE.exec(text || "");
   if (!m) return null;
@@ -5013,8 +5019,7 @@ function parseTag(raw) {                                  // WorkFlowy's own dat
   if (!a.startYear || !a.startMonth || !a.startDay || a.startHour === undefined || a.startMinute === undefined) return null;
   return { key: `${a.startYear}-${pad2(a.startMonth)}-${pad2(a.startDay)}`, h: a.startHour, mi: a.startMinute, fromTag: true };
 }
-// Early alerts: "!1h", "!1d", "!1w" in the text remind you 1 hour, 1 day or 1 week before the time (9:00 am when the task has no time).
-const LEAD_RE = /(^|\s)!(1[hdw])(?=$|[\s.,;!?)])/gi;
+// Early alerts: "!1h", "!1d", "!1w" — LEAD_RE defined above with the other marker regexes.
 const LEADS = [["1h", "1 hour"], ["1d", "1 day"], ["1w", "1 week"]];
 function parseLeads(text) { const o = new Set(); for (const m of String(text || "").matchAll(LEAD_RE)) o.add(m[2].toLowerCase()); return LEADS.map((x) => x[0]).filter((c) => o.has(c)); }
 // Repeating tasks: "!every week" (see the server) makes the next copy ahead of time. Shown as a badge, not as text.
@@ -7731,20 +7736,21 @@ function renderPlan() {
 
   const late = [];
   for (const k of planPastKeys()) for (const n of cache[k] || []) if (!n.completedAt) late.push({ n, k });
-  const lh = document.createElement("div");
-  lh.className = "bgh";
-  const lt = document.createElement("span");
-  lt.textContent = `Past due (${late.length})` + (planLoading ? " · loading…" : "");
-  lh.appendChild(lt);
-  if (late.length) {
-    const all = document.createElement("button");
-    all.className = "mini"; all.textContent = "Add all…";
-    all.onclick = () => openRoll({ title: `Bring past-due tasks to ${dayLabel(planDay)}`, items: late, dest: planDay });
-    lh.appendChild(all);
+  if (late.length || planLoading) {
+    const lh = document.createElement("div");
+    lh.className = "bgh";
+    const lt = document.createElement("span");
+    lt.textContent = `Past due (${late.length})` + (planLoading ? " · loading…" : "");
+    lh.appendChild(lt);
+    if (late.length) {
+      const all = document.createElement("button");
+      all.className = "mini"; all.textContent = "Add all…";
+      all.onclick = () => openRoll({ title: `Bring past-due tasks to ${dayLabel(planDay)}`, items: late, dest: planDay });
+      lh.appendChild(all);
+    }
+    scroll.appendChild(lh);
+    for (const it of late) scroll.appendChild(planRow(it.n, it.k, "Add"));
   }
-  scroll.appendChild(lh);
-  if (!late.length && !planLoading) scroll.insertAdjacentHTML("beforeend", '<div class="empty">Nothing past due.</div>');
-  for (const it of late) scroll.appendChild(planRow(it.n, it.k, "Add"));
 
   for (const src of planSources) {                    // each extra node (Inbox...) gets its own list
     const st = srcState[src.id] || {};

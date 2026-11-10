@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5.2 (2026-11-09)
+
+- **Reminder and repeat badges on live cards.** The 🔔 bell badge (`@time` and `!1d`/`!1h`/`!1w` early alerts) and the 🔁 repeat badge now appear on live-edit cards. Previously they were only visible on plain (non-live) cards.
+- **`@time` markers hidden everywhere.** `@9am`, `@09:00` etc. are now stripped by `dropMeta()`, so they no longer leak through on timeline block labels, sidebar items, the time block editor title, or any other view that called `dropMeta` without `dropTime`.
+- **`!1d` / `!1h` / `!1w` markers hidden everywhere.** (Shipped in 1.5.1 but documented here.) `LEAD_RE` is now part of `dropMeta()`, fixing places where early-alert markers were visible.
+- **Hide estimates on cards (setting).** **Settings → Hide estimates on cards** removes the ⏱ badge from cards. Estimates still count toward column totals and time blocking. Off by default.
+- **Weekend header spacing fixed.** The icon row (Add task, Add group, Note) and all-day band in weekend sections now sit inside the column header, matching the weekday layout. Removed the extra gap between the header and the icon row on all columns.
+- **Card list spacing tightened.** Removed the 14px padding above the first card in each column so all columns' first cards start at the same height.
+- **Today's clock button no longer pushes the header.** The 🕐 time-blocking button on today's column is now absolutely positioned so it doesn't force the day name and stats to wrap onto multiple lines.
+- **Plan Day "Bring in" column now scrolls.** Fixed a CSS specificity conflict (`.planpane > div:last-child` was overriding `.bring-list`'s flex) that prevented the Bring in list from scrolling when it had more items than fit on screen.
+- **Past due section hidden when empty.** The "Past due (0)" header and "Nothing past due" message in the Bring in column are now hidden when there are no past-due tasks.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `index.html` | Bell/repeat badges on live cards; `TIME_RE` and `LEAD_RE` added to `dropMeta()`; hide-estimates setting; weekend header structure fix; card list and header spacing fixes; Plan Day bring-in scroll fix; version 1.5.2 |
+
 ## 1.5.1 (2026-11-09)
 
 - **Sync templates across machines via WorkFlowy.** When you run local mode on more than one computer, day templates and quick blocks can now be stored in a WorkFlowy node so every machine shares the same ones. In **Settings → Features → Sync templates via WorkFlowy**, name this server and paste the link to a WorkFlowy node you've created for it (e.g. `#weekboard-config`). The first machine pushes its local templates up; a second machine that connects sees the shared templates and, if its own differ, shows a side-by-side comparison so you can choose which to keep or defer the decision to next time. A `servers` child in the config node tracks which machines have synced and when. Off by default — templates stay local until you set this.
