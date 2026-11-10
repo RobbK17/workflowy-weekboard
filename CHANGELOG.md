@@ -3,20 +3,32 @@
 ## 1.5.2 (2026-11-09)
 
 - **Reminder and repeat badges on live cards.** The 🔔 bell badge (`@time` and `!1d`/`!1h`/`!1w` early alerts) and the 🔁 repeat badge now appear on live-edit cards. Previously they were only visible on plain (non-live) cards.
-- **`@time` markers hidden everywhere.** `@9am`, `@09:00` etc. are now stripped by `dropMeta()`, so they no longer leak through on timeline block labels, sidebar items, the time block editor title, or any other view that called `dropMeta` without `dropTime`.
+- **`@time` markers hidden everywhere.** `@9am`, `@09:00` etc. are now stripped by `dropMeta()`, so they no longer leak through on timeline block labels, sidebar items, the time block editor title, or any other view that called `dropMeta` without `dropTime`. This includes 24-hour times (`@14:30`) and markers inside formatting (`<b>@9am</b>`) or after a non-breaking space: `withMarker()` now widens every lead group of a pattern and reads the lead from the match itself.
 - **`!1d` / `!1h` / `!1w` markers hidden everywhere.** (Shipped in 1.5.1 but documented here.) `LEAD_RE` is now part of `dropMeta()`, fixing places where early-alert markers were visible.
-- **Hide estimates on cards (setting).** **Settings → Hide estimates on cards** removes the ⏱ badge from cards. Estimates still count toward column totals and time blocking. Off by default.
+- **Hide estimates on cards (setting).** **Settings → Hide estimates on cards** removes the ⏱ badge from cards. Estimates still count toward column totals and time blocking. Off by default. It (and **Hide weekend**) is now carried by **Share these settings between browsers**.
 - **Weekend header spacing fixed.** The icon row (Add task, Add group, Note) and all-day band in weekend sections now sit inside the column header, matching the weekday layout. Removed the extra gap between the header and the icon row on all columns.
-- **Card list spacing tightened.** Removed the 14px padding above the first card in each column so all columns' first cards start at the same height.
-- **Today's clock button no longer pushes the header.** The 🕐 time-blocking button on today's column is now absolutely positioned so it doesn't force the day name and stats to wrap onto multiple lines.
+- **Columns line up.** The day names, icon rows and first cards of every column, the weekend column included, start at the same height. The 14px above each column's first card is kept (it is room for the card's hover buttons, which were cut off without it); in the weekend column it sits under each day's header instead of above Saturday.
+- **Time blocking clock moved to the icon row.** Today's time-blocking button is now a clock icon from the same Phosphor set as Add task, Add group and Note, at the right end of today's icon row. It no longer sits in the header, so the day name and counts keep their full width.
 - **Plan Day "Bring in" column now scrolls.** Fixed a CSS specificity conflict (`.planpane > div:last-child` was overriding `.bring-list`'s flex) that prevented the Bring in list from scrolling when it had more items than fit on screen.
 - **Past due section hidden when empty.** The "Past due (0)" header and "Nothing past due" message in the Bring in column are now hidden when there are no past-due tasks.
+- **Security and code review minor fixes.** See below.
+
+### Server fixes
+
+- **Sign-in lockout can't be dodged with parallel attempts.** The failure count is read again after the password arrives, so wrong passwords sent at the same moment each count toward the 5-try lockout. Before, a batch of simultaneous attempts only counted as one.
+- **No export retries inside the minute.** When the server has no outline copy (at startup, or after the idle purge) and the last download failed (for example WorkFlowy's once-a-minute limit), searches within that minute get the same error instead of asking WorkFlowy again and again.
+- **Pages are built once.** `index.html` and `mobile.html` are filled in (add-ons, notes-bullet name, mode) once and kept until the file on disk changes; each request only adds its script nonce.
+- **Repeating tasks remember finished series.** "Ended", "already copied" and "counter not found" marks are saved even when a run made no new copy, so a restart doesn't re-check them or log the same warning again.
+- **One list of data routes.** The routes that answer 401 when signed out and the reserved add-on paths now come from one `DATA_PATHS` list.
+- **Version.** `server.js` and the phone page now report 1.5.2, so the update check announces it.
 
 ### Files changed
 
 | File | Change |
 |------|--------|
-| `index.html` | Bell/repeat badges on live cards; `TIME_RE` and `LEAD_RE` added to `dropMeta()`; hide-estimates setting; weekend header structure fix; card list and header spacing fixes; Plan Day bring-in scroll fix; version 1.5.2 |
+| `index.html` | Bell/repeat badges on live cards; `TIME_RE` and `LEAD_RE` added to `dropMeta()`, `withMarker()` handles every lead group; hide-estimates setting (shared with Hide weekend); weekend header structure fix; column alignment and hover-button room; clock icon in today's icon row; Plan Day bring-in scroll fix; version 1.5.2 |
+| `server.js` | Sign-in lockout fix; export retry throttle without an outline copy; page cache; repeating-task state saving; `DATA_PATHS`; `hideEst`/`hideWkend` accepted by shared settings; version 1.5.2 |
+| `mobile.html` | Version 1.5.2 |
 
 ## 1.5.1 (2026-11-09)
 
