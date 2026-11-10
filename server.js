@@ -1,9 +1,10 @@
 // WorkFlowy week board: tiny proxy that keeps your API key off the browser.
+// Version 1.3.9
 // Run:  DEPLOY_MODE=local WORKFLOWY_API_KEY=your_key node server.js   (Node 18+)
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.2";
+const VERSION = "1.5.1";
 
 const http = require("http");
 const fs = require("fs");
@@ -104,7 +105,6 @@ const ITEM_DEPTH = 12;
 
 let idx = null;            // { byId: Map, kids: Map(parentId -> [nodes]), at }
 let lastAttemptAt = 0;     // failed attempts count too, so a 429 isn't retried on every search
-let lastError = null;      // why the last download failed (given back while a retry would be too soon)
 let lastUse = Date.now();
 let loading = null;
 
@@ -180,14 +180,11 @@ async function ensureIndex(wantFresh) {
   const tooSoon = Date.now() - lastAttemptAt < REFRESH_MIN_GAP_MS;
   if (idx && !wantFresh && age < INDEX_MAX_AGE_MS) return { throttled: false };
   if (idx && tooSoon) return { throttled: wantFresh };
-  if (!idx && tooSoon && lastError) throw lastError;   // no copy and the last try just failed: don't ask WorkFlowy again within the minute
   try {
     loading = downloadIndex();
     await loading;
-    lastError = null;
     return { throttled: false };
   } catch (e) {
-    lastError = e;
     if (idx) return { throttled: true };          // e.g. rate limited: keep using the last copy
     throw e;
   } finally { loading = null; }
@@ -614,19 +611,12 @@ async function handleLogin(req, res) {
   if (req.method === "GET") return sendHtml(res, 200, loginPage(""));
   if (req.method !== "POST") { res.writeHead(405); return res.end(); }
   const ip = clientIp(req);
-  const lockedOut = () => {
-    const r = failures.get(ip);
-    if (!r || r.until <= Date.now()) return false;
-    const mins = Math.ceil((r.until - Date.now()) / 60000);
-    sendHtml(res, 429, loginPage(`Too many attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`));
-    return true;
-  };
-  if (lockedOut()) return;
-  const raw = await readBody(req, 4096).catch(() => null);
-  // Look again after the body has arrived: attempts sent at the same moment must each see the others' misses.
-  // From here to failures.set below there is no await, so the count read here is the one that gets increased.
-  if (lockedOut()) return;
   const rec = failures.get(ip);
+  if (rec && rec.until > Date.now()) {
+    const mins = Math.ceil((rec.until - Date.now()) / 60000);
+    return sendHtml(res, 429, loginPage(`Too many attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`));
+  }
+  const raw = await readBody(req, 4096).catch(() => null);
   const given = raw ? (new URLSearchParams(raw.toString()).get("password") || "") : "";
   if (raw && passwordOk(given)) {
     failures.delete(ip);
@@ -679,7 +669,7 @@ async function guard(req, res, url) {
   }
   if (APP_ASSETS.has(url.pathname)) return true;          // the manifest and icons are fetched without the sign-in cookie
   if (sessionValid(req)) return true;
-  const isData = url.pathname.startsWith("/api/") || DATA_PATHS.has(url.pathname) || addonPaths.has(url.pathname);
+  const isData = url.pathname.startsWith("/api/") || ["/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/features", "/timeblocks", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"].includes(url.pathname) || addonPaths.has(url.pathname);
   if (isData) { res.writeHead(401, { "Content-Type": "application/json" }); res.end(JSON.stringify({ error: "login required" })); }
   else { res.writeHead(302, { Location: "/login" }); res.end(); }
   return false;
@@ -719,9 +709,7 @@ const APP_MANIFEST = {
   start_url: "/m", scope: "/", display: "standalone", orientation: "any", background_color: "#f4f5f7", theme_color: "#2f6fed",
   icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
 };
-// The board's JSON routes: signed out, these answer 401 instead of redirecting to the sign-in page.
-const DATA_PATHS = new Set(["/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/features", "/timeblocks", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
-const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", ...APP_ASSETS, "/login", "/logout", "/healthz", ...DATA_PATHS]);
+const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", "/manifest.webmanifest", "/icon-180.png", "/icon-192.png", "/icon-512.png", "/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/login", "/logout", "/healthz", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/features", "/timeblocks", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
    (week length, Past due, Upcoming, completed tasks, tasks under bullets, Inbox), in one small file next to server.js.
@@ -770,7 +758,7 @@ async function serveMobileSettings(req, res) {
    GET /d/settings -> { enabled, settings: { key: "value" }, updated }.  POST { settings: { key: "value" | null } } merges (null removes).
    Only the board's preference keys are accepted (never window sizes or what is folded open). Uses the same MOBILE_SYNC switch. */
 const DESKTOP_SETTINGS_FILE = process.env.DESKTOP_SETTINGS_FILE || path.join(__dirname, "desktop-settings.json");
-const DESKTOP_KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters", "tbPresets", "tbTemplate", "hideEst", "hideWkend"]);
+const DESKTOP_KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters", "tbPresets", "tbTemplate"]);
 async function serveDesktopSettings(req, res) {
   if (!MOBILE_SYNC) return sendJson(res, req.method === "GET" ? 200 : 403, { enabled: false, error: req.method === "GET" ? undefined : "Settings sharing is turned off on this server (MOBILE_SYNC=off)." });
   const load = () => { try { return JSON.parse(fs.readFileSync(DESKTOP_SETTINGS_FILE, "utf8")); } catch (e) { return null; /* none saved yet */ } };
@@ -1455,7 +1443,6 @@ async function recurringRun() {
   if (rec.running) return rec.running;
   rec.running = (async () => {
     let made = 0;
-    const doneBefore = JSON.stringify(rec.done);
     try {
       const today = zonedParts(Date.now()).key;
       const cache = new Map(); const kids = async (k) => { if (!cache.has(k)) cache.set(k, await remKids(k).catch(() => [])); return cache.get(k); };
@@ -1486,7 +1473,7 @@ async function recurringRun() {
       }
       rec.error = "";
     } catch (e) { rec.error = e.message; console.error("Repeating tasks:", e.message); }
-    finally { rec.last = Date.now(); rec.running = null; if (made || JSON.stringify(rec.done) !== doneBefore) recSave(); }   // "end" and "already there" marks are kept too
+    finally { rec.last = Date.now(); rec.running = null; if (made) recSave(); }
     return made;
   })();
   return rec.running;
@@ -1507,23 +1494,6 @@ async function serveReminderTest(res) {
   if (!PUSH_ON) return sendJson(res, 400, { error: "No push service is set up. Set NTFY_TOPIC (or PUSHOVER_TOKEN and PUSHOVER_USER) on the server and restart it." });
   try { sendJson(res, 200, { sent: await pushSend("Week Board test", "Push notifications are working.") }); }
   catch (e) { sendJson(res, 502, { error: e.message }); }
-}
-
-// The two pages are filled in once (add-ons, the notes-bullet name, the mode) and kept until the file on disk changes.
-// Only the script nonce differs per request, so each <script> gets a placeholder that is swapped for it.
-const NONCE_SLOT = "__WB_NONCE__";
-const pageCache = new Map();                              // file -> { mtime, text }
-function cachedPage(file, addons) {
-  const full = path.join(__dirname, file), mtime = fs.statSync(full).mtimeMs, c = pageCache.get(file);
-  if (c && c.mtime === mtime) return c.text;
-  let text = fs.readFileSync(full, "utf8");
-  if (addons) text = withAddons(text);
-  text = text
-    .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)   // the configured notes-bullet name
-    .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
-    .replace(/<script>/g, `<script nonce="${NONCE_SLOT}">`);
-  pageCache.set(file, { mtime, text });
-  return text;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1602,16 +1572,24 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { res.writeHead(404); return res.end("not found"); }
   }
   if (url.pathname === "/m" || url.pathname === "/m/" || url.pathname === "/mobile.html") {
-    let page;
-    try { page = cachedPage("mobile.html", false); } catch (e) { res.writeHead(404); return res.end("The phone page (mobile.html) is not installed."); }
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    return res.end(page.split(NONCE_SLOT).join(res.nonce));
+    try {
+      const page = fs.readFileSync(path.join(__dirname, "mobile.html"), "utf8")
+        .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)
+        .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
+        .replace(/<script>/g, `<script nonce="${res.nonce}">`);
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      return res.end(page);
+    } catch (e) { res.writeHead(404); return res.end("The phone page (mobile.html) is not installed."); }
   }
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
-    const page = cachedPage("index.html", true);
+    // Pass the configured notes-bullet name to the page through its notes-name meta tag.
+    const page = withAddons(fs.readFileSync(path.join(__dirname, "index.html"), "utf8"))
+      .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)
+      .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
+      .replace(/<script>/g, `<script nonce="${res.nonce}">`);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    return res.end(page.split(NONCE_SLOT).join(res.nonce));
+    return res.end(page);
   }
 
   res.writeHead(404);

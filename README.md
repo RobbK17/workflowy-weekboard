@@ -8,18 +8,14 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 ### What's new in 1.5.2
 
-Replace `server.js`, `index.html` and `mobile.html`, then restart the server.
+Replace `index.html` and reload.
 
 - **Reminder and repeat badges on live cards.** The 🔔 bell and 🔁 repeat badges now appear on live-edit cards (they were previously hidden in live mode).
-- **All markers hidden everywhere.** `@time` markers (`@9am`, `@09:00`, `@14:30`) and early-alert markers (`!1d`, `!1h`, `!1w`) are now stripped from every display context — timeline blocks, sidebar, editor titles — not just cards, including when they sit inside bold or italic text.
-- **Hide estimates on cards.** A new **Settings → Hide estimates on cards** toggle removes the ⏱ badge from cards while keeping estimates in column totals and time blocking. It is shared by **Share these settings between browsers**, as is **Hide weekend**.
-- **Columns line up.** Every column's day name, icon row and first card start at the same height, the weekend column included, and the first card's hover buttons have room above it.
-- **Time blocking clock in the icon row.** Today's time blocking button is now a clock icon at the right end of today's icon row (next to Add task and Note), so the day name and counts keep their full width.
-- **Sign-in lockout tightened.** Wrong passwords sent at the same moment now each count toward the 5-try lockout.
-- **Gentler on WorkFlowy's export limit.** When the server has no outline copy yet and a download just failed, it waits out the minute instead of asking again on every search.
+- **All markers hidden everywhere.** `@time` markers (`@9am`, `@09:00`) and early-alert markers (`!1d`, `!1h`, `!1w`) are now stripped from every display context — timeline blocks, sidebar, editor titles — not just cards.
+- **Hide estimates on cards.** A new **Settings → Hide estimates on cards** toggle removes the ⏱ badge from cards while keeping estimates in column totals and time blocking.
+- **Spacing fixes.** Weekend and weekday column headers now have the same compact spacing. The first card in every column starts at the same height. Today's 🕐 button no longer pushes the header to multiple lines.
 - **Plan Day "Bring in" scrolls.** The Bring in column now scrolls properly when it has more items than fit on screen.
 - **Past due hidden when empty.** The "Past due" header in Bring in is hidden when there are no past-due tasks.
-- **Security and code review minor fixes.** See the 1.5.2 entry in CHANGELOG.md.
 
 ### What's new in 1.5.1
 
@@ -54,7 +50,7 @@ Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**
 
 Replace `server.js`, `index.html` and `mobile.html`, then **restart the server** (the phone page's Notes location, the quick blocks list and the day template are shared through it). Full details are in `CHANGELOG.md`.
 
-- **Time blocking (desktop).** Put a start time in a task with `^9am`, `^9:30am` or `^14:00`, and its length comes from its `~` estimate (30m if it has none). A blue badge on the card shows the time and length ("3 PM · 1h"), a green **▶ NOW** shows while the clock is inside it, and a yellow **⚠** warns when two blocks overlap. On each day, blocked tasks list first, by time. The clock icon at the right end of today's icon row (🕐 before 1.5.2) opens the time blocking panel. See "Time blocking" below.
+- **Time blocking (desktop).** Put a start time in a task with `^9am`, `^9:30am` or `^14:00`, and its length comes from its `~` estimate (30m if it has none). A blue badge on the card shows the time and length ("3 PM · 1h"), a green **▶ NOW** shows while the clock is inside it, and a yellow **⚠** warns when two blocks overlap. On each day, blocked tasks list first, by time. The **🕐** button on today's column opens the time blocking panel. See "Time blocking" below.
 - **Time block any day.** The panel has ‹ › arrows, a date box and a **Today** button, so you can plan Monday on Friday afternoon. Right-click any card and choose **Time block…** to open the panel on that card's day, which also works when today's 🕐 isn't on the board (weekends).
 - **Quick blocks.** Drag **Meeting**, **Lunch** or **Appointment** (or ones you add yourself) onto the timeline. It asks how long, then adds the task on that day.
 - **Edit a block in the panel.** Click it to change its start to the minute, its length and its description (the task's WorkFlowy note). Drag its bottom edge to change the length. A block fills its whole length on the timeline, and a task's first note line shows under its title.
@@ -553,7 +549,7 @@ Plan a day by the hour. Like priorities, the start time is a short marker in the
 
 - **Set a time:** type `^9am`, `^9:30am`, `^2pm` or `^14:00` in a task, right-click the card and choose **Time block…** (it opens the panel on that day), then drag the task onto the timeline, or click a placed block to change its time. The length is the task's `~` estimate; with none, it is 30 minutes.
 - **On the cards:** every day shows a blue badge with the time and length ("3 PM · 1h"), the badge is a green **▶ NOW** on today while the clock is inside the block, and a yellow **⚠** warns when two blocks overlap. Blocked tasks list first on each day, in time order, then the rest in their usual order. The badge sits in the card's lower right.
-- **The panel:** the clock icon at the right end of today's icon row (beside Add task and Note) opens it. The top lists the day's **Unscheduled** tasks. Below is a timeline in half-hour steps (8 AM to 6 PM, stretching for tasks outside those hours). Drag an unscheduled task onto a time; if it has no estimate it asks how long (Cancel schedules nothing). Drag a placed block to move it, press its **✕** to take it off the schedule, and drag its bottom edge to change its length in 15-minute steps.
+- **The panel:** the **🕐** button on today's column opens it. The top lists the day's **Unscheduled** tasks. Below is a timeline in half-hour steps (8 AM to 6 PM, stretching for tasks outside those hours). Drag an unscheduled task onto a time; if it has no estimate it asks how long (Cancel schedules nothing). Drag a placed block to move it, press its **✕** to take it off the schedule, and drag its bottom edge to change its length in 15-minute steps.
 - **Save and Cancel:** nothing you do in the panel is written to WorkFlowy until you press **Save**. Dragging a task, resizing or editing a block, dropping a quick block, adding a block and leaving a planned block out all show on the timeline with a dashed outline, and the footer says "Not saved to WorkFlowy yet". **Save** lists exactly what it will write ("Change “Report”: no time → 3 PM", "Add 12 PM “Lunch” (1h) from your template") and asks you to confirm. **Cancel** throws every change away. Changing day or closing the panel with unsaved changes asks first.
 - **Any day:** the ‹ › arrows, the date box and **Today** at the top of the panel change the day, and the weekday is shown beside the date.
 - **Edit a block:** click it for a small editor with the start, the length and a **Description**, which is the task's WorkFlowy note. **Save**, **Unschedule** or **Cancel**; Undo works. Saving only the description leaves the time alone.
@@ -568,7 +564,7 @@ Some features put things into WorkFlowy: markers in a task's text, tasks, bullet
 
 | Switch | Covers |
 |--------|--------|
-| **Time blocking** | The panel and today's clock button, `^9am` times written by the panel or drag, quick blocks, the Day template (planned blocks, **Save**, `!blk`) and the automatic ticking of finished template blocks |
+| **Time blocking** | The panel and 🕐 button, `^9am` times written by the panel or drag, quick blocks, the Day template (planned blocks, **Save**, `!blk`) and the automatic ticking of finished template blocks |
 | **Repeating tasks** | The server making the next copy of an `!every` task, even with the board closed, and the **Repeat…** menu item |
 | **Notes bullets** | Writing `!alld` all-day notes and `!list` checklists (the all-day note icon, the ☑ Checklist choice, the Order… menu, and the same on the phone page), and the quiet removal of empty old `WB-Notes` bullets on past days |
 | **Priority, estimate and reminder items** | The menu items and buttons that write `!p1`, `~30m` and `@2:30pm` |
