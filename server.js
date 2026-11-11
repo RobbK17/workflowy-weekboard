@@ -3,7 +3,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.2";
+const VERSION = "1.5.3";
 
 const http = require("http");
 const fs = require("fs");
@@ -580,8 +580,33 @@ function sessionValid(req) {
   if (exp < Date.now()) { sessions.delete(token); return false; }
   return true;
 }
-const sha = (s) => crypto.createHash("sha256").update(s).digest();
-const passwordOk = (given) => crypto.timingSafeEqual(sha(given), sha(BOARD_PASSWORD));
+function scryptBoard(password, salt) {
+  return crypto.scryptSync(String(password), String(salt), 32, { N: 16384, r: 8, p: 1 });
+}
+function parseBoardPasswordHash(stored) {
+  const parts = String(stored || "").split(":");
+  if (parts.length === 2 && /^[0-9a-f]{16,64}$/i.test(parts[0]) && /^[0-9a-f]{64}$/i.test(parts[1])) {
+    return { salt: parts[0], hash: Buffer.from(parts[1], "hex") };
+  }
+  return null;
+}
+function passwordOk(given) {
+  const stored = BOARD_PASSWORD;
+  if (!stored) return false;
+  try {
+    const parsed = parseBoardPasswordHash(stored);
+    if (parsed) {
+      const next = scryptBoard(given, parsed.salt);
+      return next.length === parsed.hash.length && crypto.timingSafeEqual(next, parsed.hash);
+    }
+    const salt = process.env.BOARD_PASSWORD_SALT || "workflowy-weekboard-board-password-v1";
+    const a = scryptBoard(given, salt);
+    const b = scryptBoard(stored, salt);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (e) {
+    return false;
+  }
+}
 const sessionCookie = (value, maxAge) => `${SESSION_COOKIE}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
 
 function loginPage(message) {
@@ -733,7 +758,7 @@ function cleanMobileSettings(x) {
   const out = {};
   if (x.nested !== undefined) { if (!["group", "flatten", "off"].includes(x.nested)) throw new Error("bad nested"); out.nested = x.nested; }
   if (x.span !== undefined) { if (!["5", "7", "7s"].includes(x.span)) throw new Error("bad span"); out.span = x.span; }
-  for (const k of ["showLate", "showSoon", "showDone", "prioSort"]) if (x[k] !== undefined) { if (typeof x[k] !== "boolean") throw new Error("bad " + k); out[k] = x[k]; }
+  for (const k of ["showLate", "showSoon", "showDone", "prioSort", "hideEst"]) if (x[k] !== undefined) { if (typeof x[k] !== "boolean") throw new Error("bad " + k); out[k] = x[k]; }
   if (x.inbox !== undefined) {
     if (x.inbox === null) out.inbox = null;
     else if (x.inbox && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(x.inbox.id))) out.inbox = { id: String(x.inbox.id).toLowerCase(), name: String(x.inbox.name || "Inbox").slice(0, 30) };
@@ -770,7 +795,7 @@ async function serveMobileSettings(req, res) {
    GET /d/settings -> { enabled, settings: { key: "value" }, updated }.  POST { settings: { key: "value" | null } } merges (null removes).
    Only the board's preference keys are accepted (never window sizes or what is folded open). Uses the same MOBILE_SYNC switch. */
 const DESKTOP_SETTINGS_FILE = process.env.DESKTOP_SETTINGS_FILE || path.join(__dirname, "desktop-settings.json");
-const DESKTOP_KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters", "tbPresets", "tbTemplate", "hideEst", "hideWkend"]);
+const DESKTOP_KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "notesNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters", "tbPresets", "tbTemplate", "hideEst", "hideWkend"]);
 async function serveDesktopSettings(req, res) {
   if (!MOBILE_SYNC) return sendJson(res, req.method === "GET" ? 200 : 403, { enabled: false, error: req.method === "GET" ? undefined : "Settings sharing is turned off on this server (MOBILE_SYNC=off)." });
   const load = () => { try { return JSON.parse(fs.readFileSync(DESKTOP_SETTINGS_FILE, "utf8")); } catch (e) { return null; /* none saved yet */ } };

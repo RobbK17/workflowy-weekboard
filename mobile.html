@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.5.2">
+<meta name="version" content="1.5.3">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <meta name="theme-color" content="#2f6fed">
@@ -82,6 +82,10 @@
   .chip.pb4 { background: rgba(127,127,127,.25); color: var(--text); }
   .card.done .chip.pb { opacity: .5; }
   .chip + .chip { margin-left: 4px; }
+  /* Time block badge: the desktop board's colours (blue scheduled, green while it runs, yellow when blocks overlap), at the right of the title's first line */
+  .tbb { float: right; margin: 1px 0 2px 8px; padding: 2px 7px; border-radius: 6px; font-size: 12px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .tbb.sched { background: var(--accent); color: #fff; } .tbb.now { background: #22c55e; color: #fff; } .tbb.conflict { background: #eab308; color: #000; }
+  .card.done .tbb { opacity: .5; }
   #extras { flex: none; display: flex; gap: 8px; padding: 0 10px 6px; }
   #extras button { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-size: 14px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #extras button b { font-weight: 700; }
@@ -149,6 +153,8 @@
   #sheet .row { display: flex; gap: 8px; margin-top: 10px; }
   #sheet .row button { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--col); font-weight: 600; cursor: pointer; }
   #sheet .row button.go { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #sheet label.tbl { display: block; margin: 12px 0 0; }
+  #sheet select.tbsel { width: 100%; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); margin-top: 8px; }
   #sheet input[type=date], #sheet input[type=time] { width: 100%; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); margin-top: 8px; }
   #toast { display: none; align-items: center; gap: 12px; position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #172b4d; color: #fff; padding: 9px 14px; border-radius: 999px; font-size: 14px; z-index: 30; display: none; max-width: 90vw; }
   /* Notes editor (full-screen) */
@@ -163,6 +169,21 @@
   #noteEditor .nedit { flex: 1; min-height: 0; padding: 14px; font: inherit; font-size: 16px; line-height: 1.5; border: none; background: var(--bg); color: var(--text); resize: none; }
   #noteEditor .nedit:focus { outline: none; }
   #noteEditor .nedit:read-only { background: var(--col); color: var(--muted); }
+  #noteEditor #noteLock { flex: none; padding: 8px 10px; }
+  #noteEditor header { gap: 6px; padding-left: 10px; padding-right: 10px; }
+  #noteEditor header .nbtn { padding: 8px 10px; }
+  #noteEditor .nstatus:empty { display: none; }
+  #noteEditor #noteLock.dim { opacity: .45; }
+  #noteEditor #noteBack { flex: none; white-space: nowrap; }
+  .nlockic { flex: none; display: inline-block; width: 16px; height: 16px; color: var(--muted); fill: currentColor; }
+  #noteEditor header .nlockic { margin: 0 -4px 0 2px; }
+  .ncard .nt .nlockic { width: 14px; height: 14px; vertical-align: -2px; margin-right: 5px; }
+  #noteEditor .nlocked { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; background: var(--col); color: var(--muted); text-align: center; }
+  #noteEditor .nlocked[hidden] { display: none; }
+  #noteEditor .nlocked p { margin: 0; font-size: 16px; }
+  #noteEditor .nedit[hidden] { display: none; }
+  #noteEditor .nhint { flex: none; margin: 0; padding: 6px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  #noteEditor .nhint[hidden] { display: none; }
   .nbtn { padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-weight: 600; cursor: pointer; }
   .nbtn.go { background: var(--accent); border-color: var(--accent); color: #fff; }
   .ncard { display: flex; align-items: flex-start; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; }
@@ -170,8 +191,6 @@
   .ncard .nt { font-weight: 600; overflow-wrap: anywhere; }
   .ncard .np { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: pre-wrap; overflow-wrap: anywhere; }
   .ncard .np:empty { display: none; }
-  .ncard.enc { opacity: .7; }
-  .ncard.enc .nt::after { content: " 🔒"; }
 </style>
 </head>
 <body>
@@ -198,12 +217,16 @@
 <div id="toast"></div>
 <div id="noteEditor" role="dialog" aria-modal="true" aria-label="Note editor">
   <header>
-    <button class="nbtn" id="noteBack" aria-label="Done">Done</button>
+    <button class="nbtn" id="noteBack" aria-label="Back to notes">‹ Notes</button>
+    <svg class="nlockic" id="noteEncMark" viewBox="0 0 256 256" role="img" aria-label="Has encrypted text" hidden><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg>
     <input id="noteTitle" class="ntitle" type="text" maxlength="200" autocomplete="off" autocapitalize="sentences" aria-label="Note title" placeholder="Title">
     <span class="nstatus" id="noteStatus"></span>
+    <button class="nbtn" id="noteLock" type="button">Encrypt</button>
     <button class="nbtn" id="noteMenu" aria-label="Note menu">⋯</button>
   </header>
+  <p class="nhint" id="noteHint" hidden></p>
   <textarea class="nedit" id="noteText" placeholder="Start writing…" aria-label="Note content"></textarea>
+  <div class="nlocked" id="noteLockedPanel" hidden><p>This note is encrypted.</p><button class="nbtn go" id="noteUnlockBig" type="button">Unlock</button></div>
 </div>
 
 <script>
@@ -226,6 +249,7 @@ let weekStart = startOf(today());
 let sel = key(today());
 let showDone = store.get("m.showDone", "0") === "1";
 let showLate = store.get("m.showLate", "1") === "1", showSoon = store.get("m.showSoon", "1") === "1";
+let hideEst = store.get("m.hideEst", "0") === "1";         // leave the ⏱ estimate chip off cards (a time block's chip still shows its length)
 let prioSort = store.get("m.prioSort", "1") === "1";       // urgent first in each day (and in Past due / Upcoming), as on the desktop board
 const cache = {};                       // day key -> tasks, in outline order
 const clProg = {};                       // checklist id -> { done, total } for the "2/5" on its row
@@ -266,9 +290,9 @@ const undoStack = [];
 /* ---------- sharing settings between devices (optional, per device, off by default) ---------- */
 let sync = store.get("m.sync", "0") === "1";
 let applying = false, pushTimer = 0, syncAt = store.get("m.syncAt", "");
-const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.prioSort", "m.inbox", "m.notesLoc"]);
+const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.prioSort", "m.hideEst", "m.inbox", "m.notesLoc"]);
 let inboxGone = false, notesLocGone = false;  // true only after "Remove" on this device, so a device without it never wipes the shared one
-const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone, prioSort }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; if (notesLoc) o.notesLoc = notesLoc; else if (notesLocGone) o.notesLoc = null; return o; };
+const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone, prioSort, hideEst }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; if (notesLoc) o.notesLoc = notesLoc; else if (notesLocGone) o.notesLoc = null; return o; };
 { const rawSet = store.set; store.set = (k, v) => { rawSet(k, v); if (sync && !applying && SHARED_KEYS.has(k)) pushShared(); }; }
 function pushShared(now) {
   clearTimeout(pushTimer);
@@ -288,8 +312,8 @@ function applyShared(s) {
   try {
     if (["group", "flatten", "off"].includes(s.nested)) { mode = s.nested; store.set("m.nested", mode); }
     if (["5", "7", "7s"].includes(s.span)) { weekType = s.span; span = weekType === "5" ? 5 : 7; store.set("m.span", weekType); weekStart = startOf(keyToDate(sel)); }
-    for (const [k, mk] of [["showLate", "m.showLate"], ["showSoon", "m.showSoon"], ["showDone", "m.showDone"], ["prioSort", "m.prioSort"]]) {
-      if (typeof s[k] === "boolean") { if (k === "showLate") showLate = s[k]; else if (k === "showSoon") showSoon = s[k]; else if (k === "prioSort") prioSort = s[k]; else showDone = s[k]; store.set(mk, s[k] ? "1" : "0"); }
+    for (const [k, mk] of [["showLate", "m.showLate"], ["showSoon", "m.showSoon"], ["showDone", "m.showDone"], ["prioSort", "m.prioSort"], ["hideEst", "m.hideEst"]]) {
+      if (typeof s[k] === "boolean") { if (k === "showLate") showLate = s[k]; else if (k === "showSoon") showSoon = s[k]; else if (k === "prioSort") prioSort = s[k]; else if (k === "hideEst") hideEst = s[k]; else showDone = s[k]; store.set(mk, s[k] ? "1" : "0"); }
     }
     if (s.inbox === null) { inbox = null; store.set("m.inbox", "null"); }
     else if (s.inbox && s.inbox.id) { inbox = { id: String(s.inbox.id), name: String(s.inbox.name || "Inbox") }; store.set("m.inbox", JSON.stringify(inbox)); }
@@ -394,6 +418,16 @@ async function decryptToken(token, passphrase) {
   const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
   return new TextDecoder("utf-8", { fatal: true }).decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv, tagLength: 128 }, key, ct));
 }
+// The other way, for words encrypted in a note: a fresh salt and IV every time, the add-on's exact format.
+const b64u = (bytes) => { let s = ""; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+async function encryptToken(text, passphrase) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase.normalize("NFKC")), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, tagLength: 128 }, key, new TextEncoder().encode(text)));
+  const out = new Uint8Array(28 + ct.length); out.set(salt, 0); out.set(iv, 16); out.set(ct, 28);
+  return "wbenc1." + b64u(out);
+}
 function tokensOf(list, set) { for (const n of list || []) for (const f of [n.name, n.note]) { const m = String(f || "").match(TOKEN); if (m) m.forEach((t) => set.add(t)); } }
 function findTokens() {                                    // what the current view shows first, else anything loaded
   const set = new Set(), k = view === "inbox" && inbox ? inbox.id : sel;
@@ -413,7 +447,7 @@ async function runDecrypt() {
     }
   } finally { decRunning = false; }
 }
-function lockCrypto(msg) { pass = null; passOk = false; decCache.clear(); failedTok.clear(); pendingTok.clear(); draw(); if (msg) toast(msg); }
+function lockCrypto(msg) { pass = null; passOk = false; decCache.clear(); failedTok.clear(); pendingTok.clear(); lockNoteEditor(); draw(); if (msg) toast(msg); }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") hiddenAt = Date.now();
   else if (pass !== null && hiddenAt && Date.now() - hiddenAt > 5 * 60000) lockCrypto("Encryption locked after 5 minutes away");
@@ -448,6 +482,16 @@ const PRIO_RANK = [3.5, 1, 2, 3, 4];                       // no priority sorts 
 function parsePrio(text) { const m = PRIO_RE.exec(String(text || "")); return m ? Number(m[2]) : 0; }
 function parseEst(text) { const m = EST_RE.exec(String(text || "")); if (!m) return 0; return m[4] ? Number(m[4]) : Math.round(Number(m[2]) * 60) + Number(m[3] || 0); }
 function fmtMins(m) { const h = Math.floor(m / 60), r = m % 60; return h ? h + "h" + (r ? " " + r + "m" : "") : r + "m"; }
+// The same marker text the desktop board writes, so a block set here shows on its timeline too.
+function timeBlockToken(h, mi) { return h >= 12 ? `^${h}:${pad(mi)}` : mi ? `^${h}:${pad(mi)}am` : `^${h}am`; }
+function estToken(m) { const h = Math.floor(m / 60), r = m % 60; return "~" + (h ? h + "h" + (r ? r + "m" : "") : r + "m"); }
+// The stored name with one kind of marker replaced (or removed when token is ""), keeping any formatting around it (as on the desktop board).
+function withMarker(raw, re, token) {
+  const src = re.source.replaceAll("(^|\\s)", "(^|\\s|>|&nbsp;)");
+  const cleared = String(raw || "").replace(new RegExp(src, "gi"), (m) => { const l = /^(?:>|&nbsp;|\s)/.exec(m); return !l ? "" : l[0] === ">" ? ">" : " "; })
+    .replace(/<(b|i|u|strong|em|span)[^>]*><\/\1>/gi, "").replace(/\s{2,}/g, " ").trim();
+  return token ? `${cleared} ${token}` : cleared;
+}
 const dropMeta = (s) => String(s || "").replace(new RegExp(PRIO_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(new RegExp(EST_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(new RegExp(TIME_BLOCK_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(new RegExp(BLK_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(new RegExp(LIST_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(new RegExp(ALLD_RE.source, "gi"), (m, lead) => (lead ? " " : "")).replace(/\s{2,}/g, " ").trim();
 const prioRank = (n) => (prioSort ? PRIO_RANK[parsePrio(plain(n.name))] : 0);
 const stripTime = (s) => s.replace(REPEAT_RE, (m, lead) => (lead ? " " : "")).replace(LEAD_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(TIME_RE, (m) => (/^\s/.test(m) ? " " : "")).replace(/\s{2,}/g, " ").trim();
@@ -560,6 +604,7 @@ async function loadWeek(force) {
     draw();
   }
   if (inbox) { try { await loadInbox(); if (t === loadToken) draw(); } catch (e) { /* the button shows ? */ } }
+  if (notesLoc && wf.notes && !(currentNote && currentNote.id)) { try { await loadNotes(); } catch (e) { /* the button shows … */ } }     // for the Notes count (not while a note is open)
   if (!showLate && !showSoon) return;
   if (!force && extrasReady && Date.now() - extrasAt < 60000) return;
   const wk = new Set(weekKeys()), need = [...(showLate ? lateKeys() : []), ...(showSoon ? soonKeys() : [])].filter((k) => !wk.has(k));
@@ -703,7 +748,7 @@ async function loadNotesFor(k) {
   }));
 }
 // Settings → Writing features on the board can switch note writing off for every browser and this page (/features on the server).
-const wf = { notes: true };
+const wf = { notes: true, tb: true };      // tb: Time blocking (the Time block… item in a task's menu)
 const wfHint = "Notes are turned off in Settings → Writing features on the board";
 function openNote(k, n) {
   openSheet((s) => {
@@ -868,7 +913,8 @@ function drawExtras() {
   }
   if (notesLoc) {
     const b = document.createElement("button"); b.type = "button"; b.className = view === "notes" ? "on" : "";
-    b.textContent = wf.notes ? "📝 Notes" : "📝 Notes · off"; if (!wf.notes) { b.style.opacity = ".5"; b.title = wfHint; }
+    if (wf.notes) { const c = document.createElement("b"); c.textContent = notesLoaded ? String(Object.keys(notesCache).length) : "…"; b.append("📝 Notes ", c); }
+    else { b.textContent = "📝 Notes · off"; b.style.opacity = ".5"; b.title = wfHint; }
     b.onclick = () => { if (!wf.notes) { toast(wfHint + "."); return; } view = view === "notes" ? "day" : "notes"; draw(); if (view === "notes") loadNotes().catch((e) => err(e.message)); };
     box.appendChild(b);
   }
@@ -950,11 +996,12 @@ function drawNotesList(list) {
   const notes = Object.values(notesCache).sort((a, b) => (a.priority || 0) - (b.priority || 0));
   if (!notes.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "No notes yet"; list.appendChild(m); return; }
   for (const n of notes) {
-    const card = document.createElement("div"); card.className = "ncard" + (n.enc ? " enc" : "");
+    const card = document.createElement("div"); card.className = "ncard";
     const body = document.createElement("div"); body.className = "nbody";
-    const title = document.createElement("div"); title.className = "nt"; title.textContent = shown(n.name) || "(untitled)";
+    const title = document.createElement("div"); title.className = "nt"; title.textContent = secretText(plain(n.name)) || "(untitled)";
+    if (hasSecret(n)) title.insertAdjacentHTML("afterbegin", LOCK_SVG);
     const preview = document.createElement("div"); preview.className = "np";
-    preview.textContent = n.enc ? "(encrypted)" : shown(n.note).slice(0, 200);
+    preview.textContent = allSecret(n.note) ? "Encrypted note" : secretText(n.note).slice(0, 200);
     body.append(title, preview); card.appendChild(body);
     card.onclick = () => openNoteEditor(n);
     list.appendChild(card);
@@ -966,18 +1013,159 @@ let noteTitleEdited = false;     // the title box was changed since the last sav
 const noteNameFromInput = () => $("noteTitle").value.replace(/\s+/g, " ").trim().slice(0, 200).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");   // names are stored as HTML text
 let noteDirty = false;          // typed since the last save, so opening and closing a note never rewrites it
 let noteUntouched = false;    // true if new note hasn't been edited yet
+/* Encrypted words in a note. Unlocked, each encrypted part is shown as ⟦readable⟧ and can be edited; every save turns each ⟦…⟧ back
+   into encrypted text (a part you didn't change keeps its old token). Locked, the note is read-only with 🔒 for each part, so nothing
+   encrypted can be overwritten. The 🔒 button encrypts the selected words, or takes the encryption off the ⟦part⟧ the cursor is in. */
+const HAS_TOK = /wbenc1\.[A-Za-z0-9_-]{59,}/;
+const N_OPEN = "⟦", N_CLOSE = "⟧", N_REGION = /⟦([^⟦⟧]*)⟧/g, N_BRACKET = /[⟦⟧]/;
+let noteEnc = null;          // { originals: [{ plain, token }], pass } while the open note is shown readable
+// Encrypted text you can't read is shown as ‹secret› (‹secret 1›, ‹secret 2› … when there are several), so it reads as text, not a button.
+const secretText = (v) => { const str = String(v || ""), n = (str.match(TOKEN) || []).length; let i = 0; return str.replace(TOKEN, () => (n === 1 ? "‹secret›" : `‹secret ${++i}›`)); };
+const lockedNoteText = secretText;
+const allSecret = (v) => HAS_TOK.test(v || "") && !String(v).replace(TOKEN, "").trim();       // nothing but encrypted text
+const hasSecret = (n) => !!n && (HAS_TOK.test(n.note || "") || HAS_TOK.test(n.name || ""));
+const LOCK_SVG = '<svg class="nlockic" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg>';
+function noteRegionAt(v, a, b) {                          // the ⟦part⟧ the cursor is in (or the selection lies in), or null
+  const re = new RegExp(N_REGION.source, "g"); let m;
+  while ((m = re.exec(v)) !== null) { const s = m.index, e = s + m[0].length; if (a === b ? a > s && a < e : a >= s && b <= e) return { s, e, inner: m[1] }; }
+  return null;
+}
+function noteBtnState() {                                 // what the header button does right now
+  const cur = currentNote, ta = $("noteText");
+  if (!cur || !(window.crypto && crypto.subtle)) return "none";
+  if (ta.readOnly) return HAS_TOK.test(cur.note || "") ? "unlock" : "none";
+  const v = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
+  if (noteEnc && noteRegionAt(v, a, b)) return "decrypt";
+  const inner = v.slice(a, b);
+  return a !== b && inner.trim() && !N_BRACKET.test(inner) ? "encrypt" : "idle";
+}
+async function revealNote(v, p) {                        // tokens -> ⟦readable⟧, or null if one doesn't open with this passphrase
+  const found = [...String(v).matchAll(TOKEN)], originals = [];
+  let out = "", last = 0;
+  for (const m of found) {
+    let plainTxt = p === pass && decCache.has(m[0]) ? decCache.get(m[0]) : null;
+    if (plainTxt == null) { try { plainTxt = await decryptToken(m[0], p); } catch (e) { return null; } }
+    if (N_BRACKET.test(plainTxt)) return null;
+    out += v.slice(last, m.index) + N_OPEN + plainTxt + N_CLOSE; originals.push({ plain: plainTxt, token: m[0] });
+    last = m.index + m[0].length;
+  }
+  return { text: out + v.slice(last), originals };
+}
+async function sealNote(text, enc) {                     // ⟦readable⟧ -> tokens; throws on a stray ⟦ or ⟧ so nothing readable is saved by mistake
+  if (N_BRACKET.test(text.replace(N_REGION, ""))) throw new Error("A ⟦ or ⟧ is missing its partner, so the note wasn't saved");
+  const left = enc.originals.slice(), parts = [], re = new RegExp(N_REGION.source, "g");
+  let out = "", last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    out += text.slice(last, m.index);
+    if (m[1] !== "") {
+      const k = left.findIndex((o) => o.plain === m[1]);
+      const tok = k >= 0 ? left.splice(k, 1)[0].token : await encryptToken(m[1], enc.pass);
+      out += tok; parts.push({ plain: m[1], token: tok });
+    }
+    last = m.index + m[0].length;
+  }
+  return { text: out + text.slice(last), originals: parts };
+}
+function noteLockUi() {                                   // the header button, the lock by the title, the line under the header and the locked panel
+  const btn = $("noteLock"), hint = $("noteHint"), ta = $("noteText"), panel = $("noteLockedPanel"), cur = currentNote;
+  const st = noteBtnState();
+  btn.hidden = st === "none";
+  btn.textContent = st === "unlock" ? "Unlock" : st === "decrypt" ? "Decrypt" : "Encrypt";
+  btn.classList.toggle("dim", st === "idle");
+  btn.setAttribute("aria-label", st === "unlock" ? "Unlock this note" : st === "decrypt" ? "Take the encryption off these words" : "Encrypt the selected words");
+  $("noteEncMark").hidden = !(hasSecret(cur) || (noteEnc && N_BRACKET.test(ta.value)));
+  const locked = st === "unlock", whole = locked && allSecret(cur.note);
+  panel.hidden = !whole; ta.hidden = whole;
+  if (whole) btn.hidden = true;                          // the panel's own Unlock is enough, and the title keeps the room
+  hint.hidden = whole || !(locked || (noteEnc && N_BRACKET.test(ta.value)));
+  hint.textContent = locked ? "Has encrypted text. Tap Unlock to read and edit it." : "Words between ⟦ ⟧ are encrypted when the note saves.";
+}
+document.addEventListener("selectionchange", () => { if (currentNote && document.activeElement === $("noteText")) noteLockUi(); });
+["select", "keyup", "pointerup"].forEach((ev) => $("noteText").addEventListener(ev, () => { if (currentNote) noteLockUi(); }));
+function showNoteLocked(cur) {
+  const ta = $("noteText"), title = $("noteTitle");
+  noteEnc = null; ta.value = lockedNoteText(cur.note); ta.readOnly = true; title.readOnly = true; noteLockUi();
+}
+async function showNoteOpen(cur, p) {                     // false if the passphrase doesn't open every part
+  const r = await revealNote(cur.note || "", p);
+  if (!r || currentNote !== cur) return false;
+  const ta = $("noteText"), title = $("noteTitle");
+  noteEnc = { originals: r.originals, pass: p }; ta.value = r.text; ta.readOnly = false;
+  title.readOnly = HAS_TOK.test(cur.name || ""); noteLockUi();
+  return true;
+}
+async function lockNoteEditor() {                         // Lock (or 5 minutes away): save what's open, sealed, then show it locked
+  const cur = currentNote; if (!cur || !noteEnc) return;
+  if (noteSaveTimer) { clearTimeout(noteSaveTimer); noteSaveTimer = null; }
+  await saveNote();
+  if (currentNote !== cur || noteDirty) return;            // the save failed: stay readable so nothing typed is lost (the status says why)
+  showNoteLocked(cur);
+}
+// The passphrase for a note. With encrypted text to check it against, one entry; with none, twice, so a typo can't lock words away for good.
+function askNotePass(onOk) {
+  const cur = currentNote, proof = (String((cur && cur.note) || "").match(TOKEN) || [])[0] || findTokens()[0] || (Object.values(notesCache).map((x) => String(x.note || "").match(TOKEN)).find(Boolean) || [])[0] || null;
+  openSheet((s) => {
+    head(s, "Passphrase", proof ? "Your Encryption passphrase. It stays in this page's memory only; Lock, a reload or five minutes away forgets it." : "There's no encrypted text here to check it against, so type it twice. Use the same passphrase as on the desktop board, or it can't read these words.");
+    const mk = (ph) => { const i = document.createElement("input"); i.type = "password"; i.placeholder = ph; i.autocomplete = "off"; i.setAttribute("aria-label", ph); i.style.cssText = "width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);margin-top:8px;"; s.appendChild(i); return i; };
+    const p1 = mk("Passphrase"), p2 = proof ? null : mk("Passphrase again");
+    const msg = document.createElement("div"); msg.className = "sub"; msg.style.margin = "8px 0 0"; s.appendChild(msg);
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "OK";
+    g.onclick = async () => {
+      const v = p1.value; if (!v) { p1.focus(); return; }
+      if (p2 && v !== p2.value) { msg.textContent = "The two passphrases don't match."; p2.select(); return; }
+      g.disabled = true; msg.textContent = proof ? "Checking…" : "";
+      if (proof) {
+        try { decCache.set(proof, await decryptToken(proof, v)); }
+        catch (e) { msg.textContent = "That passphrase doesn't open your encrypted text."; g.disabled = false; p1.select(); return; }
+      }
+      if (pass !== v) { pass = v; passOk = !!proof; failedTok.clear(); }            // the rest of the page unlocks too
+      closeSheet(); draw(); onOk(v);
+    };
+    [p1, p2].forEach((i) => { if (i) i.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); g.onclick(); } }; });
+    row.append(c, g); s.appendChild(row);
+    setTimeout(() => p1.focus(), 50);
+  });
+}
+async function noteCryptTap() {
+  const cur = currentNote, ta = $("noteText"); if (!cur) return;
+  if (!(window.crypto && crypto.subtle)) { toast("Encryption needs a secure address (https, or localhost)"); return; }
+  if (ta.readOnly) {                                       // a locked note: open it
+    if (!HAS_TOK.test(cur.note || "")) return;
+    const open = async (p) => { if (!(await showNoteOpen(cur, p))) { if (currentNote === cur) toast("Some encrypted text in this note doesn't open with that passphrase"); } else ta.focus(); };
+    if (pass !== null && passOk) return open(pass);
+    return askNotePass(open);
+  }
+  const v = ta.value, a = ta.selectionStart, b = ta.selectionEnd, hit = noteRegionAt(v, a, b);
+  const put = (next, c1, c2) => { ta.value = next; ta.focus(); ta.setSelectionRange(c1, c2); ta.dispatchEvent(new Event("input")); noteLockUi(); };
+  if (hit && noteEnc) { put(v.slice(0, hit.s) + hit.inner + v.slice(hit.e), hit.s, hit.s + hit.inner.length); toast("Decrypted: those words will be saved as plain text"); return; }
+  const inner = v.slice(a, b);
+  if (a === b || !inner.trim()) { toast("Select words, then tap Encrypt"); return; }
+  if (N_BRACKET.test(inner)) { toast("Part of that is already encrypted"); return; }
+  const wrap = () => {
+    const lead = inner.match(/^\s*/)[0], trail = inner.match(/\s*$/)[0];
+    const next = v.slice(0, a) + lead + N_OPEN + inner.slice(lead.length, inner.length - trail.length) + N_CLOSE + trail + v.slice(b);
+    put(next, b + 2, b + 2);
+  };
+  if (noteEnc) return wrap();
+  const start = (p) => { if (currentNote !== cur) return; noteEnc = { originals: [], pass: p }; wrap(); };
+  if (pass !== null && passOk) return start(pass);
+  askNotePass(start);
+}
+$("noteLock").addEventListener("pointerdown", (e) => e.preventDefault());       // keep the selection and the keyboard in the note
+$("noteLock").addEventListener("mousedown", (e) => e.preventDefault());
+$("noteLock").onclick = noteCryptTap;
+$("noteUnlockBig").onclick = noteCryptTap;
 async function openNoteEditor(note) {
   const ed = $("noteEditor"), title = $("noteTitle"), text = $("noteText"), status = $("noteStatus");
+  noteEnc = null;
   if (note) {
-    currentNote = { ...note, isNew: false };
-    title.value = shown(note.name) || ""; title.readOnly = !!note.enc || TOKEN.test(note.name || ""); TOKEN.lastIndex = 0;
-    if (note.enc) {
-      if (pass) {
-        try {
-          const plain = await decryptToken((note.note.match(/wbenc1\.[A-Za-z0-9_-]{20,}/) || [note.note])[0], pass);
-          text.value = plain; text.readOnly = true;                    // read-only: saving would put the plain text over the encrypted note
-        } catch (e) { text.value = "(Couldn't decrypt)"; text.readOnly = true; }
-      } else { text.value = "(Encrypted - unlock first)"; text.readOnly = true; }
+    const cur = currentNote = { ...note, isNew: false };
+    title.value = secretText(plain(note.name)) || ""; title.readOnly = HAS_TOK.test(note.name || "");
+    if (HAS_TOK.test(note.note || "")) {
+      showNoteLocked(cur);
+      if (pass !== null && passOk) { text.value = "Opening…"; if (!(await showNoteOpen(cur, pass)) && currentNote === cur) showNoteLocked(cur); }
     } else {
       text.value = note.note; text.readOnly = false;
     }
@@ -992,13 +1180,14 @@ async function openNoteEditor(note) {
   }
   noteDirty = false; noteTitleEdited = false;
   status.textContent = ""; status.classList.remove("saving");
+  noteLockUi();
   ed.classList.add("open");
   text.focus();
 }
 function closeNoteEditor() {
   if (noteSaveTimer) { clearTimeout(noteSaveTimer); noteSaveTimer = null; }
   $("noteEditor").classList.remove("open");
-  currentNote = null;
+  currentNote = null; noteEnc = null;
   draw();
 }
 let noteSaveChain = Promise.resolve();            // saves run one after another, so a slow first save can't be followed by a second "create"
@@ -1006,29 +1195,37 @@ function saveNote() { noteSaveChain = noteSaveChain.then(doSaveNote, doSaveNote)
 async function doSaveNote() {
   const cur = currentNote;
   if (!cur || $("noteText").readOnly) return;
-  const text = $("noteText").value, status = $("noteStatus");
+  const typed = $("noteText").value, status = $("noteStatus");
   // If new and untouched, don't create yet
   if (cur.isNew && noteUntouched) return;
   if (!noteDirty) return;
   noteDirty = false;
   status.textContent = "Saving…"; status.classList.add("saving");
   try {
+    let text = typed;
+    const enc = noteEnc;
+    if (enc && N_BRACKET.test(typed)) {                   // ⟦readable⟧ parts go to WorkFlowy encrypted, never as they are
+      const sealed = await sealNote(typed, enc);
+      text = sealed.text; enc.originals = sealed.originals;
+    }
     if (cur.isNew) {
       // Create new note
       const nm = noteNameFromInput() || cur.name; cur.name = nm;
       const res = await call("POST", "/nodes", { parent_id: notesLoc.id, name: nm, note: text, position: "top" });
       const id = res && (res.item_id || res.id || (res.node && res.node.id));
       cur.id = id; cur.isNew = false;
-      notesCache[id] = { id, name: cur.name, note: text, enc: false, priority: -1e9 };
+      notesCache[id] = { id, name: cur.name, note: text, enc: HAS_TOK.test(text), priority: -1e9 };
     } else {
       // Update existing note
       const body = { note: text };
       if (noteTitleEdited) { const nm = noteNameFromInput(); if (nm) { body.name = nm; cur.name = nm; } }
       await call("POST", `/nodes/${cur.id}`, body);
-      if (notesCache[cur.id]) { notesCache[cur.id].note = text; if (body.name) notesCache[cur.id].name = body.name; }
+      if (notesCache[cur.id]) { notesCache[cur.id].note = text; notesCache[cur.id].enc = HAS_TOK.test(text); if (body.name) notesCache[cur.id].name = body.name; }
     }
+    cur.note = text;                                       // what WorkFlowy now holds (sealed), so a later lock shows the right 🔒s
     noteTitleEdited = false;
     status.textContent = "Saved ✓"; status.classList.remove("saving");
+    setTimeout(() => { if (status.textContent === "Saved ✓") status.textContent = ""; }, 2000);     // gone again, so the title gets the room back
   } catch (e) {
     noteDirty = true;
     status.textContent = "Error: " + e.message; status.classList.remove("saving");
@@ -1044,7 +1241,7 @@ $("noteTitle").addEventListener("input", () => {
 });
 $("noteTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("noteText").focus(); } });
 $("noteText").addEventListener("input", () => {
-  noteUntouched = false; noteDirty = true;
+  noteUntouched = false; noteDirty = true; if (noteEnc) noteLockUi();
   if (noteSaveTimer) clearTimeout(noteSaveTimer);
   noteSaveTimer = setTimeout(saveNote, 1000);
 });
@@ -1061,7 +1258,8 @@ $("noteBack").onclick = async () => {
 $("noteMenu").onclick = () => {
   if (!currentNote) return;
   openSheet((s) => {
-    head(s, shown(currentNote.name) || "(untitled)", "Note options");
+    head(s, secretText(plain(currentNote.name)) || "(untitled)", "Note options");
+    if (pass !== null || noteEnc) sbtn(s, "Lock encryption", () => { closeSheet(); lockCrypto("Locked"); });
     sbtn(s, "🗑 Delete note", () => {
       openSheet((s2) => {
         head(s2, "Delete note?", "This can't be undone.");
@@ -1205,6 +1403,39 @@ function openSectionMenu(b) {
     sbtn(s, "Close", closeSheet, "cancel");
   });
 }
+// ---- Time block badge, as on the desktop board: "3:00 PM · 1h 30m" in blue (the length only when the task has an estimate),
+// "▶ NOW" in green while today's block runs, "⚠ 3:00 PM" in yellow when it overlaps another open block on the same day.
+function dayTasksOf(k) {                                           // a day's tasks, including those inside its groups
+  const out = [...(cache[k] || [])];
+  for (const b of bullets[k] || []) if (nest[b.id]) out.push(...nest[b.id].todos);
+  return out;
+}
+function blockSpan(n) { const tb = parseTimeBlock(plain(n.name)); if (!tb) return null; const s = tb.h * 60 + tb.mi; return { s, e: s + (parseEst(plain(n.name)) || 30) }; }
+function tbBadge(n, tbk, est) {
+  const w = whereIs(n.id), k = w && w.day, s = tbk.h * 60 + tbk.mi, e = s + (est || 30);
+  const lab = fmtTime(tbk.h, tbk.mi) + (est ? " · " + fmtMins(est) : "");
+  const win = `${fmtTime(tbk.h, tbk.mi)} – ${fmtTime(Math.floor(e / 60) % 24, e % 60)}`;
+  const clash = k && ISO_DAY.test(k) && !n.completedAt ? dayTasksOf(k).filter((o) => { if (o.id === n.id || o.completedAt || typeOf(o) !== "todo") return false; const b = blockSpan(o); return b && !(e <= b.s || s >= b.e); }).length : 0;
+  const b = document.createElement("span");
+  if (clash) {
+    b.className = "tbb conflict"; b.textContent = "⚠ " + fmtTime(tbk.h, tbk.mi);
+    b.setAttribute("aria-label", `Time block ${win}, overlaps ${clash} other block${clash === 1 ? "" : "s"}`);
+    return b;
+  }
+  b.className = "tbb sched"; b.dataset.lab = lab; b.dataset.win = win;
+  if (k === key(today())) { b.dataset.s = s; b.dataset.e = e; }            // only today's blocks can turn into ▶ NOW
+  tickBadge(b, !!n.completedAt);
+  return b;
+}
+function tickBadge(b, done) {
+  const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+  const cur = !done && b.dataset.s !== undefined && m >= Number(b.dataset.s) && m < Number(b.dataset.e);
+  b.classList.toggle("now", cur); b.classList.toggle("sched", !cur);
+  b.textContent = cur ? "▶ NOW" : b.dataset.lab;
+  b.setAttribute("aria-label", (cur ? "Time block running now, " : "Time block ") + b.dataset.win);
+}
+// ▶ NOW follows the clock without redrawing the list (so an open sheet or a scroll position isn't disturbed).
+setInterval(() => { if (!document.hidden) for (const b of document.querySelectorAll(".tbb[data-s]")) tickBadge(b, !!b.closest(".card.done")); }, 30000);
 function cardEl(n, bullet, inZoom) {
   const ty = typeOf(n), isTask = ty === "todo";
   const pr = parsePrio(plain(n.name)), est = parseEst(plain(n.name));
@@ -1226,13 +1457,13 @@ function cardEl(n, bullet, inZoom) {
   if (bullet) { const gt = document.createElement("span"); gt.className = "gtag"; gt.textContent = "▸ " + (shown(bullet.name) || "(untitled)"); body.appendChild(gt); }
   const t = document.createElement("div"); t.className = "t" + (/^h[1-3]$/.test(ty) ? " hd" : ""); linkTags(t, dropMeta(shown((tm || REPEAT_RE.test(plain(n.name)) || parseLeads(plain(n.name)).length) && isTask ? stripTime(plain(n.name)) : n.name)) || "(empty)");
   if (isOpened(n)) { el.classList.add("dec"); const dm = document.createElement("span"); dm.className = "decmark"; dm.setAttribute("aria-label", "Decrypted"); dm.textContent = "🔓"; t.prepend(dm); }
+  const tbk = isTask ? parseTimeBlock(plain(n.name)) : null;
+  if (tbk) t.prepend(tbBadge(n, tbk, est));                       // first in the title, so it floats to the right of its first line
   body.appendChild(t);
   const note = plain(n.note || "").trim();
   if (note) { const nn = document.createElement("div"); nn.className = "n"; nn.textContent = showNote(note); body.appendChild(nn); }
   if (pr) { const c = document.createElement("span"); c.className = "chip pb pb" + pr; c.textContent = "P" + pr; c.setAttribute("aria-label", PRIO_NAMES[pr] + " priority"); body.appendChild(c); }
-  const tbk = isTask ? parseTimeBlock(plain(n.name)) : null;
-  if (tbk) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "🕐 " + fmtTime(tbk.h, tbk.mi) + " · " + fmtMins(est || 30); c.setAttribute("aria-label", "Time block at " + fmtTime(tbk.h, tbk.mi) + ", " + fmtMins(est || 30)); body.appendChild(c); }
-  if (est && !tbk && !n.completedAt) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "⏱ " + fmtMins(est); c.setAttribute("aria-label", "Estimate " + fmtMins(est)); body.appendChild(c); }
+  if (est && !tbk && !n.completedAt && !hideEst) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "⏱ " + fmtMins(est); c.setAttribute("aria-label", "Estimate " + fmtMins(est)); body.appendChild(c); }
   if (tm && isTask) { const c = document.createElement("span"); c.className = "chip"; c.textContent = "🔔 " + fmtTime(tm.h, tm.mi); body.appendChild(c); }
   { const lds = parseLeads(plain(n.name)), rp = parseRepeat(plain(n.name));
     if (isTask && lds.length) { const c = document.createElement("span"); c.className = "chip"; c.textContent = (tm ? "" : "🔔 early ") + "· " + lds.join(" "); body.appendChild(c); }
@@ -1328,6 +1559,7 @@ function openZoomMenu(n) {
       sbtn(s, "✎ Edit", () => openEdit(n));
       if (isTask) sbtn(s, timeOf(plain(n.name)) ? "⏰ Change reminder…" : "⏰ Set reminder…", () => openReminder(n));
       if (isTask) sbtn(s, parseRepeat(plain(n.name)) ? "🔁 Change repeat…" : "🔁 Repeat…", () => openRepeat(n));
+      if (isTask && wf.tb) sbtn(s, parseTimeBlock(plain(n.name)) ? "🕐 Change time block…" : "🕐 Time block…", () => openTimeBlock(n));
     } else { const p = document.createElement("div"); p.className = "sub"; p.textContent = "Encrypted text can only be edited on the desktop page."; s.appendChild(p); }
     sbtn(s, "› Open", () => zoomInto(n));
     if (up) sbtn(s, "⇤ Out one level", () => zoomMove(n, up, "out one level"));
@@ -1384,6 +1616,7 @@ function openMenu(n) {
       sbtn(s, "✎ Edit", () => openEdit(n));
       if (isTask) sbtn(s, timeOf(plain(n.name)) ? "⏰ Change reminder…" : "⏰ Set reminder…", () => openReminder(n));
       if (isTask) sbtn(s, parseRepeat(plain(n.name)) ? "🔁 Change repeat…" : "🔁 Repeat…", () => openRepeat(n));
+      if (isTask && wf.tb) sbtn(s, parseTimeBlock(plain(n.name)) ? "🕐 Change time block…" : "🕐 Time block…", () => openTimeBlock(n));
     } else { const p = document.createElement("div"); p.className = "sub"; p.textContent = "Encrypted text can only be edited on the desktop page."; s.appendChild(p); }
     if (w && w.day && w.day !== tk) sbtn(s, "↦ Move to today", () => moveTo(n, tk));
     sbtn(s, "→ Move to another day…", () => openMove(n));
@@ -1611,6 +1844,52 @@ function openReminder(n) {
   });
 }
 
+// Time block…: a start time ("^9am") and a length (the task's "~45m" estimate) on the day the task sits on. The desktop board's timeline
+// reads the same markers, so a block set here shows there too. A task without an estimate is a 30-minute block, as on the desktop.
+function openTimeBlock(n) {
+  openSheet((s) => {
+    const cur = parseTimeBlock(plain(n.name)), est = parseEst(plain(n.name)), def = est || 30, w = whereIs(n.id), tk = key(today());
+    head(s, cur ? "Change time block" : "Time block", shown(n.name));
+    const where = document.createElement("div"); where.className = "sub";
+    where.textContent = w && w.day && ISO_DAY.test(w.day) ? "Blocks this time on " + dayText(w.day) + ". It shows on the board's timeline too."
+      : w && w.day ? "This task isn't on a day yet. The block is kept for the day you move it to."
+      : "Blocks this time on the day the task sits on. It shows on the board's timeline too.";
+    s.appendChild(where);
+    let h = 9, mi = 0;
+    if (cur) { h = cur.h; mi = cur.mi; }
+    else if (w && w.day === tk) { const d = new Date(Date.now() + 30 * 60000); h = d.getHours(); mi = d.getMinutes() < 30 ? 30 : 0; if (!mi) h = (h + 1) % 24; }   // the next half hour that hasn't started yet
+    const ti = document.createElement("input"); ti.type = "time"; ti.step = 300; ti.value = `${pad(h)}:${pad(mi)}`; ti.id = "tbStart";
+    const lt = document.createElement("label"); lt.className = "sub tbl"; lt.textContent = "Starts at"; lt.htmlFor = "tbStart";
+    const len = document.createElement("select"); len.className = "tbsel"; len.id = "tbLen";
+    const ll = document.createElement("label"); ll.className = "sub tbl"; ll.textContent = "Length"; ll.htmlFor = "tbLen";
+    const steps = []; for (let m = 15; m <= 480; m += 15) steps.push(m); if (!steps.includes(def)) steps.push(def); steps.sort((a, b) => a - b);
+    for (const m of steps) { const o = document.createElement("option"); o.value = m; o.textContent = fmtMins(m) + (!est && m === 30 ? " (no estimate)" : ""); len.appendChild(o); }
+    len.value = String(def);
+    const end = document.createElement("div"); end.className = "sub"; end.style.margin = "6px 0 0";
+    const showEnd = () => { const m = /^(\d{1,2}):(\d{2})$/.exec(ti.value); if (!m) { end.textContent = ""; return; } const e = (+m[1] * 60 + +m[2] + Number(len.value)) % 1440; end.textContent = "Ends at " + fmtTime(Math.floor(e / 60), e % 60); };
+    ti.oninput = len.onchange = showEnd; showEnd();
+    s.append(lt, ti, ll, len, end);
+    const save = async (remove) => {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(ti.value);
+      if (!remove && !m) { toast("Pick a start time."); return; }
+      closeSheet();
+      const old = n.name, mins = Number(len.value);
+      let name = withMarker(old, TIME_BLOCK_RE, remove ? "" : timeBlockToken(+m[1], +m[2]));
+      if (!remove && mins !== def) name = withMarker(name, EST_RE, estToken(mins));     // the length is the task's estimate; an unchanged one is left as it is
+      if (name === old) return;
+      try {
+        await call("POST", `/nodes/${n.id}`, { name }); n.name = name; err(""); draw();
+        pushUndo(remove ? "Time block removed" : `Time blocked at ${fmtTime(+m[1], +m[2])} for ${fmtMins(mins)}`, async () => { await call("POST", `/nodes/${n.id}`, { name: old }); n.name = old; });
+      } catch (e) { err(e.message); }
+    };
+    const row = document.createElement("div"); row.className = "row";
+    const c = document.createElement("button"); c.type = "button"; c.textContent = "Cancel"; c.onclick = closeSheet;
+    const g = document.createElement("button"); g.type = "button"; g.className = "go"; g.textContent = "Save"; g.onclick = () => save(false);
+    row.append(c, g); s.appendChild(row);
+    if (cur) sbtn(s, "Remove time block", () => save(true), "danger");
+  });
+}
+
 // Repeat…: how often a task comes back. The marker stays in the task's text ("!every week"); the server makes the next copy ahead of time.
 function openRepeat(n) {
   openSheet((s) => {
@@ -1704,6 +1983,7 @@ function openSettings() {
     row("Show Upcoming", "The next 14 days", check(showSoon, (v) => { showSoon = v; store.set("m.showSoon", v ? "1" : "0"); if (!v && view === "soon") view = "day"; draw(); if (v) loadWeek(true); }));
     row("Show completed", "", check(showDone, (v) => { showDone = v; store.set("m.showDone", v ? "1" : "0"); draw(); }));
     row("Sort by priority", "Urgent (!p1) first, low (!p4) last", check(prioSort, (v) => { prioSort = v; store.set("m.prioSort", v ? "1" : "0"); draw(); }));
+    row("Hide estimates", "Leave the ⏱ chip off tasks (a time block still shows its length)", check(hideEst, (v) => { hideEst = v; store.set("m.hideEst", v ? "1" : "0"); draw(); }));
     // Inbox: a WorkFlowy node (an Inbox or quick-capture bullet) whose open tasks you can see and sort into days
     const ir = document.createElement("div"); ir.className = "srow"; ir.style.flexWrap = "wrap";
     const it = document.createElement("span"); it.innerHTML = "Inbox<small></small>"; ir.appendChild(it);
@@ -1815,7 +2095,7 @@ function openSettings() {
 function openUnlock() {
   openSheet((s) => {
     if (!(window.crypto && crypto.subtle)) { head(s, "Encryption", "Unlocking needs a secure address (https, or localhost). Open the board through its https address."); sbtn(s, "Close", closeSheet, "cancel"); return; }
-    head(s, "Unlock encryption", "Read-only: encrypted text is shown, not edited. The passphrase stays in this page's memory only; locking or closing the page forgets it.");
+    head(s, "Unlock encryption", "Encrypted text is shown, and can be edited in Notes (Encrypt and Unlock in a note). The passphrase stays in this page's memory only; locking or closing the page forgets it.");
     const inp = document.createElement("input"); inp.type = "password"; inp.placeholder = "Passphrase"; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Passphrase");
     inp.style.cssText = "width:100%;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);margin-top:8px;";
     s.appendChild(inp);
@@ -1956,7 +2236,10 @@ $("list").addEventListener("touchend", (e) => {
 }, { passive: true });
 
 draw();
-fetch("/features").then((r) => r.json()).then((j) => { if (typeof j.notes === "boolean" && j.notes !== wf.notes) { wf.notes = j.notes; if (!wf.notes && view === "notes") view = "day"; draw(); } }).catch(() => {});
+fetch("/features").then((r) => r.json()).then((j) => {
+  if (typeof j.tb === "boolean") wf.tb = j.tb;                                  // read when a task's menu opens, so no redraw needed
+  if (typeof j.notes === "boolean" && j.notes !== wf.notes) { wf.notes = j.notes; if (!wf.notes && view === "notes") view = "day"; draw(); }
+}).catch(() => {});
 // when settings are shared, take the server's copy first (waiting at most a moment) so the first load already uses it
 (sync ? Promise.race([pullShared(), new Promise((r) => setTimeout(r, 2500))]).catch(() => {}) : Promise.resolve()).then(() => { draw(); loadWeek(); });
 </script>
