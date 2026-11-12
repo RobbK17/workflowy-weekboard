@@ -3,7 +3,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.4";
+const VERSION = "1.5.5";
 
 const http = require("http");
 const fs = require("fs");
@@ -902,7 +902,7 @@ function loadAddons() {
       if (m.mobileScript) staged.mobileScripts.push(fs.readFileSync(file("mobileScript"), "utf8"));
       if (m.mobileCss) staged.mobileCss = fs.readFileSync(file("mobileCss"), "utf8");
       if (m.server) {
-        const mod = require(file("server"))({ REMOTE, KEY, BASE, UPSTREAM_TIMEOUT_MS, stripHtml, ensureIndex, search, parseQuery, itemTree, patchIndex, readBody, sendJson, getIndex: () => idx, crypto });
+        const mod = require(file("server"))({ REMOTE, KEY, BASE, UPSTREAM_TIMEOUT_MS, stripHtml, ensureIndex, search, parseQuery, itemTree, patchIndex, readBody, sendJson, getIndex: () => idx, crypto, runFilter, zonedParts });
         for (const r of (mod && mod.routes) || []) {
           if (!r || !["GET", "POST"].includes(r.method) || typeof r.handler !== "function" || !/^\/[a-z0-9/_-]{1,60}$/.test(r.path || "")) throw new Error("it declared a route the board can't accept");
           if (CORE_PATHS.has(r.path) || r.path.startsWith("/api/") || addonRoutes.has(`${r.method} ${r.path}`)) throw new Error(`route ${r.path} is already in use`);

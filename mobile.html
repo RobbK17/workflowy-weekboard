@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.5.4">
+<meta name="version" content="1.5.5">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <meta name="theme-color" content="#2f6fed">
@@ -2153,6 +2153,7 @@ function openMainMenu() {
     sbtn(s, "⚙ Settings", openSettings);
     sbtn(s, pass === null ? "🔓 Unlock encryption…" : "🔒 Lock encryption", pass === null ? openUnlock : () => { closeSheet(); lockCrypto("Locked"); });
     if (undoStack.length) sbtn(s, `↶ Undo: ${undoStack[undoStack.length - 1].label}`, () => { closeSheet(); doUndo(); });
+    for (const add of window.wbMenu || []) { try { add(s); } catch (e) { console.error("Add-on menu item failed:", e); } }     // add-ons put their own items here (window.wbMenu)
     sbtn(s, "🖥 Open the desktop page", () => { store.set("m.desktop", "1"); location.href = "/?desktop=1"; });
     if (REMOTE) sbtn(s, "Sign out", async () => {                           // local mode has no sign-in, so nothing to sign out of
       try { await fetch("/logout", { method: "POST" }); } catch (e) { /* leave anyway */ }
