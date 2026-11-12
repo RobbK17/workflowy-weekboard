@@ -1,0 +1,76 @@
+<!-- Page parts of the AI Assistant add-on (beta). server.js fills each named part into index.html: css, button, panel, tab, pane. -->
+<!--@css-->
+  /* AI assistant */
+  #aiBtn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #aiPanel { position: fixed; right: 0; z-index: 40; width: min(400px, 100vw); box-sizing: border-box; display: flex; flex-direction: column; background: var(--col); border-left: 1px solid var(--border); box-shadow: -6px 0 24px rgba(0,0,0,.18); }
+  #aiPanel[hidden] { display: none; }
+  #aiPanel .aihead { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  #aiPanel .aihead h3 { margin: 0; font-size: 15px; flex: 1; }
+  #aiPanel .aihead small { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
+  #aiLog { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .aimsg { max-width: 92%; padding: 8px 11px; border-radius: 10px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .aimsg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
+  .aimsg.bot { align-self: flex-start; background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+  .aimsg.err { align-self: stretch; max-width: none; background: var(--late); border: 1px solid var(--border); font-size: 13px; }
+  .aistep { align-self: flex-start; font-size: 12px; color: var(--muted); padding-left: 4px; }
+  .aistep.done { color: #1f8a4c; } .aistep.bad { color: #c0392b; }
+  .aihint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .aihint button { display: block; margin-top: 6px; text-align: left; font-size: 13px; padding: 6px 10px; }
+  .aipend { align-self: stretch; background: var(--card); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  .aipend .t { font-weight: 600; margin-bottom: 6px; }
+  .aipend label { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; cursor: pointer; }
+  .aipend .btns { display: flex; gap: 8px; margin-top: 10px; }
+  .aipend .btns button { padding: 6px 14px; font-size: 13px; }
+  .aipend.used { opacity: .6; } .aipend.used .btns { display: none; }
+  #aiForm[hidden], #aiLog[hidden], #aiHistory[hidden], #aiAsk[hidden] { display: none; }
+  #aiHistory { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; }
+  #aiHistory .hrow { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+  #aiHistory .hrow .ht { flex: 1; min-width: 0; cursor: pointer; }
+  #aiHistory .hrow .ht strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #aiHistory .hrow .ht small { color: var(--muted); }
+  #aiHistory .hrow button { padding: 3px 8px; }
+  #aiAsk { flex: none; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border-top: 1px solid var(--accent); background: var(--card); font-size: 13px; }
+  #aiAsk span { flex: 1 0 100%; font-weight: 600; }
+  #aiAsk button { padding: 5px 12px; font-size: 13px; }
+  #aiPanel .aihead button { padding: 5px 9px; font-size: 13px; white-space: nowrap; flex: none; }
+  #aiPanel .aihead h3 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #aiPanel .aihead { gap: 6px; }
+  .aistep details summary { cursor: pointer; list-style: none; }
+  .aistep details summary::before { content: "▸ "; } .aistep details[open] summary::before { content: "▾ "; }
+  .aistep details pre { margin: 4px 0 0; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.4 ui-monospace, monospace; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+  #aiForm { flex: none; display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); align-items: flex-end; }
+  #aiInput { flex: 1; resize: none; max-height: 120px; min-height: 38px; box-sizing: border-box; padding: 8px 10px; font: inherit; font-size: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
+  #aiInput:focus { outline: none; border-color: var(--accent); }
+  #aiForm button { padding: 8px 14px; }
+  .aidots::after { content: "…"; animation: aidots 1.2s steps(4, end) infinite; display: inline-block; width: 1em; overflow: hidden; vertical-align: bottom; }
+  @keyframes aidots { from { width: 0; } to { width: 1em; } }
+<!--/@css-->
+<!--@button--><button id="aiBtn" type="button" hidden aria-pressed="false" title="Ask the assistant about your tasks">&#10024; Assistant</button><!--/@button-->
+<!--@panel-->
+<aside id="aiPanel" hidden aria-label="Assistant">
+  <div class="aihead"><h3>Assistant<small id="aiModelLbl"></small></h3>
+    <button id="aiSave" type="button" title="Save this chat in this browser">Save</button>
+    <button id="aiHistBtn" type="button" title="Saved chats">History</button>
+    <button id="aiClear" type="button" title="Start a new chat">New chat</button>
+    <button id="aiClose" type="button" title="Close (Esc)">&#10005;</button></div>
+  <div id="aiLog" aria-live="polite"></div>
+  <div id="aiHistory" hidden></div>
+  <div id="aiAsk" hidden><span>Save this chat first?</span><button type="button" class="primary" data-a="save">Save</button><button type="button" data-a="discard">Don't save</button><button type="button" data-a="cancel">Cancel</button></div>
+  <form id="aiForm"><textarea id="aiInput" rows="1" placeholder="Ask about your tasks…" title="Enter to send, Shift+Enter for a new line" maxlength="4000"></textarea><button class="primary" id="aiSend" type="submit">Send</button></form>
+</aside>
+<!--/@panel-->
+<!--@tab--><button type="button" role="tab" data-sec="ai" hidden>Assistant</button><!--/@tab-->
+<!--@pane-->
+      <div class="set-pane setpane" data-sec="ai" hidden>
+        <label><input type="checkbox" id="optAi"><span>Enable AI Assistant<small id="aiStatusTxt">Checking…</small></span></label>
+        <label class="sel"><span>Model<small>Used for chat in this browser. Leave empty for the server's default.</small></span>
+          <input type="text" id="optAiModel" list="aiModels" placeholder="server default" autocomplete="off" spellcheck="false" maxlength="80"><datalist id="aiModels"></datalist></label>
+        <label class="sel"><span>Default scope<small>What "my tasks" means when you don't name a date. The assistant is given these tasks up front.</small></span>
+          <select id="optAiScope"><option value="board">Days shown on the board</option><option value="plus">Board plus Past due and Upcoming</option><option value="all">All open tasks (it may search your outline)</option></select></label>
+        <div class="setrow" style="display:block"><span>Standing instructions<small>Your preferences, sent with every message (this browser only). For example: "Keep replies to a short list."</small></span>
+          <textarea id="optAiNotes" rows="4" maxlength="1000" placeholder="e.g. Open tasks means this week plus Past due. Don't use emoji." style="width:100%;box-sizing:border-box;margin-top:6px;padding:8px;font:inherit;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);resize:vertical"></textarea></div>
+        <label class="sel"><span>Changes<small>Ask before changing: you approve every add, tick, move or rename. Read-only: it can only look. Deleting is off unless you turn on Allow deleting below.</small></span>
+          <select id="optAiWrites"><option value="ask">Ask before changing</option><option value="read">Read-only</option></select></label>
+        <label><input type="checkbox" id="optAiDelete"><span>Allow deleting<small>Lets it propose deleting an item and everything under it. Each delete still needs your approval and can be undone from the toast. Off by default.</small></span></label>
+      </div>
+<!--/@pane-->

@@ -1,0 +1,14 @@
+{
+  "id": "assistant",
+  "name": "AI Assistant",
+  "version": "0.2.1",
+  "description": "Chat with a local (Ollama) or Anthropic model about your tasks, with approval before changes. Beta.",
+  "requires": {
+    "board": "1.1.0"
+  },
+  "localOnly": false,
+  "server": "backend.js",
+  "page": "page.html",
+  "script": "page.js",
+  "docs": "ASSISTANT.md"
+}

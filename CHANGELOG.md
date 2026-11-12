@@ -9,6 +9,8 @@
 - **Add-ons reach the phone page.** An add-on manifest can now list `shared` (one file run on both pages, placed first), `mobileScript` and `mobileCss`; `mobile.html` has the two placeholders (`<!--@addons:script-->`, `/*@addons:css*/`). An older `mobile.html` just has no add-ons.
 - **Note editor hooks.** The desktop Notes window and the phone note editor have the same hooks for add-ons: `wbNotes.mount(fn)` (the note's text box plus an empty strip above it and an empty area in its place), `wbNotes.onState(fn)` (open note, read-only, locked, unlocked, closed) and `wbNotes.snippet(fn)` (the list's preview text). They do nothing with no add-on, and a failing hook is logged and skipped.
 - **The pages show the server's version.** `server.js` writes its own `VERSION` into the version tag and the label in the desktop page's corner when it serves them, so a version bump is one line in `server.js`.
+- **AI Assistant add-on 0.2.1 (beta), added to the repo.** `addons/assistant/` was only shipped separately before. Changes since 0.2.0: encrypted text (wbenc1) is shown to the model as `‹secret›` in every tool result, the board summary and standing instructions, so it never reaches the model or Anthropic; `rename_item` must keep every `‹secret›` and puts the original encrypted text back (refused before the approval card otherwise); new tasks, groups and notes can't contain `‹secret›`; `delete_item` also refuses the board's Inbox, the Notes node, Plan day sources, a notes bullet of any name, and anything that holds one of them; `inbox` means the Inbox set on the board (WorkFlowy's own only when none is set); `add_note` makes `!alld` all-day notes on the day instead of lines under the old notes bullet; the default Anthropic model is `claude-sonnet-5-5`. The page sends the Inbox and Notes node with each question.
+- **Update notice stays on screen.** The "⬆ v… available" notice in the bottom-right corner no longer runs off the window. The corner was fixed at the sidebar's width (300px) and couldn't wrap; now it is at least that wide, grows for the notice, and in a narrow window the notice moves under the version.
 
 ### Upgrading
 
@@ -19,7 +21,9 @@ Replace `server.js`, `index.html` and `mobile.html`, add the `addons/markdown/` 
 | File | Change |
 |------|--------|
 | `server.js` | Add-on manifests accept `shared`, `mobileScript`, `mobileCss`; add-ons injected into the phone page; the pages get the running version; update hint names `mobile.html`; version 1.5.4 |
-| `index.html` | `wbNotes` hooks and the empty bar and preview areas in the Notes window; note list preview goes through `wbNotes.snippet`; version 1.5.4 |
+| `addons/assistant/` | New in the repo: AI Assistant 0.2.1 (`backend.js`, `page.js`, `page.html`, `manifest.json`, `ASSISTANT.md`) |
+| `addons/ADDONS.md` | Describes the Assistant |
+| `index.html` | `wbNotes` hooks and the empty bar and preview areas in the Notes window; note list preview goes through `wbNotes.snippet`; the update notice in the footer stays on screen; version 1.5.4 |
 | `mobile.html` | The same hooks and areas in the note editor; add-on CSS and script placeholders; version 1.5.4 |
 | `addons/markdown/` | New: `manifest.json`, `shared.js` (settings, renderer, snippet cleaner, format bar), `desktop.js`, `mobile.js`, `mobile.css`, `page.html` (styles and the Settings tab), `server.js` (the settings route), `README.md` |
 | `README.md`, `CHANGELOG.md` | Updated |

@@ -8,7 +8,7 @@ Optional extras live in folders under `addons/`, next to `server.js`. With no `a
 
 Copy an add-on's folder into `addons/` and restart the board. To remove it, delete the folder and restart. `http://localhost:3000/addons` shows each add-on, its version and whether it loaded (and if not, why). A broken add-on never stops the board or the other add-ons from starting.
 
-Included: **assistant** (AI Assistant, beta). See `addons/assistant/ASSISTANT.md`.
+Included: **assistant** (AI Assistant, beta, 0.2.1). A chat panel on the desktop board that answers questions about your tasks and, after you approve each change, adds, ticks, moves, renames and (if you allow it) deletes items, sets reminders and adds all-day notes. It works with Ollama (stays on your computer) or Anthropic, is off unless the server is started with `AI_PROVIDER`, and in `vps` / `fly` mode also needs `AI_ALLOW_REMOTE=1`. Encrypted text is never sent to the model (it sees `‹secret›`). It has a server part (`backend.js`) and needs board 1.1.0 or newer; 1.5.3 or newer for the Inbox and Notes protection. See `addons/assistant/ASSISTANT.md`.
 
 Also included: **markdown** (Markdown notes). A format bar and a read-only preview for the desktop Notes window and the phone's note editor. It needs board 1.5.4 or newer. See `addons/markdown/README.md`.
 

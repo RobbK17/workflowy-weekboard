@@ -16,6 +16,7 @@ Replace `server.js`, `index.html` and `mobile.html`, add the new `addons/markdow
 - **Works with encryption.** Text inside `⟦ ⟧` is never formatted, the format bar stays out of it, and the preview is cleared when a note locks or closes.
 - **For add-on authors:** manifests can add `shared`, `mobileScript` and `mobileCss`, so add-ons can now run on the phone page, and the note editors on both pages have `wbNotes` hooks.
 - **Version label.** The pages now show the version of the running `server.js`.
+- **AI Assistant add-on 0.2.1 (beta), now in the repo.** The optional chat panel (`addons/assistant/`) no longer sends encrypted text to the model (it sees `‹secret›`, and a rename keeps every encrypted part), never deletes your Inbox, Notes node or Plan day sources, puts "inbox" items in the board's Inbox, adds all-day notes, and defaults to `claude-sonnet-5-5`. See "AI Assistant (optional add-on)".
 
 ### What's new in 1.5.3
 
@@ -217,7 +218,7 @@ Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**
 | `server.js` | A tiny Node server. It holds your API key, forwards requests to WorkFlowy, and serves the page. Your key never reaches the browser. |
 | `index.html` | The board itself (a single page, no build step, no dependencies). |
 | `mobile.html`, `icon-180.png`, `icon-192.png`, `icon-512.png` | The phone page (served at `/m`) and the app icons. Optional: without them the board still works and `/m` says it isn't installed. |
-| `addons/` | Optional extras (see `addons/ADDONS.md`). Included: `crypt` (Encryption, see `addons/crypt/README.md`) and `markdown` (Markdown notes, see `addons/markdown/README.md`). Delete the folder and the board is the plain board. |
+| `addons/` | Optional extras (see `addons/ADDONS.md`). Included: `crypt` (Encryption, see `addons/crypt/README.md`), `markdown` (Markdown notes, see `addons/markdown/README.md`) and `assistant` (AI Assistant, beta, see `addons/assistant/ASSISTANT.md`). Delete the folder and the board is the plain board. |
 | `CHANGELOG.md` | What changed in each version, with upgrade notes. |
 | `.gitignore` | Keeps secrets and the settings files the server writes out of git. |
 | `Dockerfile`, `fly.toml`, `.dockerignore` | Only for Option 3 (Fly.io). |
@@ -787,6 +788,17 @@ WorkFlowy can read what you store in it, so the included **crypt** add-on lets y
 - **What it doesn't hide:** the rest of a name, tags, dates, structure and any unencrypted notes stay readable, and WorkFlowy can still see roughly how long each secret is. Search can't see inside encrypted text. A lost passphrase can't be recovered.
 
 Full details, the safety rules and the token format are in `addons/crypt/README.md`.
+
+## AI Assistant (optional add-on, beta)
+
+The included **assistant** add-on (`addons/assistant/`) adds a chat panel to the desktop board. Ask about your tasks in plain language ("What's on my plate today?", "Find tasks about the budget"), or have it add tasks and groups, tick, move or rename items, set reminders, add all-day notes, and change what the board shows ("show next week"). **Nothing in WorkFlowy changes until you approve it** on a card, and applied changes can be undone from the board's toast.
+
+- **Turning it on:** start the server with `AI_PROVIDER=ollama` (the model runs on your computer) or `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` (the chat and the outline text it reads go to Anthropic). Then tick **Settings > Assistant > Enable AI Assistant** in each browser. In `vps` or `fly` mode it also needs `AI_ALLOW_REMOTE=1`, and then anyone who can sign in to the board can use it, and your Anthropic key.
+- **Encrypted text stays private:** words you encrypted are shown to the model as `‹secret›` and never sent, with either provider. A rename has to keep every `‹secret›`, and the encrypted text is put back unchanged.
+- **Deleting** is off unless you turn on **Allow deleting**, and it never removes day pages, your Inbox, your Notes node, a Plan day source, or anything that holds one of them.
+- **Inbox:** "put it in my Inbox" uses the Inbox set on the board.
+
+Setup, settings, the full list of what it can do, and troubleshooting are in `addons/assistant/ASSISTANT.md`. It is a beta: so far it has been tested against stand-in servers, not extensively against the real Ollama and Anthropic services.
 
 ## How it maps to WorkFlowy
 
