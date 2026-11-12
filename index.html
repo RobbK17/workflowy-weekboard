@@ -418,13 +418,14 @@
 
   .ver a { color: var(--late-text); font-weight: 600; text-decoration: none; }
   .ver a:hover { text-decoration: underline; }
-  .footright { flex: none; margin-left: auto; display: flex; align-items: baseline; gap: 12px; }
-  body:not(.nosidebar) #foot.withcnt .footright { width: 300px; justify-content: space-between; }   /* same width as the sidebar above it */
+  .footright { flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 2px 12px; }
+  body:not(.nosidebar) #foot.withcnt .footright { min-width: min(300px, 100%); justify-content: space-between; }   /* at least as wide as the sidebar above it; wider (or wrapped) when there's more to show, such as an update notice */
   #foot .counters { display: flex; gap: 12px; font-size: 11px; white-space: nowrap; }
   #foot .counters[hidden] { display: none; }
   .cnt { background: none; border: none; padding: 0; font: inherit; color: var(--muted); cursor: pointer; }
   .cnt:hover { color: var(--accent); text-decoration: underline; }
-  .ver { flex: none; margin-left: auto; font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .ver { flex: 0 1 auto; min-width: 0; margin-left: auto; font-size: 11px; color: var(--muted); text-align: right; }
+  #verText, .ver a { white-space: nowrap; }      /* the version and the update notice each stay whole; the notice moves under the version if it must */
   #foot { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 0 16px 10px; }
   #foot .tools { display: flex; gap: 8px; flex-wrap: wrap; }
   #foot .tools button { padding: 4px 10px; font-size: 13px; }
