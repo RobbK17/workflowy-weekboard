@@ -289,7 +289,7 @@ const AI_UI = {
     return `Plan day is open for ${planDay}.`;
   },
 };
-async function aiRunUi(ui) {
+async function aiRunUi(ui, onlyResults) {
   const results = {};
   for (const c of ui.calls) {
     const fn = Object.prototype.hasOwnProperty.call(AI_UI, c.name) ? AI_UI[c.name] : null;
@@ -300,17 +300,30 @@ async function aiRunUi(ui) {
     } catch (e) { results[c.id] = "Error: " + e.message; aiAdd("aistep bad", "⚠ " + e.message); }
   }
   await new Promise((r) => setTimeout(r, 150));
+  if (onlyResults) return results;
   await aiHandle(await aiPost({ resume: ui.token, uiResults: results }));
 }
 
-async function aiHandle(out) {
-  for (const s of out.steps || []) aiAdd("aistep" + (s.done ? " done" : s.error || s.denied ? " bad" : ""), (s.done ? "✓ " : s.denied ? "✕ Declined: " : s.error ? "⚠ " : "· ") + s.summary + (s.error ? " (" + s.error + ")" : ""), s.detail);
-  if (out.undo && out.undo.length) {
-    const label = "AI: " + [...new Set(out.undo.map((u) => u.label))].join("; ").slice(0, 80);
-    const ops = out.undo.slice();
+const aiStepLine = (s) => aiAdd("aistep" + (s.done ? " done" : s.error || s.denied ? " bad" : ""), (s.done ? "✓ " : s.denied ? "✕ Declined: " : s.error ? "⚠ " : "· ") + s.summary + (s.error ? " (" + s.error + ")" : ""), s.detail);
+function aiApplied(undo, changed) {                        // approved changes: Undo in the board's toast, and the board re-read
+  if (undo && undo.length) {
+    const label = "AI: " + [...new Set(undo.map((u) => u.label))].join("; ").slice(0, 80);
+    const ops = undo.slice();
     pushUndo(label, async () => { for (const op of ops.reverse()) { if (op.restore) await restoreTree(op.restore.parent, op.restore.snap); else await call(op.method, op.path, op.body); } });
   }
-  if (out.changed) { for (const id in kids) delete kids[id]; for (const id in nest) delete nest[id]; loadWeek(true); loadPage(); }
+  if (changed) { for (const id in kids) delete kids[id]; for (const id in nest) delete nest[id]; loadWeek(true); loadPage(); }
+}
+// How much the answer used: model calls, input tokens (and how many came from the cache), output tokens.
+function aiUsageLine(u) {
+  if (!u || !u.calls) return;
+  const f = (n) => (n >= 10000 ? (n / 1000).toFixed(0) + "k" : n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n));
+  const inTot = (u.input || 0) + (u.cacheRead || 0) + (u.cacheWrite || 0);
+  const d = aiAdd("aistep usage", `${u.calls} model call${u.calls === 1 ? "" : "s"} · ${f(inTot)} tokens in${u.cacheRead ? ` (${f(u.cacheRead)} from cache)` : ""} · ${f(u.output || 0)} out`);
+  d.title = u.provider === "anthropic" ? "Cached input is billed at a tenth of the normal price. Writing to the cache costs a little more than normal input, once." : "Token counts reported by Ollama.";
+}
+async function aiHandle(out) {
+  for (const s of out.steps || []) aiStepLine(s);
+  aiApplied(out.undo, out.changed);
   if (out.ui) { await aiRunUi(out.ui); return; }
   if (out.pending) {
     if (out.pending.text) aiAdd("aimsg bot", out.pending.text);
@@ -319,6 +332,7 @@ async function aiHandle(out) {
   }
   aiHist.push({ role: "assistant", content: out.reply || "", refs: out.refs && out.refs.length ? out.refs : undefined });
   aiAdd("aimsg bot", out.reply || "(no reply)");
+  aiUsageLine(out.usage);
 }
 
 function aiPendingCard(p) {
@@ -348,13 +362,95 @@ function aiPendingCard(p) {
   aiLog.appendChild(box); aiLog.scrollTop = aiLog.scrollHeight;
 }
 
+/* A turn is streamed: the reply appears as it is written, steps as they happen, and Send becomes Stop.
+   Stop cancels the answer (the server stops asking the model). It is held back only while approved changes are being
+   applied, so their Undo can't be lost; it comes back as soon as they're done. */
+let aiAbort = null, aiStopOk = true, aiStopped = false;
+function aiBusyUi(on) {
+  aiBusy = on;
+  aiSend.textContent = on ? "Stop" : "Send";
+  aiSend.classList.toggle("stop", on);
+  aiSend.type = on ? "button" : "submit";
+  aiSend.disabled = on && !aiStopOk;
+  aiSend.title = on ? (aiStopOk ? "Stop this answer" : "Applying your approved changes…") : "";
+}
+aiSend.addEventListener("click", (e) => { if (!aiBusy) return; e.preventDefault(); if (aiStopOk && aiAbort) { aiStopped = true; aiAbort.abort(); } });
+async function aiStreamTurn(payload, wait) {
+  let live = null;                                     // the reply being written
+  const dropWait = () => { if (wait && wait.isConnected) wait.remove(); };
+  const liveText = () => (live ? live.textContent : "");
+  const endLive = (asStep) => {                        // a model call that went on to use tools: its text becomes a quiet note
+    if (!live) return;
+    const t = live.textContent.trim(), at = live; live = null;
+    if (!asStep || !t) { at.remove(); return; }
+    const d = aiAdd("aistep", "· " + t.replace(/\s+/g, " ").slice(0, 200)); at.replaceWith(d);      // in its place, before the steps it led to
+  };
+  try {
+    while (true) {
+      aiAbort = new AbortController();
+      const res = await fetch("/ai/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, stream: true }), signal: aiAbort.signal });
+      if (res.status === 401) { location.href = "/login"; throw new Error("Signed out."); }
+      if (!/ndjson/.test(res.headers.get("content-type") || "")) {           // an error, or a server without streaming: the old JSON answer
+        let j = null; try { j = await res.json(); } catch (e) {}
+        if (!res.ok) throw new Error((j && j.error) || `The assistant failed (${res.status})`);
+        dropWait(); await aiHandle(j); return;
+      }
+      const reader = res.body.getReader(), dec = new TextDecoder();
+      let buf = "", out = null;
+      const onEvent = (ev) => {
+        if (ev.t === "round") endLive(true);
+        else if (ev.t === "delta") {
+          dropWait();
+          if (!live) { live = document.createElement("div"); live.className = "aimsg bot live"; aiLog.appendChild(live); }
+          live.textContent += ev.text; aiLog.scrollTop = aiLog.scrollHeight;
+        } else if (ev.t === "discard") { if (live) { live.remove(); live = null; } }
+        else if (ev.t === "step") { dropWait(); endLive(true); aiStepLine(ev.step); }
+        else if (ev.t === "applied") { aiApplied(ev.undo, ev.changed); aiStopOk = true; aiBusyUi(true); }
+        else if (ev.t === "error") throw new Error(ev.error || "The assistant failed");
+        else if (ev.t === "done") out = ev.out;
+      };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i; while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (line.trim()) onEvent(JSON.parse(line)); }
+      }
+      if (buf.trim()) onEvent(JSON.parse(buf));
+      if (!out) throw new Error("The answer was cut off. Try again.");
+      dropWait();
+      if (out.ui) {                                        // board tools run here, then the same answer carries on
+        endLive(true);
+        const results = await aiRunUi(out.ui, true);
+        payload = { resume: out.ui.token, uiResults: results };
+        continue;
+      }
+      if (live) { live.remove(); live = null; }          // the final text is shown again, formatted, below
+      await aiHandle(out);
+      return;
+    }
+  } catch (e) {
+    dropWait();
+    if (aiStopped) {
+      const t = liveText().trim();
+      if (live) { live.classList.remove("live"); aiFill(live, t + " …"); live = null; aiItems.push({ cls: "aimsg bot", text: t + " …" }); }
+      aiHist.push({ role: "assistant", content: (t ? t + " …" : "") + " (stopped)" });
+      aiAdd("aistep bad", "■ Stopped");
+      return;
+    }
+    if (live) { live.remove(); live = null; }
+    throw e;
+  }
+}
 async function aiRunTurn(payload) {
-  aiBusy = true; aiSend.disabled = true;
+  aiStopped = false;
+  aiStopOk = !(payload.decisions && Object.values(payload.decisions).some(Boolean));   // approved changes: no Stop until they're applied
+  aiBusyUi(true);
   const wait = aiAdd("aistep aidots", "Thinking");
-  try { await aiHandle(await aiPost(payload)); }
+  try { await aiStreamTurn(payload, wait); }
   catch (e) { aiAdd("aimsg err", e.message); }
-  wait.remove();
-  aiBusy = false; aiSend.disabled = false;
+  if (wait.isConnected) wait.remove();
+  aiAbort = null; aiStopOk = true;
+  aiBusyUi(false);
   aiLog.scrollTop = aiLog.scrollHeight;
   if (!aiPanel.hidden) aiInput.focus();
 }
@@ -371,7 +467,8 @@ aiForm.onsubmit = async (e) => {
   const t = todayDate();
   await aiRunTurn({ messages: aiHist.slice(-20), model: aiModel(), writes: aiWrites(), context: { notesName, allowDelete: aiDelete(), today: key(t), day: pageKey(), board: aiBoardSummary(), scope: aiScope(), prefs: aiNotes(), sources: planSources.slice(0, 6).map((x) => ({ name: aiHide(x.name), id: x.id })),
     inbox: typeof inboxNode !== "undefined" && inboxNode ? { id: inboxNode.id, name: aiHide(inboxNode.name) } : null,                         // the board's Inbox, so 'inbox' goes there
-    notesNode: typeof notesWhere === "function" && notesWhere() ? { id: notesWhere().id, name: aiHide(notesWhere().name) } : null } });   // protected from deleting
+    notesNode: typeof notesWhere === "function" && notesWhere() ? { id: notesWhere().id, name: aiHide(notesWhere().name) } : null,     // the notes tools work there, and it's protected from deleting
+    planHours: typeof planHours !== "undefined" ? planHours : 0, weekStart: typeof weekStartDay !== "undefined" && weekStartDay === "sun" ? "sun" : "mon", client: "desktop" } });
 };
 aiInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); aiForm.requestSubmit(); } });
 aiInput.addEventListener("input", () => { aiInput.style.height = "auto"; aiInput.style.height = Math.min(120, aiInput.scrollHeight) + "px"; });

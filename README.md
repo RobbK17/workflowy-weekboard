@@ -4,7 +4,15 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.4**
+**Version 1.5.5**
+
+### What's new in 1.5.5
+
+Replace `server.js`, `index.html`, `mobile.html` and the `addons/crypt/` folder, add `addons/assistant/` if you want the Assistant, then restart the server.
+
+- **AI Assistant add-on 0.4.0 (beta), now in the repo.** It schedules ("block 2 hours tomorrow at 10", "am I overbooked?"), sets priorities and estimates, finds tasks with the Saved filter words, reads and adds to your Notes, and can be offered on the phone page too (⋯ > ✨ Assistant…, only with `AI_PHONE=1`; desktop-only by default). Answers stream in as they're written, with a **Stop** button, and Anthropic calls use prompt caching, so later steps of an answer re-read the unchanged start at a tenth of the price (a grey line under each answer shows the tokens used). Also: The optional chat panel (`addons/assistant/`) no longer sends encrypted text to the model (it sees `‹secret›`, and a rename keeps every encrypted part), never deletes your Inbox, Notes node or Plan day sources, puts "inbox" items in the board's Inbox, adds all-day notes, and defaults to `claude-sonnet-5-5`. See "AI Assistant (optional add-on)".
+- **The update notice stays on screen.** "⬆ v… available" in the bottom-right corner no longer runs off a narrow window.
+- **Encryption add-on docs.** The crypt README now matches 0.3.1, and the 🔒 Encrypt tooltip names Alt+Shift+E (or Ctrl+Shift+E).
 
 ### What's new in 1.5.4
 
@@ -16,7 +24,6 @@ Replace `server.js`, `index.html` and `mobile.html`, add the new `addons/markdow
 - **Works with encryption.** Text inside `⟦ ⟧` is never formatted, the format bar stays out of it, and the preview is cleared when a note locks or closes.
 - **For add-on authors:** manifests can add `shared`, `mobileScript` and `mobileCss`, so add-ons can now run on the phone page, and the note editors on both pages have `wbNotes` hooks.
 - **Version label.** The pages now show the version of the running `server.js`.
-- **AI Assistant add-on 0.2.1 (beta), now in the repo.** The optional chat panel (`addons/assistant/`) no longer sends encrypted text to the model (it sees `‹secret›`, and a rename keeps every encrypted part), never deletes your Inbox, Notes node or Plan day sources, puts "inbox" items in the board's Inbox, adds all-day notes, and defaults to `claude-sonnet-5-5`. See "AI Assistant (optional add-on)".
 
 ### What's new in 1.5.3
 
@@ -791,7 +798,7 @@ Full details, the safety rules and the token format are in `addons/crypt/README.
 
 ## AI Assistant (optional add-on, beta)
 
-The included **assistant** add-on (`addons/assistant/`) adds a chat panel to the desktop board. Ask about your tasks in plain language ("What's on my plate today?", "Find tasks about the budget"), or have it add tasks and groups, tick, move or rename items, set reminders, add all-day notes, and change what the board shows ("show next week"). **Nothing in WorkFlowy changes until you approve it** on a card, and applied changes can be undone from the board's toast.
+The included **assistant** add-on (`addons/assistant/`) adds a chat panel to the desktop board. Ask about your tasks in plain language ("What's on my plate today?", "Am I overbooked this week?", "What are my urgent tasks?"), or have it add tasks and groups, tick, move or rename items, set reminders, **time blocks, estimates and priorities** ("block 2 hours tomorrow at 10 for the budget"), add all-day notes, **read and add to your Notes**, and change what the board shows ("show next week"). It is desktop-only unless the server is started with `AI_PHONE=1`; then the phone has it in **⋯ > ✨ Assistant…**. **Nothing in WorkFlowy changes until you approve it** on a card, and applied changes can be undone from the board's toast. Answers appear as they're written, and a **Stop** button cancels one mid-way. With Anthropic, prompt caching keeps the cost of follow-up steps down.
 
 - **Turning it on:** start the server with `AI_PROVIDER=ollama` (the model runs on your computer) or `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` (the chat and the outline text it reads go to Anthropic). Then tick **Settings > Assistant > Enable AI Assistant** in each browser. In `vps` or `fly` mode it also needs `AI_ALLOW_REMOTE=1`, and then anyone who can sign in to the board can use it, and your Anthropic key.
 - **Encrypted text stays private:** words you encrypted are shown to the model as `‹secret›` and never sent, with either provider. A rename has to keep every `‹secret›`, and the encrypted text is put back unchanged.

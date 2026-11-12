@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.5.5 (2026-11-11)
+
+- **AI Assistant 0.4.0: scheduling, priorities, Notes and the phone.** New tools: `set_time_block`, `set_estimate`, `set_priority` (writing the board's `^10am`, `~1h30m` and `!p1`–`!p4` markers), `day_schedule` (blocks, overlaps, free gaps), `workload` (per day against Plan day hours, sent by the page), `find_tasks` (the Saved filters engine), and `list_notes`, `read_note`, `create_note`, `append_to_note` (only under the notes node; appending never replaces). `add_task` takes `start`, `length` and `priority`. Read results explain each task's markers (`[P2 high · block 3:00 PM–4:30 PM · est 1h 30m]`); renames keep markers; model-written names keep `&` / `<` as typed and are escaped; approval cards show task words without markers. On the phone, `mobile.js` / `mobile.css` add **⋯ > ✨ Assistant…**, a full-screen chat with streaming, Stop, approval cards and Undo, **only when the server sets `AI_PHONE=1`** (otherwise the Assistant is desktop-only: no menu item, `/ai/status` reports `phone: false`, and phone requests get 403); the server leaves the board tools out for the phone (`context.client`), and deleting stays off there.
+- **Assistant needs board 1.5.5, and Ollama gets more room.** The manifest now says `"board": "1.5.5"` (it uses `runFilter` and `window.wbMenu`), so an older board skips it with a reason. `OLLAMA_NUM_CTX` defaults to 16,384 instead of 8,192: with about 30 tools, the instructions and the board summary, 8,192 could quietly cut text.
+- **Assistant: fewer WorkFlowy requests, and its tests in the repo.** Each day and group is read once per answer (a cache per request, cleared after an applied change); past `AI_WF_BUDGET` live reads (default 60) groups are taken from the outline copy; a 429 from WorkFlowy stops the reading and the tool reports the days it couldn't read instead of failing. `addons/assistant/test/` has fake WorkFlowy, Anthropic and Ollama servers and five suites (safety, streaming, features, requests, ollama; 90 checks); `node addons/assistant/test/run.js` starts fresh fakes and boards on free ports for each suite, keeps every state file in a temporary folder, and exits 1 on any failure.
+- **Add-on hooks.** `server.js` gives add-ons `runFilter` (and `zonedParts`) in `core`. `mobile.html` calls each function in `window.wbMenu` when the ⋯ menu opens, so add-ons can add menu items.
+- **AI Assistant 0.3.0: streaming, Stop and prompt caching.** Answers stream in (`POST /ai/chat` with `stream: true` answers in NDJSON: `round`, `delta`, `discard`, `step`, `applied`, `done` / `error`; without it, the old single JSON reply). **Send** turns into **Stop** while it works: it aborts the request, the server cancels the model call and asks nothing more, and the partial reply is kept as "stopped"; approved changes being applied still finish and send their Undo first (`applied`). Anthropic requests carry three `cache_control` points (tools + fixed instructions, today's context, the conversation so far): the system prompt is now a fixed part and a context part. Usage (calls, input, cache read / write, output) is counted for both providers and shown under each answer.
+- **AI Assistant add-on 0.2.1 (beta), added to the repo.** `addons/assistant/` was only shipped separately before. Changes since 0.2.0: encrypted text (wbenc1) is shown to the model as `‹secret›` in every tool result, the board summary and standing instructions, so it never reaches the model or Anthropic; `rename_item` must keep every `‹secret›` and puts the original encrypted text back (refused before the approval card otherwise); new tasks, groups and notes can't contain `‹secret›`; `delete_item` also refuses the board's Inbox, the Notes node, Plan day sources, a notes bullet of any name, and anything that holds one of them; `inbox` means the Inbox set on the board (WorkFlowy's own only when none is set); `add_note` makes `!alld` all-day notes on the day instead of lines under the old notes bullet; the default Anthropic model is `claude-sonnet-5-5`. The page sends the Inbox and Notes node with each question.
+- **Update notice stays on screen.** The "⬆ v… available" notice in the bottom-right corner no longer runs off the window. The corner was fixed at the sidebar's width (300px) and couldn't wrap; now it is at least that wide, grows for the notice, and in a narrow window the notice moves under the version.
+- **Encryption add-on (crypt 0.3.1) docs and wording.** Its README now matches 0.3.1 (Alt+Shift+E, and a section on encrypted lines in Panes Edit mode), and the 🔒 Encrypt button's tooltip names Alt+Shift+E (or Ctrl+Shift+E). `page.js` was rebuilt; nothing else changes.
+- **Version 1.5.5,** so boards on 1.5.4 are told about these changes.
+
+### Upgrading
+
+Replace `server.js`, `index.html` and `mobile.html`, and the `addons/crypt/` folder. To use the Assistant, add the `addons/assistant/` folder and start the server with `AI_PROVIDER` (see `addons/assistant/ASSISTANT.md`). Then **restart the server**.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | Add-on `core` gets `runFilter` and `zonedParts`; version 1.5.5 |
+| `index.html` | The update notice in the footer stays on screen; version 1.5.5 |
+| `mobile.html` | ⋯ menu calls `window.wbMenu` items from add-ons; version 1.5.5 |
+| `addons/assistant/` | New in the repo: AI Assistant 0.4.0 (`backend.js`, `page.js`, `page.html`, `mobile.js`, `mobile.css`, `manifest.json`, `ASSISTANT.md`, `test/`): streaming, Stop, prompt caching, scheduling, priorities, Notes, the phone (with `AI_PHONE=1`) and tests |
+| `addons/ADDONS.md` | Describes the Assistant |
+| `addons/crypt/` | `README.md` for 0.3.1; tooltip wording in `page.src.js`; `page.js` rebuilt |
+| `README.md`, `CHANGELOG.md` | Updated |
+
 ## 1.5.4 (2026-11-11)
 
 - **Markdown notes (optional add-on).** The new `addons/markdown` add-on makes the Notes window and the phone's note editor Markdown-aware: a **format bar** (bold, italic, code, link, heading, bulleted / numbered / task lists, quote, code block, rule) and an **Edit / Preview** switch. The preview is read-only and built without HTML (no images; links only for `http`, `https` and `mailto`, opened in a new tab). Supported: headings, bold, italic, inline code, code blocks, links, quotes, bullet / numbered / task lists (checkboxes are read-only) and rules. Notes open in Edit; a new note always does. Desktop shortcuts: Ctrl/Cmd+B, I and K. Nothing is added to the stored text. Without the add-on the board is as before.
@@ -9,8 +37,6 @@
 - **Add-ons reach the phone page.** An add-on manifest can now list `shared` (one file run on both pages, placed first), `mobileScript` and `mobileCss`; `mobile.html` has the two placeholders (`<!--@addons:script-->`, `/*@addons:css*/`). An older `mobile.html` just has no add-ons.
 - **Note editor hooks.** The desktop Notes window and the phone note editor have the same hooks for add-ons: `wbNotes.mount(fn)` (the note's text box plus an empty strip above it and an empty area in its place), `wbNotes.onState(fn)` (open note, read-only, locked, unlocked, closed) and `wbNotes.snippet(fn)` (the list's preview text). They do nothing with no add-on, and a failing hook is logged and skipped.
 - **The pages show the server's version.** `server.js` writes its own `VERSION` into the version tag and the label in the desktop page's corner when it serves them, so a version bump is one line in `server.js`.
-- **AI Assistant add-on 0.2.1 (beta), added to the repo.** `addons/assistant/` was only shipped separately before. Changes since 0.2.0: encrypted text (wbenc1) is shown to the model as `‹secret›` in every tool result, the board summary and standing instructions, so it never reaches the model or Anthropic; `rename_item` must keep every `‹secret›` and puts the original encrypted text back (refused before the approval card otherwise); new tasks, groups and notes can't contain `‹secret›`; `delete_item` also refuses the board's Inbox, the Notes node, Plan day sources, a notes bullet of any name, and anything that holds one of them; `inbox` means the Inbox set on the board (WorkFlowy's own only when none is set); `add_note` makes `!alld` all-day notes on the day instead of lines under the old notes bullet; the default Anthropic model is `claude-sonnet-5-5`. The page sends the Inbox and Notes node with each question.
-- **Update notice stays on screen.** The "⬆ v… available" notice in the bottom-right corner no longer runs off the window. The corner was fixed at the sidebar's width (300px) and couldn't wrap; now it is at least that wide, grows for the notice, and in a narrow window the notice moves under the version.
 
 ### Upgrading
 
@@ -21,9 +47,7 @@ Replace `server.js`, `index.html` and `mobile.html`, add the `addons/markdown/` 
 | File | Change |
 |------|--------|
 | `server.js` | Add-on manifests accept `shared`, `mobileScript`, `mobileCss`; add-ons injected into the phone page; the pages get the running version; update hint names `mobile.html`; version 1.5.4 |
-| `addons/assistant/` | New in the repo: AI Assistant 0.2.1 (`backend.js`, `page.js`, `page.html`, `manifest.json`, `ASSISTANT.md`) |
-| `addons/ADDONS.md` | Describes the Assistant |
-| `index.html` | `wbNotes` hooks and the empty bar and preview areas in the Notes window; note list preview goes through `wbNotes.snippet`; the update notice in the footer stays on screen; version 1.5.4 |
+| `index.html` | `wbNotes` hooks and the empty bar and preview areas in the Notes window; note list preview goes through `wbNotes.snippet`; version 1.5.4 |
 | `mobile.html` | The same hooks and areas in the note editor; add-on CSS and script placeholders; version 1.5.4 |
 | `addons/markdown/` | New: `manifest.json`, `shared.js` (settings, renderer, snippet cleaner, format bar), `desktop.js`, `mobile.js`, `mobile.css`, `page.html` (styles and the Settings tab), `server.js` (the settings route), `README.md` |
 | `README.md`, `CHANGELOG.md` | Updated |

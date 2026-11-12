@@ -8,7 +8,7 @@ Optional extras live in folders under `addons/`, next to `server.js`. With no `a
 
 Copy an add-on's folder into `addons/` and restart the board. To remove it, delete the folder and restart. `http://localhost:3000/addons` shows each add-on, its version and whether it loaded (and if not, why). A broken add-on never stops the board or the other add-ons from starting.
 
-Included: **assistant** (AI Assistant, beta, 0.2.1). A chat panel on the desktop board that answers questions about your tasks and, after you approve each change, adds, ticks, moves, renames and (if you allow it) deletes items, sets reminders and adds all-day notes. It works with Ollama (stays on your computer) or Anthropic, is off unless the server is started with `AI_PROVIDER`, and in `vps` / `fly` mode also needs `AI_ALLOW_REMOTE=1`. Encrypted text is never sent to the model (it sees `‹secret›`). It has a server part (`backend.js`) and needs board 1.1.0 or newer; 1.5.3 or newer for the Inbox and Notes protection. See `addons/assistant/ASSISTANT.md`.
+Included: **assistant** (AI Assistant, beta, 0.4.0). A chat panel on the desktop board (and on the phone page if the server sets `AI_PHONE=1`) that answers questions about your tasks, schedule and notes and, after you approve each change, adds, ticks, moves, renames and (if you allow it) deletes items, sets reminders, time blocks, estimates and priorities, and adds to your notes. It works with Ollama (stays on your computer) or Anthropic, is off unless the server is started with `AI_PROVIDER`, and in `vps` / `fly` mode also needs `AI_ALLOW_REMOTE=1`. Encrypted text is never sent to the model (it sees `‹secret›`). Answers stream in, with a Stop button, and Anthropic calls use prompt caching. It has a server part (`backend.js`) and needs board 1.5.5 or newer. See `addons/assistant/ASSISTANT.md`.
 
 Also included: **markdown** (Markdown notes). A format bar and a read-only preview for the desktop Notes window and the phone's note editor. It needs board 1.5.4 or newer. See `addons/markdown/README.md`.
 
@@ -67,7 +67,7 @@ module.exports = (core) => ({
 });
 ```
 
-`core` gives you `KEY`, `BASE`, `REMOTE`, `sendJson`, `readBody`, `search`, `parseQuery`, `itemTree`, `ensureIndex`, `patchIndex`, `stripHtml`, `getIndex()` (the board's in-memory copy of the outline) and `crypto`. Routes may be `GET` or `POST`, must look like `/lowercase/path`, and can't reuse a path the board or another add-on already has. Add-on routes sit behind the same login and cross-site checks as the rest of the board.
+`core` gives you `KEY`, `BASE`, `REMOTE`, `sendJson`, `readBody`, `search`, `parseQuery`, `itemTree`, `ensureIndex`, `patchIndex`, `stripHtml`, `runFilter(q, today, weekStart)` (the Saved filters engine, board 1.5.5), `getIndex()` (the board's in-memory copy of the outline) and `crypto`. Routes may be `GET` or `POST`, must look like `/lowercase/path`, and can't reuse a path the board or another add-on already has. Add-on routes sit behind the same login and cross-site checks as the rest of the board.
 
 ### Page parts (`page.html`)
 
@@ -138,7 +138,8 @@ Notes:
 
 - The pages have a Content-Security-Policy, so add-on code is inlined by the server (no external files or CDN scripts). `shared` is therefore sent twice, once in each page.
 - The phone page has no settings tab for add-ons and no `page.html` parts. Keep an add-on's settings on the server (a route in `backend.js`) so both pages read the same ones; the Markdown add-on does this with `/markdown/settings`.
-- Both scripts run after the page's own script and can use its top-level functions and variables (the phone's include `toast()`, `draw()` and `view`). An old `mobile.html` without the add-on placeholders is served unchanged, so the phone just has no add-ons.
+- Both scripts run after the page's own script and can use its top-level functions and variables (the phone's include `toast()`, `draw()` and `view`).
+- **Phone menu items (board 1.5.5):** push a function onto `window.wbMenu` and it is called with the ⋯ menu's sheet each time the menu opens, so it can add a button with `sbtn(sheet, label, fn)` (call `closeSheet()` before opening your own screen). A failing item is logged and skipped. The Assistant uses this for **✨ Assistant…**. An old `mobile.html` without the add-on placeholders is served unchanged, so the phone just has no add-ons.
 - Page code should treat the add-on as off until it knows otherwise (for example until its settings have loaded) and must never break the page if its route is missing.
 - The pages show the version of the running `server.js`, so the first page load after an upgrade needs no edit to the HTML.
 
