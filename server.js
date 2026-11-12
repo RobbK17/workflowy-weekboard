@@ -3,7 +3,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.3";
+const VERSION = "1.5.4";
 
 const http = require("http");
 const fs = require("fs");
@@ -851,7 +851,8 @@ const addons = [];                    // { id, name, version, description, statu
 const addonRoutes = new Map();        // "METHOD /path" -> handler
 const addonPaths = new Set();         // paths the login guard should treat as data
 const addonParts = { css: [], button: [], panel: [], tab: [], pane: [] };
-const addonScripts = [];
+const addonScripts = [];              // desktop page scripts, in order (an add-on's shared code comes just before its own script)
+const addonMobile = { css: [], scripts: [] };   // the same for the phone page (mobile.html)
 const versionAtLeast = (have, need) => {
   const a = String(have).split(".").map(Number), b = String(need).split(".").map(Number);
   for (let i = 0; i < 3; i++) { const x = a[i] || 0, y = b[i] || 0; if (x !== y) return x > y; }
@@ -866,7 +867,7 @@ function loadAddons() {
     if (!fs.existsSync(path.join(base, "manifest.json"))) continue;
     const entry = { id: dir, name: dir, version: "?", description: "", status: "error", error: "" };
     addons.push(entry);
-    const staged = { parts: {}, script: null, routes: [] };
+    const staged = { parts: {}, scripts: [], mobileScripts: [], mobileCss: null, routes: [] };
     try {
       let m;
       try { m = JSON.parse(fs.readFileSync(path.join(base, "manifest.json"), "utf8")); } catch (e) { throw new Error("manifest.json is not valid JSON"); }
@@ -876,7 +877,7 @@ function loadAddons() {
       if (m.id !== dir || !/^[a-z0-9-]{1,32}$/.test(dir)) throw new Error("the manifest id must match the folder name (lowercase letters, digits, dashes)");
       if (!/^\d+\.\d+\.\d+$/.test(entry.version)) throw new Error("the manifest needs a version like 1.0.0");
       const need = m.requires && m.requires.board;
-      if (need && !versionAtLeast(VERSION, need)) throw new Error(`needs board ${need} or newer (this is ${VERSION}); update server.js and index.html`);
+      if (need && !versionAtLeast(VERSION, need)) throw new Error(`needs board ${need} or newer (this is ${VERSION}); update server.js, index.html and mobile.html`);
       if (m.localOnly && REMOTE) { entry.status = "skipped"; entry.error = "only works in local mode"; continue; }
       const file = (key) => {
         const f = m[key];
@@ -893,7 +894,13 @@ function loadAddons() {
           if (mm) staged.parts[name] = mm[1];
         }
       }
-      if (m.script) staged.script = fs.readFileSync(file("script"), "utf8");
+      // "shared" is one file both pages run first (the desktop and the phone get their own copy of it, inline, so the
+      // page's CSP still holds); then "script" is the desktop glue and "mobileScript" / "mobileCss" the phone's.
+      const shared = m.shared ? fs.readFileSync(file("shared"), "utf8") : null;
+      if (shared) { staged.scripts.push(shared); staged.mobileScripts.push(shared); }
+      if (m.script) staged.scripts.push(fs.readFileSync(file("script"), "utf8"));
+      if (m.mobileScript) staged.mobileScripts.push(fs.readFileSync(file("mobileScript"), "utf8"));
+      if (m.mobileCss) staged.mobileCss = fs.readFileSync(file("mobileCss"), "utf8");
       if (m.server) {
         const mod = require(file("server"))({ REMOTE, KEY, BASE, UPSTREAM_TIMEOUT_MS, stripHtml, ensureIndex, search, parseQuery, itemTree, patchIndex, readBody, sendJson, getIndex: () => idx, crypto });
         for (const r of (mod && mod.routes) || []) {
@@ -903,7 +910,9 @@ function loadAddons() {
         }
       }
       for (const [name, text] of Object.entries(staged.parts)) addonParts[name].push(text);
-      if (staged.script) addonScripts.push(staged.script);
+      addonScripts.push(...staged.scripts);
+      addonMobile.scripts.push(...staged.mobileScripts);
+      if (staged.mobileCss) addonMobile.css.push(staged.mobileCss);
       for (const r of staged.routes) { addonRoutes.set(`${r.method} ${r.path}`, r.handler); addonPaths.add(r.path); }
       entry.status = "loaded";
     } catch (e) {
@@ -922,6 +931,12 @@ function withAddons(page) {
     page = page.split(tag).join(addonParts[name].join("\n"));
   }
   return page.split("<!--@addons:script-->").join(addonScripts.map((t) => `<script>\n${t}\n</script>`).join("\n"));
+}
+// The phone page has two placeholders: the CSS comment /*@addons:css*/ and <!--@addons:script-->. An older mobile.html
+// without them is served unchanged, so the phone just has no add-ons.
+function withMobileAddons(page) {
+  page = page.split("/*@addons:css*/").join(addonMobile.css.join("\n"));
+  return page.split("<!--@addons:script-->").join(addonMobile.scripts.map((t) => `<script>\n${t}\n</script>`).join("\n"));
 }
 
 /* ---------- Priorities, time estimates and saved filters ----------
@@ -1542,10 +1557,13 @@ function cachedPage(file, addons) {
   const full = path.join(__dirname, file), mtime = fs.statSync(full).mtimeMs, c = pageCache.get(file);
   if (c && c.mtime === mtime) return c.text;
   let text = fs.readFileSync(full, "utf8");
-  if (addons) text = withAddons(text);
+  if (addons === "mobile") text = withMobileAddons(text);
+  else if (addons) text = withAddons(text);
   text = text
     .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)   // the configured notes-bullet name
     .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
+    .replace(/(<meta name="version" content=")[^"]*(")/, (_, a, b) => a + VERSION + b)             // the pages always show the running server's version
+    .replace(/(<span id="verText">Workflowy Week Board v)[^<]*(<\/span>)/, (_, a, b) => a + VERSION + b)
     .replace(/<script>/g, `<script nonce="${NONCE_SLOT}">`);
   pageCache.set(file, { mtime, text });
   return text;
@@ -1628,7 +1646,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/m" || url.pathname === "/m/" || url.pathname === "/mobile.html") {
     let page;
-    try { page = cachedPage("mobile.html", false); } catch (e) { res.writeHead(404); return res.end("The phone page (mobile.html) is not installed."); }
+    try { page = cachedPage("mobile.html", "mobile"); } catch (e) { res.writeHead(404); return res.end("The phone page (mobile.html) is not installed."); }
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     return res.end(page.split(NONCE_SLOT).join(res.nonce));
   }

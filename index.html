@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.3">
+<meta name="version" content="1.5.4">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -725,6 +725,11 @@
   #ntText { flex: 1; min-height: 0; resize: none; border: none; padding: 14px 16px; font: inherit; font-size: 15px; line-height: 1.55; background: var(--card); color: var(--text); }
   #ntText:focus { outline: none; }
   #ntText:read-only { background: var(--col); color: var(--muted); }
+  /* Empty places an add-on can fill (the Markdown add-on's format bar and preview). Both stay hidden unless an add-on shows them. */
+  .nt-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .nt-bar[hidden] { display: none; }
+  .nt-view { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; background: var(--card); color: var(--text); font-size: 15px; line-height: 1.55; }
+  .nt-view[hidden] { display: none; }
   #ntText[hidden] { display: none; }
   .nt-locked, .nt-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; color: var(--muted); background: var(--col); text-align: center; }
   .nt-locked[hidden], .nt-empty[hidden] { display: none; }
@@ -1021,7 +1026,7 @@
   </div>
   <div class="footright">
     <div class="counters" id="counters" hidden></div>
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.3</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.4</span></div>
   </div>
 </footer>
 
@@ -1292,7 +1297,9 @@
           <div class="nt-pop" id="ntPop" hidden></div>
         </div>
         <p class="nt-hint" id="ntHint" hidden></p>
+        <div class="nt-bar" id="ntBar" hidden></div>
         <textarea id="ntText" placeholder="Start writing…" aria-label="Note text" hidden></textarea>
+        <div class="nt-view" id="ntView" hidden></div>
         <div class="nt-locked" id="ntLocked" hidden><p>This note is encrypted.</p><button id="ntUnlockBig" type="button">Unlock</button></div>
         <div class="nt-empty" id="ntEmpty">Pick a note, or start a new one.</div>
       </div>
@@ -1613,6 +1620,27 @@ const boardHooks = (() => {
     on(name, fn) { if (list[name] && typeof fn === "function") list[name].push(fn); },
     fire(name, ctx) { for (const fn of list[name] || []) { try { fn(ctx); } catch (e) { console.error("Add-on hook failed:", e); } } },
     async pipe(name, value, ctx) { for (const fn of list[name] || []) value = await fn(value, ctx); return value; },
+  };
+})();
+/* The Notes window has its own places for add-ons (the Markdown add-on uses them; the phone page has the same ones):
+     wbNotes.mount((ctx) => { ... })     runs once the window exists. ctx: { text (the note's <textarea>), bar (a hidden strip above it),
+                                         view (a hidden area in its place), box (the editor column),
+                                         refreshList() (redraws the list, e.g. after a snippet setting changes) }
+     wbNotes.onState((s) => { ... })     runs whenever the open note or its state changes (not on every keystroke).
+                                         s: { shown (window open), id, rev (changes each time a note is loaded or unlocked), readOnly,
+                                         locked (has encrypted text that is still locked), whole (all of it is encrypted), unlocked (readable ⟦ ⟧ text is open) }
+     wbNotes.snippet((text, note) => text)   rewrites the preview line shown for a note in the list (shown text only, never saved)
+   With nothing registered these do nothing. A failing hook is logged and skipped. */
+const wbNotes = (() => {
+  const mounts = [], states = [], snips = []; let ctx = null, last = "";
+  const safe = (fn, ...a) => { try { return fn(...a); } catch (e) { console.error("Add-on notes hook failed:", e); } };
+  return {
+    mount(fn) { if (typeof fn !== "function") return; if (ctx) safe(fn, ctx); else mounts.push(fn); },
+    onState(fn) { if (typeof fn === "function") states.push(fn); },
+    snippet(fn) { if (typeof fn === "function") snips.push(fn); },
+    start(c) { ctx = c; for (const fn of mounts.splice(0)) safe(fn, ctx); },
+    state(s) { if (!states.length) return; const sig = JSON.stringify(s); if (sig === last) return; last = sig; for (const fn of states) safe(fn, s); },
+    shorten(text, note) { for (const fn of snips) { const r = safe(fn, text, note); if (typeof r === "string") text = r; } return text; },
   };
 })();
 function showError(msg) {
@@ -5032,7 +5060,7 @@ function newer(a, b) {      // is version a newer than b?
     if (!info.latest || !newer(info.latest, mine)) return;
     const a = document.createElement("a");
     a.textContent = `⬆ v${info.latest} available`;
-    a.title = `You have v${mine}. Download the new files from GitHub, replace server.js and index.html, and restart.`;
+    a.title = `You have v${mine}. Download the new files from GitHub, replace server.js, index.html and mobile.html, and restart.`;
     if (info.url) { a.href = info.url; a.target = "_blank"; a.rel = "noopener"; }
     document.getElementById("ver").append(" · ", a);
   } catch (e) { /* no network or no answer: stay quiet */ }
@@ -8207,6 +8235,7 @@ const ntHas = (n) => !!n && (NT_TOK.test(n.note || "") || NT_TOK.test(n.name || 
 const ntCrypto = () => (window.wbcryptLive && window.wbcryptLive.ready() ? window.wbcryptLive : null);
 const ntDefaultTitle = () => "Notes · " + new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const ntNameFromInput = () => ntTitle.value.replace(/\s+/g, " ").trim().slice(0, 200).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+let ntRev = 0;
 let ntNotes = [], ntLoaded = false, ntCur = null, ntEnc = null, ntDirty = false, ntUntouched = false, ntTitleEdited = false, ntTimer = null, ntChain = Promise.resolve(), ntLockHooked = false, ntWhere = null;
 
 async function ntLoad() {
@@ -8234,7 +8263,7 @@ function ntRenderList() {
     const b = document.createElement("button"); b.type = "button"; b.className = "nt-item" + (ntCur && ntCur.id === n.id ? " on" : ""); b.dataset.id = n.id;
     const t = document.createElement("div"); t.className = "t"; t.textContent = ntSecret(plain(n.name)) || "(untitled)";
     if (ntHas(n)) t.insertAdjacentHTML("afterbegin", NT_LOCK);
-    const first = ntAllSecret(n.note) ? "Encrypted note" : (ntSecret(n.note).split("\n").find((l) => l.trim()) || "").trim().slice(0, 200);
+    const first = ntAllSecret(n.note) ? "Encrypted note" : (wbNotes.shorten(ntSecret(n.note).slice(0, 1500), n).split("\n").find((l) => l.trim()) || "").trim().slice(0, 200);
     const p = document.createElement("div"); p.className = "p" + (first ? "" : " none"); p.textContent = first || "No text";
     b.title = ntSecret(plain(n.name)) || "(untitled)";
     b.append(t, p);
@@ -8277,8 +8306,9 @@ function ntUi() {
   ntHint.textContent = noAddon ? "Has encrypted text. Turn on the Encrypt add-on (Settings > Encryption) to read and edit it." : locked ? "Has encrypted text. Unlock it to read and edit it." : "Words between ⟦ ⟧ are encrypted when the note saves.";
   if (whole && noAddon) document.querySelector("#ntLocked p").textContent = "This note is encrypted. Turn on the Encrypt add-on to read it.";
   else document.querySelector("#ntLocked p").textContent = "This note is encrypted.";
+  wbNotes.state({ shown: !ntModal.hidden, id: cur ? (cur.id || "new") : null, rev: ntRev, readOnly: !!ntText.readOnly, locked, whole, unlocked: !!ntEnc });
 }
-function ntShowLocked() { ntEnc = null; ntText.value = ntSecret(ntCur.note); ntText.readOnly = true; ntTitle.readOnly = true; ntUi(); }
+function ntShowLocked() { ntEnc = null; ntRev++; ntText.value = ntSecret(ntCur.note); ntText.readOnly = true; ntTitle.readOnly = true; ntUi(); }
 async function ntOpenSealed() {                             // a locked note: ask for the passphrase if needed, then show it readable
   const c = ntCrypto(), cur = ntCur; if (!c || !cur) return false;
   ntHook();
@@ -8286,7 +8316,7 @@ async function ntOpenSealed() {                             // a locked note: as
   const r = await c.reveal(cur.note || "");
   if (ntCur !== cur) return false;
   if (r.failed) { showToast("Some encrypted text in this note doesn't open with your passphrase", false); return false; }
-  ntEnc = { originals: r.originals }; ntText.value = r.text; ntText.readOnly = false; ntTitle.readOnly = NT_TOK.test(cur.name || ""); ntUi();
+  ntEnc = { originals: r.originals }; ntRev++; ntText.value = r.text; ntText.readOnly = false; ntTitle.readOnly = NT_TOK.test(cur.name || ""); ntUi();
   return true;
 }
 function ntHook() {                                           // when Encrypt locks (idle, Lock now), the open note is saved sealed first, then shown locked
@@ -8301,7 +8331,7 @@ async function ntShow(n) {                                    // open a note (nu
   await ntFlush();
   ntPop.hidden = true;
   ntCur = n ? { ...n, isNew: false } : { id: null, name: ntNameSafe(ntDefaultTitle()), note: "", isNew: true };
-  ntEnc = null; ntDirty = false; ntTitleEdited = false; ntUntouched = !n; ntSavedAt = null;
+  ntEnc = null; ntRev++; ntDirty = false; ntTitleEdited = false; ntUntouched = !n; ntSavedAt = null;
   ntSetStatus(n ? "Saved" : "New note, not saved yet");
   ntTitle.value = n ? ntSecret(plain(n.name)) : ntDefaultTitle(); ntTitle.readOnly = !!n && NT_TOK.test(n.name || "");
   if (n && NT_TOK.test(n.note || "")) { ntShowLocked(); const c = ntCrypto(); if (c && c.unlocked()) await ntOpenSealed(); }
@@ -8438,7 +8468,9 @@ async function ntCloseWin() {
   if (ntDirty) { if (!confirm("The note couldn't be saved (" + ntStatus.textContent.replace(/^Not saved: /, "") + "). Close anyway and lose the last change?")) return; ntDirty = false; }
   if (ntEnc && ntCur) ntShowLocked();                         // nothing readable stays on screen behind a closed window
   ntModal.hidden = true; modalFocusBack(ntModal);
+  ntUi();                                                     // tells add-ons the window is closed (a preview must drop its readable text)
 }
+wbNotes.start({ text: ntText, bar: document.getElementById("ntBar"), view: document.getElementById("ntView"), box: document.querySelector(".nt-main"), refreshList: ntRenderList });
 document.getElementById("ntClose").onclick = ntCloseWin;
 document.getElementById("ntNew").onclick = () => ntShow(null);
 ntModal.addEventListener("click", (e) => { if (e.target === ntModal) ntCloseWin(); });

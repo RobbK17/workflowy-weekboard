@@ -1,0 +1,48 @@
+<!--@css-->
+  /* Markdown add-on (desktop Notes window) */
+  .nt-bar { gap: 2px; flex-wrap: nowrap; overflow-x: auto; }
+  .nt-bar .wbmd-fmt { display: flex; gap: 2px; flex: none; }
+  .nt-bar .wbmd-fmt[hidden] { display: none; }
+  .nt-bar .wbmd-sp { flex: 1 0 8px; }
+  .wbmd-btn { flex: none; min-width: 28px; height: 26px; padding: 0 8px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; }
+  .wbmd-btn:hover:not(:disabled) { background: rgba(127,127,127,.18); }
+  .wbmd-btn:disabled { opacity: .35; cursor: default; }
+  .wbmd-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .wbmd-b { font-weight: 800; }
+  .wbmd-i { font-style: italic; }
+  .wbmd-c { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  .wbmd-tog { border-color: var(--border); font-weight: 600; }
+  .nt-main.wbmd-preview #ntText { display: none; }
+  .nt-view > :first-child { margin-top: 0; }
+  .nt-view h1, .nt-view h2, .nt-view h3, .nt-view h4, .nt-view h5, .nt-view h6 { margin: 1em 0 .4em; line-height: 1.25; }
+  .nt-view h1 { font-size: 1.5em; } .nt-view h2 { font-size: 1.3em; } .nt-view h3 { font-size: 1.15em; }
+  .nt-view h4, .nt-view h5, .nt-view h6 { font-size: 1em; }
+  .nt-view p { margin: 0 0 .8em; overflow-wrap: anywhere; }
+  .nt-view ul, .nt-view ol { margin: 0 0 .8em; padding-left: 1.5em; }
+  .nt-view li { margin: .15em 0; overflow-wrap: anywhere; }
+  .nt-view .wbmd-taskitem { list-style: none; margin-left: -1.3em; }
+  .nt-view .wbmd-task { margin: 0 .5em 0 0; vertical-align: -1px; }
+  .nt-view blockquote { margin: 0 0 .8em; padding: 2px 0 2px 12px; border-left: 3px solid var(--border); color: var(--muted); }
+  .nt-view code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9em; padding: 1px 4px; border-radius: 4px; background: rgba(127,127,127,.18); }
+  .nt-view pre { margin: 0 0 .8em; padding: 10px 12px; border-radius: 8px; background: rgba(127,127,127,.14); overflow-x: auto; }
+  .nt-view pre code { padding: 0; background: none; font-size: 13px; }
+  .nt-view hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+  .nt-view a { color: var(--accent); }
+  .nt-view .wbmd-enc { background: rgba(127,127,127,.18); border-radius: 4px; padding: 0 3px; }
+  .nt-view .wbmd-empty, .nt-view .wbmd-cut { color: var(--muted); }
+<!--/@css-->
+<!--@tab-->
+        <button type="button" role="tab" data-sec="markdown">Markdown</button>
+<!--/@tab-->
+<!--@pane-->
+      <div class="set-pane setpane" data-sec="markdown" hidden>
+        <label><input type="checkbox" id="mdOptEnabled"><span>Markdown in notes<small>The format bar and the preview in the Notes window and in the phone's note editor. Off: notes are plain text, as before. Your notes are never changed by this.</small></span></label>
+        <label class="sel"><span>Open notes in<small>Edit, or straight into the read-only preview. A new note always opens in Edit.</small></span>
+          <select id="mdOptMode"><option value="edit">Edit</option><option value="preview">Preview</option></select></label>
+        <label><input type="checkbox" id="mdOptBar"><span>Format bar<small>Bold, italic, code, link, heading, lists, quote and more above the note. The Edit / Preview switch stays either way.</small></span></label>
+        <label><input type="checkbox" id="mdOptKeys"><span>Keyboard shortcuts<small>Ctrl/Cmd+B bold, +I italic, +K link, while writing a note on the desktop.</small></span></label>
+        <label><input type="checkbox" id="mdOptSnip"><span>Plain notes list<small>Leave the Markdown marks (#, **, - and so on) out of the one-line previews in the notes list. Search still looks at the full text.</small></span></label>
+        <div id="mdMsg" role="status"></div>
+        <p class="sub">These are kept on the server, so the desktop and the phone always agree. The phone has no settings tab for add-ons; it reads these.</p>
+      </div>
+<!--/@pane-->

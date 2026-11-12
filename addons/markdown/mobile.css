@@ -1,0 +1,30 @@
+  /* Markdown add-on (phone) */
+  #noteEditor .nbar { gap: 2px; padding: 4px 6px; }
+  #noteEditor .wbmd-fmt { display: flex; gap: 2px; flex: none; }
+  #noteEditor .wbmd-fmt[hidden] { display: none; }
+  #noteEditor .wbmd-sp { flex: 1 0 8px; }
+  #noteEditor .wbmd-btn { flex: none; min-width: 38px; height: 36px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--text); font: inherit; font-size: 14px; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+  #noteEditor .wbmd-btn:active { background: rgba(127,127,127,.2); }
+  #noteEditor .wbmd-btn:disabled { opacity: .35; }
+  #noteEditor .wbmd-b { font-weight: 800; }
+  #noteEditor .wbmd-i { font-style: italic; }
+  #noteEditor .wbmd-c { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  #noteEditor .wbmd-tog { position: sticky; right: 0; border-color: var(--border); background: var(--card); font-weight: 600; }
+  #noteEditor.wbmd-preview .nedit { display: none; }
+  #noteEditor .nview > :first-child { margin-top: 0; }
+  #noteEditor .nview h1, #noteEditor .nview h2, #noteEditor .nview h3, #noteEditor .nview h4, #noteEditor .nview h5, #noteEditor .nview h6 { margin: 1em 0 .4em; line-height: 1.25; }
+  #noteEditor .nview h1 { font-size: 1.5em; } #noteEditor .nview h2 { font-size: 1.3em; } #noteEditor .nview h3 { font-size: 1.15em; }
+  #noteEditor .nview h4, #noteEditor .nview h5, #noteEditor .nview h6 { font-size: 1em; }
+  #noteEditor .nview p { margin: 0 0 .8em; overflow-wrap: anywhere; }
+  #noteEditor .nview ul, #noteEditor .nview ol { margin: 0 0 .8em; padding-left: 1.5em; }
+  #noteEditor .nview li { margin: .15em 0; overflow-wrap: anywhere; }
+  #noteEditor .nview .wbmd-taskitem { list-style: none; margin-left: -1.3em; }
+  #noteEditor .nview .wbmd-task { margin: 0 .5em 0 0; vertical-align: -1px; }
+  #noteEditor .nview blockquote { margin: 0 0 .8em; padding: 2px 0 2px 12px; border-left: 3px solid var(--border); color: var(--muted); }
+  #noteEditor .nview code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9em; padding: 1px 4px; border-radius: 4px; background: rgba(127,127,127,.18); }
+  #noteEditor .nview pre { margin: 0 0 .8em; padding: 10px 12px; border-radius: 8px; background: rgba(127,127,127,.14); overflow-x: auto; }
+  #noteEditor .nview pre code { padding: 0; background: none; font-size: 13px; }
+  #noteEditor .nview hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+  #noteEditor .nview a { color: var(--accent); }
+  #noteEditor .nview .wbmd-enc { background: rgba(127,127,127,.18); border-radius: 4px; padding: 0 3px; }
+  #noteEditor .nview .wbmd-empty, #noteEditor .nview .wbmd-cut { color: var(--muted); }

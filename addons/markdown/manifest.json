@@ -1,0 +1,13 @@
+{
+  "id": "markdown",
+  "name": "Markdown notes",
+  "version": "1.0.0",
+  "description": "Basic Markdown in the Notes window and the phone's note editor: a format bar and a read-only preview. Settings are kept on the server so the desktop and the phone agree.",
+  "requires": { "board": "1.5.4" },
+  "page": "page.html",
+  "shared": "shared.js",
+  "script": "desktop.js",
+  "mobileScript": "mobile.js",
+  "mobileCss": "mobile.css",
+  "server": "server.js"
+}

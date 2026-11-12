@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.5.3">
+<meta name="version" content="1.5.4">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <meta name="theme-color" content="#2f6fed">
@@ -184,6 +184,12 @@
   #noteEditor .nedit[hidden] { display: none; }
   #noteEditor .nhint { flex: none; margin: 0; padding: 6px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
   #noteEditor .nhint[hidden] { display: none; }
+  /* Empty places an add-on can fill (the Markdown add-on's format bar and preview); hidden unless an add-on shows them. */
+  #noteEditor .nbar { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-bottom: 1px solid var(--border); background: var(--card); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #noteEditor .nbar[hidden] { display: none; }
+  #noteEditor .nview { flex: 1; min-height: 0; overflow: auto; padding: 14px; font-size: 16px; line-height: 1.5; background: var(--bg); color: var(--text); -webkit-overflow-scrolling: touch; }
+  #noteEditor .nview[hidden] { display: none; }
+  /*@addons:css*/
   .nbtn { padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-weight: 600; cursor: pointer; }
   .nbtn.go { background: var(--accent); border-color: var(--accent); color: #fff; }
   .ncard { display: flex; align-items: flex-start; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; }
@@ -225,7 +231,9 @@
     <button class="nbtn" id="noteMenu" aria-label="Note menu">⋯</button>
   </header>
   <p class="nhint" id="noteHint" hidden></p>
+  <div class="nbar" id="noteBar" hidden></div>
   <textarea class="nedit" id="noteText" placeholder="Start writing…" aria-label="Note content"></textarea>
+  <div class="nview" id="noteView" hidden></div>
   <div class="nlocked" id="noteLockedPanel" hidden><p>This note is encrypted.</p><button class="nbtn go" id="noteUnlockBig" type="button">Unlock</button></div>
 </div>
 
@@ -986,6 +994,22 @@ function defaultNoteTitle() {
   const d = new Date();
   return "Notes · " + d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
+/* The note editor's places for add-ons (the same names and shape as on the desktop board; the Markdown add-on uses them):
+   wbNotes.mount((ctx) => ...)  ctx: { text, bar, view, box, refreshList() };  wbNotes.onState((s) => ...)  s: { shown, id, rev, readOnly, locked, whole, unlocked };
+   wbNotes.snippet((text, note) => text) rewrites the preview text in the notes list. With nothing registered they do nothing; a failing hook is logged and skipped. */
+const wbNotes = (() => {
+  const mounts = [], states = [], snips = []; let ctx = null, last = "";
+  const safe = (fn, ...a) => { try { return fn(...a); } catch (e) { console.error("Add-on notes hook failed:", e); } };
+  return {
+    mount(fn) { if (typeof fn !== "function") return; if (ctx) safe(fn, ctx); else mounts.push(fn); },
+    onState(fn) { if (typeof fn === "function") states.push(fn); },
+    snippet(fn) { if (typeof fn === "function") snips.push(fn); },
+    start(c) { ctx = c; for (const fn of mounts.splice(0)) safe(fn, ctx); },
+    state(s) { if (!states.length) return; const sig = JSON.stringify(s); if (sig === last) return; last = sig; for (const fn of states) safe(fn, s); },
+    shorten(text, note) { for (const fn of snips) { const r = safe(fn, text, note); if (typeof r === "string") text = r; } return text; },
+  };
+})();
+let noteRev = 0;                // changes each time a note is loaded, locked or unlocked
 function drawNotesList(list) {
   if (!notesLoaded) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
   // New note button
@@ -1001,7 +1025,7 @@ function drawNotesList(list) {
     const title = document.createElement("div"); title.className = "nt"; title.textContent = secretText(plain(n.name)) || "(untitled)";
     if (hasSecret(n)) title.insertAdjacentHTML("afterbegin", LOCK_SVG);
     const preview = document.createElement("div"); preview.className = "np";
-    preview.textContent = allSecret(n.note) ? "Encrypted note" : secretText(n.note).slice(0, 200);
+    preview.textContent = allSecret(n.note) ? "Encrypted note" : wbNotes.shorten(secretText(n.note).slice(0, 1500), n).trim().slice(0, 200);
     body.append(title, preview); card.appendChild(body);
     card.onclick = () => openNoteEditor(n);
     list.appendChild(card);
@@ -1079,18 +1103,19 @@ function noteLockUi() {                                   // the header button, 
   if (whole) btn.hidden = true;                          // the panel's own Unlock is enough, and the title keeps the room
   hint.hidden = whole || !(locked || (noteEnc && N_BRACKET.test(ta.value)));
   hint.textContent = locked ? "Has encrypted text. Tap Unlock to read and edit it." : "Words between ⟦ ⟧ are encrypted when the note saves.";
+  wbNotes.state({ shown: true, id: cur ? (cur.id || "new") : null, rev: noteRev, readOnly: !!ta.readOnly, locked, whole, unlocked: !!noteEnc });
 }
 document.addEventListener("selectionchange", () => { if (currentNote && document.activeElement === $("noteText")) noteLockUi(); });
 ["select", "keyup", "pointerup"].forEach((ev) => $("noteText").addEventListener(ev, () => { if (currentNote) noteLockUi(); }));
 function showNoteLocked(cur) {
   const ta = $("noteText"), title = $("noteTitle");
-  noteEnc = null; ta.value = lockedNoteText(cur.note); ta.readOnly = true; title.readOnly = true; noteLockUi();
+  noteEnc = null; noteRev++; ta.value = lockedNoteText(cur.note); ta.readOnly = true; title.readOnly = true; noteLockUi();
 }
 async function showNoteOpen(cur, p) {                     // false if the passphrase doesn't open every part
   const r = await revealNote(cur.note || "", p);
   if (!r || currentNote !== cur) return false;
   const ta = $("noteText"), title = $("noteTitle");
-  noteEnc = { originals: r.originals, pass: p }; ta.value = r.text; ta.readOnly = false;
+  noteEnc = { originals: r.originals, pass: p }; noteRev++; ta.value = r.text; ta.readOnly = false;
   title.readOnly = HAS_TOK.test(cur.name || ""); noteLockUi();
   return true;
 }
@@ -1159,7 +1184,7 @@ $("noteLock").onclick = noteCryptTap;
 $("noteUnlockBig").onclick = noteCryptTap;
 async function openNoteEditor(note) {
   const ed = $("noteEditor"), title = $("noteTitle"), text = $("noteText"), status = $("noteStatus");
-  noteEnc = null;
+  noteEnc = null; noteRev++;
   if (note) {
     const cur = currentNote = { ...note, isNew: false };
     title.value = secretText(plain(note.name)) || ""; title.readOnly = HAS_TOK.test(note.name || "");
@@ -1188,8 +1213,10 @@ function closeNoteEditor() {
   if (noteSaveTimer) { clearTimeout(noteSaveTimer); noteSaveTimer = null; }
   $("noteEditor").classList.remove("open");
   currentNote = null; noteEnc = null;
+  wbNotes.state({ shown: false, id: null, rev: noteRev, readOnly: true, locked: false, whole: false, unlocked: false });   // a preview drops its readable text
   draw();
 }
+wbNotes.start({ text: $("noteText"), bar: $("noteBar"), view: $("noteView"), box: $("noteEditor"), refreshList: () => { if (view === "notes") draw(); } });
 let noteSaveChain = Promise.resolve();            // saves run one after another, so a slow first save can't be followed by a second "create"
 function saveNote() { noteSaveChain = noteSaveChain.then(doSaveNote, doSaveNote); return noteSaveChain; }
 async function doSaveNote() {
@@ -2243,5 +2270,6 @@ fetch("/features").then((r) => r.json()).then((j) => {
 // when settings are shared, take the server's copy first (waiting at most a moment) so the first load already uses it
 (sync ? Promise.race([pullShared(), new Promise((r) => setTimeout(r, 2500))]).catch(() => {}) : Promise.resolve()).then(() => { draw(); loadWeek(); });
 </script>
+<!--@addons:script-->
 </body>
 </html>
