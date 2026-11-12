@@ -192,7 +192,7 @@
     } else if (regionAt(t.value, t.selectionStart, t.selectionEnd)) {
       ed.mode = "remove"; b.textContent = "🔓 Remove encryption"; b.title = "Store this part as plain, readable text";
     } else {
-      ed.mode = "encrypt"; b.textContent = "🔒 Encrypt"; b.title = "Encrypt the selected text, or the whole name when nothing is selected (Ctrl/Cmd+Shift+E)";
+      ed.mode = "encrypt"; b.textContent = "🔒 Encrypt"; b.title = "Encrypt the selected text, or the whole name when nothing is selected (Alt+Shift+E (or Ctrl+Shift+E))";
     }
   }
 
@@ -527,7 +527,7 @@
 
   /* ---------- for the board's Edit mode (live lines): the same rules as the editor, on plain text ---------- */
 
-  // What the cursor/selection would do on the Edit mode shortcut: {next, a, b, mode} or {error}. Pure: nothing is changed here.
+  // What the cursor/selection would do on Alt+Shift+E (or Ctrl+Shift+E): {next, a, b, mode} or {error}. Pure: nothing is changed here.
   function toggleText(v, a, b) {
     var r = regionAt(v, a, b);
     if (r) return { mode: "remove", next: v.slice(0, r.start) + r.inner + v.slice(r.end), a: r.start, b: r.start + r.inner.length };

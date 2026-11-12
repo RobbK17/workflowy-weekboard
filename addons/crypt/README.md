@@ -1,4 +1,4 @@
-# Encryption add-on (wbcrypt) 0.3.0
+# Encryption add-on (wbcrypt) 0.3.1
 
 WorkFlowy cannot encrypt your outline end to end, so this add-on lets you encrypt the sensitive parts of your own text **before** it goes into WorkFlowy. WorkFlowy then stores unreadable text, and only someone with your passphrase can read it.
 
@@ -13,7 +13,7 @@ It comes in three forms that share one file of crypto code (`wbcrypt-core.js`), 
 ## Install (board)
 
 1. Copy this folder into the board's `addons/` folder, next to `server.js`: `addons/crypt/`. Update `server.js` and `index.html` to 1.2.1 at the same time.
-2. Restart the board. The startup line should list `crypt 0.3.0`, and `http://localhost:3000/addons` shows its status.
+2. Restart the board. The startup line should list `crypt 0.3.1`, and `http://localhost:3000/addons` shows its status.
 3. To remove it, delete the folder and restart. The board works as before, with one cosmetic difference described below.
 
 It has no server part. Its switches live in **Settings > Encryption** and are remembered per browser. It works in `local`, `vps` and `fly` modes. Browsers only allow encryption on `https://` addresses and `localhost`, which all three already use.
@@ -24,7 +24,7 @@ Like every add-on, this is trusted code that runs on your board's page. Read it 
 
 Open a task the usual way (double-click it on a card, or click a line on the Daily page). One button appears under the name box. It always says what it will do next:
 
-- **🔒 Encrypt, part of a name:** select the words and click it (or press Ctrl/Cmd+Shift+E).
+- **🔒 Encrypt, part of a name:** select the words and click it (or press Alt+Shift+E (or Ctrl+Shift+E)).
 - **🔒 Encrypt, the whole name:** click it with nothing selected. `@times`, `#tags` and `@mentions` stay readable, so reminders and tags keep working: `Call bank @2:30pm` becomes `⟦Call bank⟧ @2:30pm`. If the name already has encrypted text, nothing is encrypted and you are asked to select the words you want, so a label next to an encrypted value is never encrypted by accident.
 - **🔓 Unlock:** shown instead when you are locked and the name holds encrypted text. It opens a dialog in the middle of the page asking for the passphrase (Enter unlocks, Esc or clicking outside cancels). The editor stays open behind it, so nothing you typed is lost.
 - **🔓 Remove encryption:** shown when the cursor is inside an encrypted part (between ⟦ ⟧). It turns that part back into plain text, and the editor warns that it will be saved readable. Use it to undo an encryption you didn't mean.
@@ -37,6 +37,10 @@ Open a task the usual way (double-click it on a card, or click a line on the Dai
 **Unlock for the session from the header:** click the 🔒 in the header, type your passphrase (twice the first time), press Enter. The button turns into a green **🔓 Unlocked**, and encrypted text opens readable everywhere on the board without asking again. While unlocked, clicking it opens the panel (encrypt, decrypt, **Lock now**). The unlock dialog also has an "Open panel instead" link.
 
 Unlocking is shared by the editor, the header and the panel, and it lasts until you lock, the idle time ends (default 5 minutes, set in the panel), or you hide the tab. When it locks, any open editor has its protected text turned back into encrypted text first, so nothing readable stays on the page.
+
+## In Edit mode (Panes Outline)
+
+When a Panes column is in Edit mode, an encrypted line shows as a 🔒 row. Click it, or move to it with the arrow keys and press **Enter**: you are asked for the passphrase if you are locked, and the line becomes a live field showing the readable text between ⟦ ⟧. It saves encrypted, and it closes again (back to 🔒) as soon as you leave the line. Locking the add-on, by idle time or by hiding the tab, saves and closes any open line first. **Alt+Shift+E (or Ctrl+Shift+E)** on a line encrypts the selected words (or the whole line) and closes it; with the cursor inside a ⟦ ⟧ part it takes the encryption off that part instead.
 
 ## Changing the passphrase
 
@@ -114,7 +118,7 @@ With the add-on removed, a name holding a token still shows as a 🔒 on the boa
 
 ## Versions
 
-The add-on has its own version (`manifest.json`, currently 0.3.0). The token format has its own name, `wbenc1`, which stays stable: if the format ever changes it becomes `wbenc2` and the code will keep reading `wbenc1`.
+The add-on has its own version (`manifest.json`, currently 0.3.1). The token format has its own name, `wbenc1`, which stays stable: if the format ever changes it becomes `wbenc2` and the code will keep reading `wbenc1`.
 
 ## For developers
 
