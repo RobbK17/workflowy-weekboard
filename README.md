@@ -4,7 +4,18 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.3**
+**Version 1.5.4**
+
+### What's new in 1.5.4
+
+Replace `server.js`, `index.html` and `mobile.html`, add the new `addons/markdown/` folder, then restart the server.
+
+- **Markdown notes (optional add-on).** The Notes window and the phone's note editor get a **format bar** (bold, italic, code, link, heading, lists, tasks, quote, code block, rule) and an **Edit / Preview** switch. Notes open in Edit; Preview is read-only. It also works on the phone. See "Markdown notes (optional add-on)".
+- **Plain notes list.** The one-line previews in the notes list leave out the Markdown marks. Your text and Search are unchanged.
+- **Settings on the server.** **Settings > Markdown** (on / off, open in Edit or Preview, format bar, shortcuts, plain notes list) is kept by the server, so the desktop and the phone agree.
+- **Works with encryption.** Text inside `⟦ ⟧` is never formatted, the format bar stays out of it, and the preview is cleared when a note locks or closes.
+- **For add-on authors:** manifests can add `shared`, `mobileScript` and `mobileCss`, so add-ons can now run on the phone page, and the note editors on both pages have `wbNotes` hooks.
+- **Version label.** The pages now show the version of the running `server.js`.
 
 ### What's new in 1.5.3
 
@@ -206,7 +217,7 @@ Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**
 | `server.js` | A tiny Node server. It holds your API key, forwards requests to WorkFlowy, and serves the page. Your key never reaches the browser. |
 | `index.html` | The board itself (a single page, no build step, no dependencies). |
 | `mobile.html`, `icon-180.png`, `icon-192.png`, `icon-512.png` | The phone page (served at `/m`) and the app icons. Optional: without them the board still works and `/m` says it isn't installed. |
-| `addons/` | Optional extras (see `addons/ADDONS.md`). Included: `crypt` (Encryption, see `addons/crypt/README.md`). Delete the folder and the board is the plain board. |
+| `addons/` | Optional extras (see `addons/ADDONS.md`). Included: `crypt` (Encryption, see `addons/crypt/README.md`) and `markdown` (Markdown notes, see `addons/markdown/README.md`). Delete the folder and the board is the plain board. |
 | `CHANGELOG.md` | What changed in each version, with upgrade notes. |
 | `.gitignore` | Keeps secrets and the settings files the server writes out of git. |
 | `Dockerfile`, `fly.toml`, `.dockerignore` | Only for Option 3 (Fly.io). |
@@ -435,7 +446,7 @@ All settings are environment variables, set the same way as the key above.
 - **Move to a date:** hover a task and click the calendar icon for a small menu: Today, Tomorrow, next Monday, or any date (type it or use the date picker). Cancel, Esc, or a click elsewhere closes it. The task moves to the bottom of that day's page, even a day outside the days shown. (Dragging a card onto a day column still works for days on the board.) In Group mode, the calendar icon on a group moves the whole bullet with all its tasks.
 - The day header and add box stay in place while the task list scrolls.
 
-**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Sort by priority, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day hours, Plan day sources) and **Reminders** (popups, browser notifications, push status; see "Reminders" below), plus one section for each installed add-on that has settings (the crypt add-on adds **Encryption**). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
+**⚙ Settings** (the button in the header, left of the sidebar button; it opens a window with the sections on the left and their options on the right: **Week board** (Days shown 3 / 5 / 7, Hide completed, Sort by priority, Past due, Past due range, Upcoming, Nested, Sub-items) and **Plan day** (Plan day limit, Plan day hours, Plan day sources) and **Reminders** (popups, browser notifications, push status; see "Reminders" below), plus one section for each installed add-on that has settings (the crypt add-on adds **Encryption** and the markdown add-on adds **Markdown**). It stays open while you change things; close it with ✕, Esc or a click outside. It reopens on the section you used last. All choices are remembered in your browser.)
 - **Hide completed:** hides checked-off tasks, on the board and in the sidebar's Daily page (a ticked task there is hidden along with anything indented under it; the item editor opened from search still shows everything). Deleting a line with **−** still warns about the lines underneath, hidden or not.
 - **Sort by priority:** on by default. Each day lists urgent tasks (`!p1`) first, then high, medium, tasks with no priority, and low (`!p4`) last. Within each level the outline order is kept, and a group card sorts by its most urgent open task. Off shows the plain outline order. See "Priorities, time estimates and saved filters" below.
 - **Past due:** adds a panel of open tasks from *before* the days on screen. Choose how far back with **Past due range** just below it in Settings: 1, 2, 3 or 4 weeks, or All (default 2 weeks). The panel's title shows the range, for example **Past due (2 weeks)**, and a small **→ Today** button next to the count opens a preview to move the open ones to today.
@@ -751,6 +762,18 @@ Phones open the phone page (`/m`); tablets 820px wide or narrower do too, while 
 - **Repeat.** **🔁 Repeat…** in a task's menu opens the same choices as the desktop (every day, weekdays, week, 2 weeks, chosen weekdays, month, last day of the month, year, with an optional end date or number of times). The server makes the next copy, so it must be running.
 - **Tags and people.** `#tag` and `@person` are grey and underlined; a tap opens **Search**, which is also in **⋯ > 🔍 Search…**. Tap a result to open it.
 - Still desktop only: tables and the weekend column. The Sunday start is **Settings > Week length > 7 days (Sun–Sat)**.
+
+## Markdown notes (optional add-on)
+
+The included **markdown** add-on (`addons/markdown/`) makes notes Markdown-aware, on the desktop **Notes window** and in the **phone's note editor**. Notes stay plain text: the add-on only helps you type Markdown and shows a preview. Delete the folder, or turn it off under **Settings > Markdown**, and notes are as before.
+
+- **Format bar.** Above the note: **B** bold, *I* italic, code, **Link**, **H** (press again for a smaller heading, then none), bulleted list, numbered list, task list (`- [ ]`), quote, code block and horizontal rule. Lists, tasks, quote and heading apply to every line you've selected, and press again to take them off. On the desktop, Ctrl/Cmd+B, Ctrl/Cmd+I and Ctrl/Cmd+K do bold, italic and link. Bold and the other buttons use the browser's typing, so Undo works. On the phone, the bar sits under the header and scrolls sideways.
+- **Preview.** The **Preview** button at the end of the bar shows the note formatted; **Edit** brings the text back. Notes open in Edit (a new note always does); **Settings > Markdown > Open notes in** can open existing notes in Preview. The preview is read-only, including task checkboxes. A line break in a note stays a line break.
+- **Supported:** headings (`#` to `######`), `**bold**`, `*italic*`, `` `code` ``, fenced code blocks, `[links](https://…)` and plain `https://` addresses, `>` quotes, `-` / `*` / `1.` lists (nested by indent), `- [ ]` / `- [x]` tasks and `---` rules. Images are not shown. Only `http`, `https` and `mailto` links are made (they open in a new tab); anything else shows as plain text. The preview is built without HTML, so a note can't run anything.
+- **With encryption.** Text inside `⟦ ⟧` is shown as it is (highlighted) and never read as Markdown. The format bar leaves it alone: a selection that reaches into an encrypted part grows to cover all of it, and a cursor inside one gets a message. When a note locks (Lock, the idle lock, closing) the preview is cleared and shows the locked text.
+- **Plain notes list.** With **Plain notes list** on (default), the one-line previews leave out `#`, `**`, `-`, link addresses and fences. Only the display changes.
+- **Settings (desktop: Settings > Markdown).** Markdown in notes (on / off), Open notes in (Edit / Preview), Format bar, Keyboard shortcuts, Plain notes list. They are saved by the server in `markdown-settings.json` next to `server.js` (`MARKDOWN_SETTINGS_FILE` moves it), so the desktop and the phone use the same ones. The phone has no settings tab for add-ons; it reads them when a note opens and when the page comes back to the front, so a change shows on the phone the next time it opens a note. Until the settings arrive the add-on is off, so a page never flashes a bar that you've switched off.
+- **Install.** Copy `addons/markdown/` next to `server.js` (with board 1.5.4 or newer) and restart. Details are in `addons/markdown/README.md`.
 
 ## Encryption (optional crypt add-on)
 

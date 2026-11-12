@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.4 (2026-11-11)
+
+- **Markdown notes (optional add-on).** The new `addons/markdown` add-on makes the Notes window and the phone's note editor Markdown-aware: a **format bar** (bold, italic, code, link, heading, bulleted / numbered / task lists, quote, code block, rule) and an **Edit / Preview** switch. The preview is read-only and built without HTML (no images; links only for `http`, `https` and `mailto`, opened in a new tab). Supported: headings, bold, italic, inline code, code blocks, links, quotes, bullet / numbered / task lists (checkboxes are read-only) and rules. Notes open in Edit; a new note always does. Desktop shortcuts: Ctrl/Cmd+B, I and K. Nothing is added to the stored text. Without the add-on the board is as before.
+- **It works with encryption.** Text inside `⟦ ⟧` is never parsed as Markdown, and the format bar never puts marks inside it (a selection that touches an encrypted part grows to cover it; a cursor inside one gets a message). The preview is cleared when a note locks, when the window or editor closes, and when the add-on is switched off.
+- **Plain notes list.** The one-line previews in the notes list leave out the Markdown marks (`#`, `**`, `-`, links, fences) when **Plain notes list** is on (default). The stored text and Search are untouched.
+- **Settings are kept on the server.** The desktop's new **Settings > Markdown** tab (on / off, open notes in Edit or Preview, format bar, keyboard shortcuts, plain notes list) is saved in `markdown-settings.json` next to `server.js` (`MARKDOWN_SETTINGS_FILE` moves it) through `GET` / `POST /markdown/settings`, so the desktop and the phone agree. The phone has no settings tab for add-ons; it reads them when a note opens and when the page comes back to the front. The page runs the add-on's code but treats it as off until the settings arrive, and stays off if the route is missing.
+- **Add-ons reach the phone page.** An add-on manifest can now list `shared` (one file run on both pages, placed first), `mobileScript` and `mobileCss`; `mobile.html` has the two placeholders (`<!--@addons:script-->`, `/*@addons:css*/`). An older `mobile.html` just has no add-ons.
+- **Note editor hooks.** The desktop Notes window and the phone note editor have the same hooks for add-ons: `wbNotes.mount(fn)` (the note's text box plus an empty strip above it and an empty area in its place), `wbNotes.onState(fn)` (open note, read-only, locked, unlocked, closed) and `wbNotes.snippet(fn)` (the list's preview text). They do nothing with no add-on, and a failing hook is logged and skipped.
+- **The pages show the server's version.** `server.js` writes its own `VERSION` into the version tag and the label in the desktop page's corner when it serves them, so a version bump is one line in `server.js`.
+
+### Upgrading
+
+Replace `server.js`, `index.html` and `mobile.html`, add the `addons/markdown/` folder, then **restart the server**. The add-on starts on; turn it off under **Settings > Markdown**, or delete the folder to remove it.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | Add-on manifests accept `shared`, `mobileScript`, `mobileCss`; add-ons injected into the phone page; the pages get the running version; update hint names `mobile.html`; version 1.5.4 |
+| `index.html` | `wbNotes` hooks and the empty bar and preview areas in the Notes window; note list preview goes through `wbNotes.snippet`; version 1.5.4 |
+| `mobile.html` | The same hooks and areas in the note editor; add-on CSS and script placeholders; version 1.5.4 |
+| `addons/markdown/` | New: `manifest.json`, `shared.js` (settings, renderer, snippet cleaner, format bar), `desktop.js`, `mobile.js`, `mobile.css`, `page.html` (styles and the Settings tab), `server.js` (the settings route), `README.md` |
+| `README.md`, `CHANGELOG.md` | Updated |
+
 ## 1.5.3 (2026-11-10)
 
 - **Time block a task on the phone page.** A task's ⋯ menu (on a day and inside a group) has **🕐 Time block…** / **🕐 Change time block…**. The sheet has a start time, a length (15m to 8h, in 15-minute steps) and the end time. It defaults to the task's current block, or the next half hour on today, or 9:00 on other days. Saving writes the desktop's markers (`^10:30am` / `^15:00`, and `~1h` when the length changes), so the block shows on the board's timeline. A task without an estimate is a 30-minute block, as on the desktop. **Remove time block** clears only the start time and keeps the estimate. Undo is offered. Formatting in the task (`<b>…</b>`, `&nbsp;`) is kept: the phone page now has the desktop's `withMarker()`, `timeBlockToken()` and `estToken()`.
