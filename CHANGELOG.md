@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.5.6.1 (2026-11-16)
+
+- **Drag-to-reorder in item view.** Children of the open item can be reordered by dragging a grip handle (⠿) that appears on each top-level row. The new order is saved on the server (`/sort-order` endpoint) and persists across page reloads and browsers. Works in both read mode (`pageLine`) and live-edit mode (`kbLine`/`kbWalk`).
+- **Sort order persistence.** A new `/sort-order` endpoint (`GET`/`PUT`/`DELETE`) stores custom child order per parent node in `sort-order.json`. The client caches sort data and applies it transparently before rendering.
+- **Wider per-level indent (28px).** Item view indentation increased from 16px to 28px per level across all five rendering paths (`pageLine`, `kbLine`, `kbAddRow`, `kbTableGrid`, read-mode walk wrapper) for better visual hierarchy.
+- **Groups tracker.** A new 📌 **Groups** button (and **G** keyboard shortcut) in the outline bar opens a Groups tracker modal. It scans loaded days and nested items for groups, keeps a persistent registry in `localStorage` (`grpReg`), and shows all groups with their open task counts. Groups can be filtered by Open, Starred or All. Star a group to pin it; remove stale groups from the registry. The badge on the button shows the total open task count across all tracked groups. The registry is exposed to other features via `window._grpReg()`.
+- **Groups in Plan Day.** When Plan Day's Bring In is set to "Group" nesting, groups from the tracker registry appear as sources alongside regular plan sources. Each group shows its tasks and can be used to move items into the current day.
+- **Notes window is now a floating dialog.** The Notes window (`#ntDialog`) is now an HTML `<dialog>` element instead of a fixed modal overlay. It is draggable (by its title bar) and resizable (by its edges), with a **Close** button, an SVG lock icon for encryption state, and a ruler strip below the toolbar. The dialog remembers its position and size within the session.
+- **Outline bottom bar layout.** The Daily page's bottom row (`.outright`) now uses flex layout with buttons at 50% width, so Inbox, Notes, Reports and Groups fit neatly and wrap on narrow screens. The Reports button uses the 📊 icon.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | `/sort-order` endpoint (read/write/delete custom child order per parent); `DATA_PATHS` includes `/sort-order`; version 1.5.6.1 |
+| `index.html` | Grip handles and drag-to-reorder in item view (both `pageLine` and `kbLine`/`kbWalk` paths); sort order client functions (`fetchSortOrder`, `saveSortOrder`, `clearSortOrder`, `applySortOrder`); 28px per-level indent; CSS for `.grip`, `.drag-over-above`, `.drag-over-below`, `.dragging`; Groups tracker (`#grpBtn`, `#grpModal`, `grpReg`, `grpStarred`, `grpScanLoaded`, `collectGroups`, `renderGroups`, `window._grpReg`); groups in Plan Day Bring In; Notes as floating `<dialog>` (`#ntDialog`, draggable, resizable, `.nt-close`, `.nt-ruler`, SVG lock icon); outline bottom bar flex layout (`.outright` 50% width, 📊 Reports); version 1.5.6.1 |
+| `mobile.html` | Version 1.5.6.1 |
+
+## 1.5.6 (unreleased)
+
+- **Recommended: keep the WorkFlowy key out of the board (`workflowy-proxy/`).** A small Cloudflare Worker holds the real WorkFlowy key as a Cloudflare secret; the board is given a revocable proxy token (`WORKFLOWY_API_KEY=tok_…`) and the Worker's address (`WORKFLOWY_BASE_URL=https://…workers.dev/api/v1`). The Worker checks the token against `TENANT_TOKENS`, only passes on the requests the board makes (`GET /nodes-export`, `/targets`, `/nodes`, `/nodes/:id`; `POST /nodes`, `/nodes/:id`, `/nodes/:id/move|complete|uncomplete`; `DELETE /nodes/:id`; everything else 403), attaches the real key itself, and logs each call per token. Checked against every call the desktop page, the phone page, the server and the add-ons make: all are on the allowlist, so the board needs no changes. A leaked token is replaced with one command; the real key is rotated on Cloudflare without touching the board. The README now recommends it for every mode, and `workflowy-proxy/QUICKSTART.md` has the setup.
+- **Setup files follow the recommendation.** `weekboard.env.example` (VPS) now lists `WORKFLOWY_BASE_URL` and `WORKFLOWY_API_KEY` together and explains the proxy token; an empty `WORKFLOWY_BASE_URL` still means WorkFlowy's own address. `fly.toml`'s comment shows `fly secrets set` with the proxy, and the direct-key form as the alternative. `TAILSCALE.md`'s start command uses the proxy pair, and suggests `chmod 600` for a script that holds it.
+- **Proxy fixes on failure paths** (normal requests behave exactly as before): WorkFlowy unreachable now gives a clear `502 Couldn't reach WorkFlowy` instead of Cloudflare's error page; WorkFlowy's `Retry-After` is passed back with a 429; tokens are compared in constant time and every listed token is checked. `test-proxy.mjs` gains 9 checks (37 in all, offline). Redeploy with `npx wrangler deploy` to use them; a Worker deployed from the earlier version keeps working.
+- **Assistant 0.4.1: time blocks and reminders can't be mixed up.** Asked to "block 20 minutes for gardening tomorrow at 2:32pm", the old 0.2.0 Assistant (which had no time block tool) typed `Gardening @2:32pm ~20m !blk` into the task: a reminder, an estimate and the Day template's marker, but no block. Now marker text typed into a name, rename, group or note (`@…`, `^…`, `~…`, `!p…`, `!blk`, `!list`, `!alld`, `!every`, `!1h`) is refused with a pointer to the right tool, and the model corrects itself in the same answer; ordinary text ("~3 apples", "@alex") passes. `add_task` takes a separate `reminder` time. Tool results show `[reminder …]` beside `[block …]`, and the instructions explain the difference and say to ask when only a time is given.
+- **Startup line: the notes bullet is only mentioned when it matters.** It used to end with `notes bullet: "WB-Notes"`, as if that were a current setting. That bullet is retired (all-day notes are `!alld` bullets now), so the line now leaves it out, and says `old notes bullet: "…"` only when `NOTES_NAME` is set to another name. The comment above `NOTES_NAME` in `server.js` no longer mentions the board's rename pencil, which is gone.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `weekboard.env.example`, `fly.toml`, `TAILSCALE.md` | Show the key proxy as the recommended setup, the direct key as the alternative |
+| `workflowy-proxy/` | New: `worker.js`, `wrangler.toml`, `test-proxy.mjs`, `QUICKSTART.md`, `.gitignore` |
+| `server.js` | Startup line mentions the old notes bullet only when `NOTES_NAME` is set; comment updated |
+| `addons/assistant/` | 0.4.1: `backend.js`, `manifest.json`, `ASSISTANT.md`, `test/features.test.js` (9 new checks) |
+| `README.md`, `CHANGELOG.md` | Updated |
+
 ## 1.5.5 (2026-11-11)
 
 - **AI Assistant 0.4.0: scheduling, priorities, Notes and the phone.** New tools: `set_time_block`, `set_estimate`, `set_priority` (writing the board's `^10am`, `~1h30m` and `!p1`–`!p4` markers), `day_schedule` (blocks, overlaps, free gaps), `workload` (per day against Plan day hours, sent by the page), `find_tasks` (the Saved filters engine), and `list_notes`, `read_note`, `create_note`, `append_to_note` (only under the notes node; appending never replaces). `add_task` takes `start`, `length` and `priority`. Read results explain each task's markers (`[P2 high · block 3:00 PM–4:30 PM · est 1h 30m]`); renames keep markers; model-written names keep `&` / `<` as typed and are escaped; approval cards show task words without markers. On the phone, `mobile.js` / `mobile.css` add **⋯ > ✨ Assistant…**, a full-screen chat with streaming, Stop, approval cards and Undo, **only when the server sets `AI_PHONE=1`** (otherwise the Assistant is desktop-only: no menu item, `/ai/status` reports `phone: false`, and phone requests get 403); the server leaves the board tools out for the phone (`context.client`), and deleting stays off there.

@@ -4,7 +4,25 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.5**
+**Version 1.5.6.1**
+
+### What's new in 1.5.6.1
+
+Replace `server.js` and `index.html`, then **restart the server**.
+
+- **Drag-to-reorder in item view.** Drag the grip handle (⠿) on any top-level row in the item view to reorder it. The order is saved on the server and persists across reloads and browsers.
+- **Sort order persistence.** A new `/sort-order` server endpoint stores custom child order per parent node in `sort-order.json`.
+- **Wider indent in item view.** Per-level indentation increased from 16 px to 28 px for better visual hierarchy.
+- **Groups tracker.** A 📌 **Groups** button (or **G**) in the outline bar opens a tracker that scans loaded days for groups, shows their open task counts, and lets you star or remove them. The badge on the button shows the total open count.
+- **Groups in Plan Day.** When Bring In is set to Group nesting, tracked groups appear as sources alongside regular plan items.
+- **Notes window is now a floating dialog.** The Notes window is draggable, resizable and no longer a fixed modal overlay.
+- **Outline bottom bar layout.** The Daily page's bottom buttons (Inbox, Notes, Reports, Groups) use a flex layout that wraps on narrow screens. Reports uses the 📊 icon.
+
+### What's new in 1.5.6 (not released yet)
+
+- **Keep your WorkFlowy key out of the board (recommended).** The new `workflowy-proxy/` folder is a small Cloudflare Worker that holds your real WorkFlowy key. The board gets a revocable proxy token instead, so the real key is never on the computer running the board or in its startup scripts. Two settings point the board at it. See "Keep your WorkFlowy key out of the board".
+- **AI Assistant 0.4.1:** asking for a time block can no longer produce a reminder; it never types markers into names. See the CHANGELOG.
+- **Quieter startup line:** the retired notes bullet is only mentioned when `NOTES_NAME` is set.
 
 ### What's new in 1.5.5
 
@@ -225,6 +243,7 @@ Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**
 | `server.js` | A tiny Node server. It holds your API key, forwards requests to WorkFlowy, and serves the page. Your key never reaches the browser. |
 | `index.html` | The board itself (a single page, no build step, no dependencies). |
 | `mobile.html`, `icon-180.png`, `icon-192.png`, `icon-512.png` | The phone page (served at `/m`) and the app icons. Optional: without them the board still works and `/m` says it isn't installed. |
+| `workflowy-proxy/` | The recommended key proxy: a Cloudflare Worker (`worker.js`, `wrangler.toml`), its offline test (`test-proxy.mjs`) and setup steps (`QUICKSTART.md`). It runs on Cloudflare, not with the board. See "Keep your WorkFlowy key out of the board". |
 | `addons/` | Optional extras (see `addons/ADDONS.md`). Included: `crypt` (Encryption, see `addons/crypt/README.md`), `markdown` (Markdown notes, see `addons/markdown/README.md`) and `assistant` (AI Assistant, beta, see `addons/assistant/ASSISTANT.md`). Delete the folder and the board is the plain board. |
 | `CHANGELOG.md` | What changed in each version, with upgrade notes. |
 | `.gitignore` | Keeps secrets and the settings files the server writes out of git. |
@@ -235,9 +254,38 @@ Replace `server.js`, `index.html` and `mobile.html`, then **restart the server**
 
 - **Node.js 18 or newer** (uses the built-in `fetch`). Check with `node --version`.
 - A **WorkFlowy API key** from <https://workflowy.com/api-key>.
+- **Recommended:** a free **Cloudflare** account, to run the key proxy so the board never holds that key (see the next section).
 - A modern browser.
 
 No `npm install` is needed.
+
+## Keep your WorkFlowy key out of the board (recommended)
+
+Your WorkFlowy API key can read, change and delete your whole outline. The recommended setup keeps it away from the board entirely, in every mode (`local`, `vps` and `fly`):
+
+```
+Week Board  --(proxy token)-->  Cloudflare Worker  --(real key)-->  workflowy.com/api/v1
+```
+
+- The **real key** lives only in a Cloudflare secret. It isn't on the computer running the board, in its startup scripts or in its environment.
+- The board uses a **proxy token** instead. If the token leaks, replace it in one command and the old one stops working at once; your WorkFlowy key stays the same.
+- The Worker only passes on the requests the board makes (reading and changing items, moving, completing, the outline export); anything else gets `403 Forbidden`.
+- Rotating the real key is one command on Cloudflare; the board needs no change.
+
+**Setting it up** takes about ten minutes. The Worker is in the `workflowy-proxy/` folder, and `workflowy-proxy/QUICKSTART.md` has the steps: log in to Cloudflare, store your key and a token as secrets, deploy, test. Then start the board with two settings instead of your key:
+
+| Setting | Value |
+|---|---|
+| `WORKFLOWY_BASE_URL` | Your Worker's address, ending in `/api/v1`, for example `https://workflowy-proxy.<your-subdomain>.workers.dev/api/v1` |
+| `WORKFLOWY_API_KEY` | The proxy token (`tok_…`), not your WorkFlowy key |
+
+The board's startup line shows the API address it uses: you should see your `workers.dev` address, not `workflowy.com`. Everything works through the proxy, including the phone page, Search, reports, reminders, repeating tasks and the add-ons (the Assistant too). No board code changes are needed; the board doesn't know it is talking to a proxy.
+
+**Good to know**
+
+- The proxy token still gives read, write and delete access to your outline through the allowed requests. It protects your real key and can be revoked, but keep it secret like a password.
+- Cloudflare's free plan allows 100,000 requests a day, plenty for one board. The Worker only passes data through, so even the full outline export stays within the free plan's CPU limit.
+- Not using the proxy? Put your real key in `WORKFLOWY_API_KEY` and leave `WORKFLOWY_BASE_URL` unset, as in the steps below. It works the same, but then the board's computer holds the key.
 
 ## Choose how to run it (required)
 
@@ -405,15 +453,15 @@ All settings are environment variables, set the same way as the key above.
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
 | `DEPLOY_MODE` | **Yes** | none | `local`, `vps` or `fly`. See "Choose how to run it". The server won't start without it. |
-| `WORKFLOWY_API_KEY` | Yes | none | Your WorkFlowy API key. |
+| `WORKFLOWY_API_KEY` | Yes | none | The proxy token (`tok_…`) when you use the recommended key proxy, otherwise your WorkFlowy API key. See "Keep your WorkFlowy key out of the board". |
 | `BOARD_PASSWORD` | `vps` and `fly` | none | The sign-in password, at least 12 characters. Not used in `local`. Instead of the password you can give a `salt:hash` pair, so the password itself isn't kept in your startup script or host settings. Make one with `node -e 'const c=require("crypto"),s=c.randomBytes(16).toString("hex");console.log(s+":"+c.scryptSync(process.argv[1],s,32,{N:16384,r:8,p:1}).toString("hex"))' 'your-password'` and sign in with the password. |
 | `BOARD_PASSWORD_SALT` | No | built-in | Only used when `BOARD_PASSWORD` is a plain password: the salt for scrypt. Leave it unset unless you have a reason. |
 | `PUBLIC_URL` | `vps` and `fly` | none | The `https://` address you visit, for example `https://board.example.com`. Only requests for this address are accepted. |
 | `SESSION_DAYS` | No | `7` | How many days a sign-in lasts. |
 | `HOST` | No | `127.0.0.1` (`fly`: `0.0.0.0`) | Address to listen on. Rarely needed. `local` only allows `127.0.0.1`. |
-| `WORKFLOWY_BASE_URL` | No | `https://workflowy.com/api/v1` | API address. If you get errors, try `https://beta.workflowy.com/api/v1` (WorkFlowy's reference docs use that address). |
+| `WORKFLOWY_BASE_URL` | No | `https://workflowy.com/api/v1` | API address. With the key proxy, your Worker's address ending in `/api/v1`. If you get errors, try `https://beta.workflowy.com/api/v1` (WorkFlowy's reference docs use that address). |
 | `PORT` | No | `3000` | Port to serve the board on (`fly.toml` sets 8080). |
-| `NOTES_NAME` | No | `WB-Notes` | Name of the old notes bullet. It is only used to read days that still have one (its lines show after the new all-day notes). New notes don't use it. |
+| `NOTES_NAME` | No | `WB-Notes` | Name of the old notes bullet. It is only used to read days that still have one (its lines show after the new all-day notes). New notes don't use it. Set it only if you once renamed that bullet; the startup line then shows `old notes bullet: "…"`. |
 | `UPDATE_CHECK` | No | on | Set to `0` to stop the board checking GitHub for a newer version. |
 | `UPDATE_URL` | No | this project's `server.js` on GitHub (`main` branch) | Raw address of a `server.js` to compare versions against (useful for a fork). |
 | `IDLE_PURGE_MINUTES` | No | `10` | Minutes without a search before the server clears its copy of your outline from memory. `0` turns the purge off. |
@@ -876,7 +924,7 @@ Other easy changes:
 ## Security
 
 - **Choice of mode.** `local` listens on `127.0.0.1` only. `vps` and `fly` are reachable from the internet and are protected by the password login, HTTPS-only cookies, the address check and the cross-site write check described under "Choose how to run it".
-- Your API key can read and change your whole outline. The browser never sees it. Keep it out of git repositories, screenshots and shared folders. On a VPS keep it in `/etc/weekboard.env` (root only, `chmod 600`). On Fly use `fly secrets`.
+- Your API key can read and change your whole outline. The browser never sees it. **The recommended setup keeps it off the board's computer too**, with the key proxy in `workflowy-proxy/` (see "Keep your WorkFlowy key out of the board"). Otherwise, keep it out of git repositories, screenshots and shared folders. On a VPS keep it in `/etc/weekboard.env` (root only, `chmod 600`). On Fly use `fly secrets`.
 - **What the server will pass on to WorkFlowy (1.0.8).** Only `GET`, `POST` and `DELETE` on the node endpoints the board uses, with plain ids (letters, digits, `-` and `_`; no slashes, dots or escaped characters). Anything else is refused. Request bodies are capped at 1 MB, and a request to WorkFlowy is dropped after 30 seconds (the full export gets 2 minutes), so one stuck request can't tie the server up.
 - **Scripts need a one-time token (1.0.8).** The page's content-security policy no longer allows inline script in general. The server stamps each page load with a fresh random token and the browser only runs scripts that carry it, so script injected through some future bug would be refused.
 - **Signing out wipes this browser's copy (1.0.8; phone page 1.3.8).** In hosted modes, the desktop page's **Sign out** also clears the notes bullet name, saved filters and every saved setting from the browser, and since 1.3.8 the phone page's **Sign out** does the same, so nothing is left behind on a shared device. In local mode there is no sign-in, so neither page shows Sign out. (You'll set your options again next time.)

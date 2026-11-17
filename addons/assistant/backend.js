@@ -62,7 +62,7 @@ const AI_TOOLS = [
   { name: "plan_day", ui: true, description: "Open or close the Plan day view. action is 'open' or 'close'; date (optional, YYYY-MM-DD) picks the day to plan, default today.",
     params: { action: "string: open or close", date: "string: optional YYYY-MM-DD" }, required: ["action"] },
   { name: "add_task", write: true, description: "Add a task. parent is a YYYY-MM-DD date, an item id, or 'inbox'. Optionally give it a time block (start, and length), an estimate (length alone) and a priority. Needs the user's approval.",
-    params: { parent: "string: date, item id or 'inbox'", name: "string: task text, without markers", note: "string: optional note", start: "string: optional time block start, like 10am or 14:30", length: "string: optional length / estimate, like 30m, 1h or 1h30m", priority: "integer: optional 1 (urgent), 2 (high), 3 (medium) or 4 (low)" }, required: ["parent", "name"] },
+    params: { parent: "string: date, item id or 'inbox'", name: "string: task text, without markers", note: "string: optional note", start: "string: optional time block start, like 10am or 14:30", length: "string: optional length / estimate, like 30m, 1h or 1h30m", priority: "integer: optional 1 (urgent), 2 (high), 3 (medium) or 4 (low)", reminder: "string: optional reminder time (a notification), like 9:50am; separate from start" }, required: ["parent", "name"] },
   { name: "set_time_block", write: true, description: "Give a task a time block on its day (a start time, shown on the board's timeline), change it, or remove it with start 'none'. length (optional) also sets the task's estimate, which is the block's length; without one a block is 30 minutes. To block time on another day, move the task there first. Needs the user's approval.",
     params: { id: "string: task id", start: "string: like 10am, 9:30am or 14:00; or 'none' to remove", length: "string: optional, like 30m, 2h or 1h30m" }, required: ["id", "start"] },
   { name: "set_estimate", write: true, description: "Set or remove a task's time estimate (how long it takes; also the length of its time block). Needs the user's approval.",
@@ -277,10 +277,25 @@ function metaOf(raw) {
   if (p) bits.push(`P${p} ${PRIO_NAMES[p]}`);
   if (b) { const s = b.h * 60 + b.mi; bits.push(`block ${clock(s)}–${clock(s + (e || 30))}`); }
   if (e) bits.push(`est ${fmtMin(e)}`);
+  const rm = parseClock(((/(^|\s)@(\d{1,2}(?::\d{2})?\s?(?:[ap]\.?m\.?)?)(?=$|[\s.,;!?)<])/i.exec(t) || [])[2]) || "");
+  if (rm) bits.push(`reminder ${clock(rm.h * 60 + rm.mi)}`);
   return bits.length ? `  [${bits.join(" · ")}]` : "";
 }
 // Markers a rename must not lose: priority, estimate, time block, reminder, early alerts, repeat, all-day note, checklist, template block.
 const KEEP_RES = [PRIO_RE, EST_RE, TB_RE, /(^|\s)@\d{1,2}(?::\d{2})?\s?(?:[ap]\.?m\.?)?(?=$|[\s.,;!?)<])/i, /(^|\s)!1[hdw](?=$|[\s.,;!?)<])/gi, /(^|\s)!every\s+[^!@^~<]+?(?=\s*(?:$|[!@^~<]))/i, /(^|\s)!alld[1-9]?(?=$|[\s.,;!?)<])/i, /(^|\s)!list(?=$|[\s.,;!?)<])/i, /(^|\s)!blk(?=$|[\s.,;!?)<])/i];
+/* The model must never type markers into a name: it gets them wrong (an "@2:32pm" reminder for a time block, a "!blk" that belongs to
+   the Day template). New names and renames with marker text are refused with a pointer to the right tool, so it fixes them itself. */
+const TYPED_MARKERS = [                                 // the board's own patterns, so ordinary text ("Buy ~3 apples", "@alex") passes
+  [TB_RE, "a time block start (^…): use set_time_block, or add_task's start"],
+  [TIME_RE, "a reminder time (@…): use set_reminder, or add_task's reminder"],
+  [EST_RE, "an estimate (~…): use set_estimate, or add_task's length"],
+  [PRIO_RE, "a priority (!p…): use set_priority, or add_task's priority"],
+  [/(^|\s)!(?:blk|list|alld[1-9]?|every|1[hdw])(?=$|[\s.,;!?)<])/i, "a board marker (!blk, !list, !alld, !every, !1h…): those are set by the board, not typed"],
+];
+function noMarkers(text, what) {
+  for (const [re, why] of TYPED_MARKERS) if (re.test(text)) throw new Error(`${what} contains ${why}. Write only the words; never type markers into names.`);
+  return text;
+}
 // A task's words without its markers, for approval cards ("Water plants", not "Water plants ~15m !p2").
 const bare = (raw) => { let t = oneLine(raw); for (const re of KEEP_RES) t = t.replace(new RegExp(re.source, "gi"), (m) => (/^\s/.test(m) ? " " : "")); return t.replace(/\s{2,}/g, " ").trim(); };
 function keepMarkers(oldRaw, newText) {
@@ -316,7 +331,9 @@ function startOf(v) { const c = parseClock(v); if (!c) throw new Error("start mu
 function lengthOf(v) { const m = parseLength(v); if (!m) throw new Error("length must look like 30m, 1h or 1h30m (5 minutes to 16 hours)"); return m; }
 function prioOf(v) { const p = Number(String(v == null ? "" : v).replace(/^p/i, "")); if (isNone(v)) return 0; if (![1, 2, 3, 4].includes(p)) throw new Error("priority must be 1, 2, 3, 4 or 0 (none)"); return p; }
 function taskExtras(a) {
-  const x = { prio: a.priority != null && a.priority !== "" ? prioOf(a.priority) : 0, start: a.start ? startOf(a.start) : null, len: a.length ? lengthOf(a.length) : 0 };
+  const rc = a.reminder ? parseClock(a.reminder) : null;
+  if (a.reminder && !rc) throw new Error("reminder must look like 3pm, 15:30 or 9:15 am");
+  const x = { prio: a.priority != null && a.priority !== "" ? prioOf(a.priority) : 0, start: a.start ? startOf(a.start) : null, len: a.length ? lengthOf(a.length) : 0, rem: rc ? rc.h * 60 + rc.mi : null };
   return x;
 }
 async function taskNode(id) {
@@ -334,10 +351,11 @@ async function noteNode(id, ctx) {
 async function describeWrite(name, a, ctx) {
   switch (name) {
     case "add_task": {
-      noEnc(checkText(a.name, "name"), "a task"); if (a.note) noEnc(String(a.note), "a note");
+      noMarkers(noEnc(checkText(a.name, "name"), "a task"), "The task name"); if (a.note) noEnc(String(a.note), "a note");
       const x = taskExtras(a), bits = [];
       if (x.prio) bits.push(`P${x.prio}`);
-      if (x.start != null) bits.push(`${clock(x.start)}–${clock(x.start + (x.len || 30))}`); else if (x.len) bits.push(`est ${fmtMin(x.len)}`);
+      if (x.start != null) bits.push(`block ${clock(x.start)}–${clock(x.start + (x.len || 30))}`); else if (x.len) bits.push(`est ${fmtMin(x.len)}`);
+      if (x.rem != null) bits.push(`reminder ${clock(x.rem)}`);
       return `Add task “${clip(asTyped(checkText(a.name, "name")), 120)}” to ${await parentLabelA(checkParent(a.parent, ctx), ctx)}` + (bits.length ? ` (${bits.join(", ")})` : "");
     }
     case "set_time_block": {
@@ -350,7 +368,7 @@ async function describeWrite(name, a, ctx) {
     case "set_priority": { const n = await taskNode(checkId(a.id)), p = prioOf(a.priority); return p ? `Set “${clip(bare(n.name), 100)}” to P${p} (${PRIO_NAMES[p]})` : `Remove the priority from “${clip(bare(n.name), 100)}”`; }
     case "create_note": { notesHome(ctx); const t = noEnc(checkText(a.title, "title"), "a title"); if (a.text) noEnc(String(a.text), "a note"); return `Create note “${clip(asTyped(t), 100)}” in ${ctx.notesNode.name}`; }
     case "append_to_note": { const n = await noteNode(checkId(a.id), ctx); noEnc(checkText(a.text, "text"), "a note"); return `Add to the note “${clip(oneLine(n.name), 100)}”: “${clip(asTyped(a.text), 100)}”`; }
-    case "add_group": { noEnc(checkText(a.name, "name"), "a group"); const n = groupTasks(a).length; return `Add group “${clip(asTyped(checkText(a.name, "name")), 120)}” to ${await parentLabelA(checkParent(a.parent, ctx), ctx)}` + (n ? ` with ${n} task${n === 1 ? "" : "s"}` : ""); }
+    case "add_group": { noMarkers(noEnc(checkText(a.name, "name"), "a group"), "The group name"); for (const t of groupTasks(a)) noMarkers(t, "A task in the group"); const n = groupTasks(a).length; return `Add group “${clip(asTyped(checkText(a.name, "name")), 120)}” to ${await parentLabelA(checkParent(a.parent, ctx), ctx)}` + (n ? ` with ${n} task${n === 1 ? "" : "s"}` : ""); }
     case "set_reminder": {
       const n = await reminderTarget(checkId(a.id));
       if (/^(none|off|remove|clear)$/i.test(String(a.time || "").trim())) return `Remove the reminder from “${clip(oneLine(stripTimeToken(stripHtml(n.name))), 100)}”`;
@@ -361,6 +379,7 @@ async function describeWrite(name, a, ctx) {
     case "add_note": {
       const lines = noteLines(a);
       if (!lines.length) throw new Error("text is required");
+      for (const l of lines) noMarkers(l, "The note");
       const day = a.date ? checkDate(a.date) : (ctx && ctx.day) || ctx.today;
       return `Add ${lines.length === 1 ? "an all-day note" : lines.length + " all-day notes"} to ${day}: “${clip(lines[0], 100)}”${lines.length > 1 ? " …" : ""}`;
     }
@@ -372,7 +391,7 @@ async function describeWrite(name, a, ctx) {
     case "uncomplete_task": return `Un-tick “${await infoName(checkId(a.id))}”`;
     case "move_task": return `Move “${await infoName(checkId(a.id))}” to ${await parentLabelA(checkParent(a.parent, ctx), ctx)} (${a.position === "bottom" ? "bottom" : "top"})`;
     case "rename_item": {
-      const id = checkId(a.id), info = await nodeInfo(id), nm = checkText(a.name, "name");
+      const id = checkId(a.id), info = await nodeInfo(id), nm = noMarkers(checkText(a.name, "name"), "The new name");
       restoreEnc(info ? info.name : "", nm);              // refuses here, before the card, if an encrypted part would be lost
       return `Rename “${await infoName(id)}” to “${clip(asTyped(nm), 120)}”`;
     }
@@ -415,10 +434,11 @@ async function doWrite(name, a, ctx) {
   }
   if (name === "add_task") {
     const x = taskExtras(a);
-    let tname = escName(asTyped(noEnc(checkText(a.name, "name"), "a task")));
+    let tname = escName(asTyped(noMarkers(noEnc(checkText(a.name, "name"), "a task"), "The task name")));
     if (x.start != null) tname += " " + blockToken(Math.floor(x.start / 60), x.start % 60);
     if (x.len) tname += " " + estToken(x.len);
     if (x.prio) tname += ` !p${x.prio}`;
+    if (x.rem != null) tname += ` @${hhmm({ h: Math.floor(x.rem / 60), mi: x.rem % 60 })}`;
     const body = { parent_id: checkParent(a.parent, ctx), name: tname, layoutMode: "todo", position: "bottom" };
     if (a.note) body.note = noEnc(clip(String(a.note), 2000), "a note");
     const res = await wfCall("POST", "/nodes", body);
@@ -492,7 +512,7 @@ async function doWrite(name, a, ctx) {
   if (name === "rename_item") {
     const cur = await wfCall("GET", `/nodes/${id}`), curNode = cur && (cur.node || cur);      // the live name, so its encrypted parts are the current ones
     const oldName = curNode && typeof curNode.name === "string" ? curNode.name : before ? before.name : "";
-    const body = { name: keepMarkers(oldName, restoreEnc(oldName, escName(asTyped(checkText(a.name, "name"))))) };
+    const body = { name: keepMarkers(oldName, restoreEnc(oldName, escName(asTyped(noMarkers(checkText(a.name, "name"), "The new name"))))) };
     await wfCall("POST", `/nodes/${id}`, body);
     patchIndex("POST", `/api/v1/nodes/${id}`, body, null);
     return { text: `Renamed. ${DONE_HINT}`, undo: before ? [{ method: "POST", path: `/nodes/${id}`, body: { name: before.name } }] : [] };
@@ -856,6 +876,7 @@ function systemPrompt(ctx) {
     "Changing anything (add a task or group, tick, move, rename, set a reminder, add a note) goes through a tool and the user approves each change. " + (ctx.allowDelete ? "You can delete with delete_item, but only an item the user explicitly asked to delete: find its exact id first (search or list; never guess an id) and delete nothing else. Deleting removes everything under the item, each delete needs the user's approval, and it can be undone. Never use delete to tidy up, to move something, or as a side effect. Day pages can't be deleted." : "You cannot delete. If asked to delete something, say plainly that you can't delete (Allow deleting can be turned on in the Assistant settings) and that they can do it in WorkFlowy or on the board; never substitute a different change (such as moving it) unless the user asks for that.") + " Reminders: set_reminder writes a time into a task (\"remind me at 3pm\"); it fires on the day the task sits on, so for another day move the task there first. Notes: add_note adds an all-day note to a day (shown in the box at the top of that day), by default on the day the Daily page shows. Only make changes the user asked for. Group related changes in one reply.",
     "Counts: the board summary only covers a few days, so never use it for totals about the whole outline. For 'how many nodes/items/tasks are there in total' use outline_stats.",
     "Task markers: tasks carry their details as markers in their text, and tool results explain them in brackets like [P1 urgent · block 10:00 AM–12:00 PM · est 2h]. ^10am is a time block's start, ~1h30m an estimate (also the block's length; 30 minutes without one), !p1 to !p4 a priority (1 urgent, 2 high, 3 medium, 4 low). Never type markers into names yourself: use set_time_block, set_estimate, set_priority, or add_task's start / length / priority. When you rename a task, write only its words; its markers are kept.",
+    "Time block or reminder? They are different and independent. A time block (set_time_block, add_task's start/length) reserves time on the day's timeline and has a length; it pops up nothing. A reminder (set_reminder, add_task's reminder) is a notification at one moment and has no length. 'block', 'reserve', 'set aside', or a length ('for 20 minutes') means a time block; 'remind', 'alert', 'ping', 'notify' means a reminder; a time with neither ('put X at 3', 'schedule it for 3pm') is unclear: ask which they want (or both). Never add a reminder when asked for a block, or a block when asked for a reminder. In tool results, [block …] and [reminder …] say which a task has.",
     "Scheduling: 'block 2 hours tomorrow at 10 for X' means: find X (or add it), move it to that day if it isn't there, then set_time_block with start and length; check day_schedule first and mention any overlap. For 'am I overbooked' or 'how busy' use workload; for 'when am I free' use day_schedule. For tasks by priority, date or estimate across the outline ('my P1s this week', 'what has no estimate') use find_tasks.",
     "Notes: the user's Notes window holds notes (title and text) under their notes node. Use list_notes and read_note to look things up there, create_note to start one, and append_to_note to add to one (it never replaces existing text). These are different from add_note, which adds an all-day note to a day.",
     "The board summary below was taken when the user sent their latest message. If you move the board or the user asks about other dates, rely on tool results (list_day, list_range, search_outline), not the summary. For a week, use list_range over that week's dates.",

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.5">
+<meta name="version" content="1.5.6.1">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -318,6 +318,14 @@
   .kcrumb .cur { font-weight: 700; padding: 1px 3px; }
   .kcrumb .kcsep { opacity: .5; }
   .kcrumb .kcb1 { font-size: 15px; line-height: 1; }
+  .pl .grip { flex: none; border: none; background: none; color: var(--muted); padding: 0 2px; cursor: grab; opacity: 0; font-size: 11px; letter-spacing: -1px; user-select: none; -webkit-user-select: none; }
+  .pl:hover .grip, .pl:focus-within .grip { opacity: .6; }
+  .pl .grip:hover { opacity: 1; color: var(--accent); }
+  .pl .grip:active { cursor: grabbing; }
+  .pl.drag-over-above { box-shadow: inset 0 2px 0 var(--accent); }
+  .pl.drag-over-below { box-shadow: inset 0 -2px 0 var(--accent); }
+  .pl.dragging { opacity: .4; }
+  @media (hover: none) { .pl .grip { opacity: .5; } }
   .pl .addc, .pl .indc, .pl .outc, .pl .delc { flex: none; border: none; background: none; color: var(--muted); padding: 0 4px; opacity: 0; }
   .pl .addc:hover, .pl .indc:hover, .pl .outc:hover { color: var(--accent); }
   .pl .delc:hover { color: #c0392b; }
@@ -420,8 +428,8 @@
   .ver a:hover { text-decoration: underline; }
   .footright { flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 2px 12px; }
   body:not(.nosidebar) #foot.withcnt .footright { min-width: min(300px, 100%); justify-content: space-between; }   /* at least as wide as the sidebar above it; wider (or wrapped) when there's more to show, such as an update notice */
-  #foot .counters { display: flex; gap: 12px; font-size: 11px; white-space: nowrap; }
-  #foot .counters[hidden] { display: none; }
+  .pagebar .counters { display: flex; gap: 10px; font-size: 11px; white-space: nowrap; }
+  .pagebar .counters[hidden] { display: none; }
   .cnt { background: none; border: none; padding: 0; font: inherit; color: var(--muted); cursor: pointer; }
   .cnt:hover { color: var(--accent); text-decoration: underline; }
   .ver { flex: 0 1 auto; min-width: 0; margin-left: auto; font-size: 11px; color: var(--muted); text-align: right; }
@@ -431,8 +439,10 @@
   #foot .tools button { padding: 4px 10px; font-size: 13px; }
   .outbar { flex-wrap: wrap; }
   .outbar { gap: 3px; }
-  .outbar button { padding: 4px 5px; font-size: 12px; white-space: nowrap; }
-  .outright { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; align-items: center; }   /* wraps rather than running off a narrow column */
+  .outbar button { padding: 3px 6px; font-size: 12px; white-space: nowrap; text-align: center; }
+  .outright { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .outright > button, .outright > .reports { flex: 1 1 calc(50% - 3px); min-width: 0; }
+  .outright > .reports > button { width: 100%; }
   .reports { position: relative; }
   #kanban { flex: 1; min-width: 0; display: none; flex-direction: column; gap: 8px; overflow: hidden; }
   body.kb #kanban { display: flex; }
@@ -535,7 +545,7 @@
   .kcol.kitem { width: auto; max-height: none; background: none; padding: 9px 0 0; border-radius: 0; display: block; }   /* a little air between the accent line and the first line */
   .kcol.kitem .kcards { overflow: visible; }
   .pagebar { flex: none; display: flex; align-items: center; gap: 6px; margin: -8px 0 4px; }
-  .pagebar .pagesave { flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pagebar .pagesave { flex: none; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pagebar #pageEdit { flex: none; display: inline-flex; align-items: center; margin-left: auto; padding: 0 5px; }
   .pagebar #pageEdit.on { color: var(--accent); }
   .pagebar #pageEdit svg { display: block; }
@@ -622,10 +632,29 @@
   #kbMsg { font-size: 12px; color: var(--muted); margin-top: 4px; }
   #kbMsg:empty { display: none; }
   #kbMsg.err { color: #c0392b; }
-  #inboxBtn .cnt { margin-left: 4px; font-size: 11px; background: rgba(127,127,127,.22); border-radius: 8px; padding: 0 5px; }
+  #inboxBtn .cnt { margin-left: 3px; font-size: 10px; background: rgba(127,127,127,.22); border-radius: 8px; padding: 0 4px; }
   #inboxBtn.unset { opacity: .75; }
   #inboxBtn.over { outline: 2px solid var(--accent); outline-offset: 1px; }
-  #notesBtn .cnt { margin-left: 4px; font-size: 11px; background: rgba(127,127,127,.22); border-radius: 8px; padding: 0 5px; }
+  #notesBtn .cnt { margin-left: 3px; font-size: 10px; background: rgba(127,127,127,.22); border-radius: 8px; padding: 0 4px; }
+  #grpBtn .cnt { margin-left: 3px; font-size: 10px; background: rgba(127,127,127,.22); border-radius: 8px; padding: 0 4px; }
+  /* Groups flyout */
+  #grpModal .modal-box { width: min(520px, 96vw); max-height: min(82vh, 700px); }
+  .grpm-bar { flex: none; display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--border); align-items: center; }
+  .grpm-bar .grpm-filter { font: inherit; font-size: 13px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }
+  .grpm-body { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0; }
+  .grpm-empty { padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
+  .grpm-day { padding: 4px 14px 2px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; position: sticky; top: 0; background: var(--card); z-index: 1; }
+  .grpm-row { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; }
+  .grpm-row:hover { background: rgba(127,127,127,.08); }
+  .grpm-row .grpm-star { flex: none; border: none; background: none; font-size: 15px; cursor: pointer; padding: 0 2px; opacity: .3; }
+  .grpm-row .grpm-star:hover, .grpm-row .grpm-star.on { opacity: 1; }
+  .grpm-row .grpm-star.on { color: #e0a100; }
+  .grpm-row .grpm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
+  .grpm-row .grpm-stat { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .grpm-row .grpm-stat.alldone { color: #2d8a4e; }
+  .grpm-row .grpm-go { flex: none; border: none; background: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 2px 4px; border-radius: 4px; opacity: 0; }
+  .grpm-row:hover .grpm-go { opacity: 1; }
+  .grpm-foot { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
   #outStatus { flex: 1 0 100%; }
   #outStatus:empty { display: none; }
   .outbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--muted); }
@@ -690,8 +719,15 @@
 
   /* Move-forward preview and the Done window */
   .modal-box.narrow { width: min(520px, 100%); }
-  /* Notes window: the notes list on the left, the open note on the right (the phone's notes, side by side) */
-  #ntModal .nt-box { width: min(1040px, 100%); height: min(84vh, 760px); }
+  /* Notes window: floating non-modal dialog, draggable by its title bar */
+  #ntDialog { position: fixed; z-index: 50; margin: 0; border: none; padding: 0; background: transparent; overflow: visible; }
+  #ntDialog:not([open]) { display: none; }
+  #ntDialog .nt-box { width: min(1040px, 96vw); height: min(84vh, 760px); resize: both; overflow: hidden; }
+  #ntDialog .sm-head { cursor: grab; user-select: none; -webkit-user-select: none; }
+  #ntDialog .sm-head:active { cursor: grabbing; }
+  #ntDialog .sm-head input, #ntDialog .sm-head button { cursor: default; }
+  .nt-close { border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 13px; padding: 4px 12px; cursor: pointer !important; }
+  .nt-close:hover { background: rgba(127,127,127,.14); }
   .nt-wrap { flex: 1; min-height: 0; display: flex; }
   .nt-side { width: 300px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--col); }
   .nt-tools { flex: none; display: flex; gap: 6px; padding: 10px; }
@@ -720,22 +756,32 @@
   #ntStatus.busy { color: var(--accent); }
   #ntStatus.bad { color: var(--danger); white-space: normal; }
   #ntLockSt.open { color: #2ea043; }
-  #ntCrypt.dim { opacity: .45; }
+  #ntCrypt { display: inline-flex; align-items: center; justify-content: center; padding: 4px; border: none; background: none; color: var(--text); cursor: pointer; border-radius: 4px; }
+  #ntCrypt:hover { background: rgba(127,127,127,.14); }
+  #ntCrypt svg { width: 15px; height: 15px; fill: currentColor; }
+  #ntCrypt.dim { opacity: .35; }
+  #ntCrypt[hidden] { display: none; }
   .nt-hint { flex: none; margin: 0; padding: 6px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
   .nt-hint[hidden] { display: none; }
   #ntText { flex: 1; min-height: 0; resize: none; border: none; padding: 14px 16px; font: inherit; font-size: 15px; line-height: 1.55; background: var(--card); color: var(--text); }
   #ntText:focus { outline: none; }
   #ntText:read-only { background: var(--col); color: var(--muted); }
   /* Empty places an add-on can fill (the Markdown add-on's format bar and preview). Both stay hidden unless an add-on shows them. */
-  .nt-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .nt-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; position: relative; }
+  .nt-bar .nt-acts { display: flex; align-items: center; gap: 2px; margin-left: auto; position: relative; }
+  .nt-bar .nt-acts .mini { border: none; background: none; color: var(--text); padding: 4px 6px; border-radius: 4px; cursor: pointer; font: inherit; font-size: 15px; }
+  .nt-bar .nt-acts .mini:hover { background: rgba(127,127,127,.14); }
   .nt-bar[hidden] { display: none; }
   .nt-view { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; background: var(--card); color: var(--text); font-size: 15px; line-height: 1.55; }
   .nt-view[hidden] { display: none; }
   #ntText[hidden] { display: none; }
+  .nt-ruler { flex: none; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--col); padding: 0 16px; height: 20px; }
+  .nt-ruler[hidden] { display: none; }
+  .nt-ruler canvas { display: block; height: 20px; }
   .nt-locked, .nt-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; color: var(--muted); background: var(--col); text-align: center; }
   .nt-locked[hidden], .nt-empty[hidden] { display: none; }
   .nt-locked p { margin: 0; font-size: 15px; }
-  .nt-pop { position: absolute; right: 12px; top: 100%; z-index: 5; min-width: 220px; display: flex; flex-direction: column; padding: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+  .nt-pop { position: fixed; z-index: 60; min-width: 220px; display: flex; flex-direction: column; padding: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
   .nt-pop[hidden] { display: none; }
   .nt-pop button { text-align: left; border: none; background: none; padding: 7px 10px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; }
   .nt-pop button:hover, .nt-pop button:focus { background: rgba(127,127,127,.14); outline: none; }
@@ -1002,13 +1048,14 @@
 
       </div>
       <div class="pagetree" id="pageTree">Loading…</div>
-      <div class="pagebar"><span class="kbsave pagesave" id="pageSave" role="status" aria-live="polite"></span><button class="mini" id="pageEdit" type="button" aria-label="Edit like a text editor"></button></div>
+      <div class="pagebar"><span class="kbsave pagesave" id="pageSave" role="status" aria-live="polite"></span><div class="counters" id="counters" hidden></div><button class="mini" id="pageEdit" type="button" aria-label="Edit like a text editor"></button></div>
       <div class="outbar">
         <span class="outright">
           <button id="inboxBtn" class="unset" title="Open your Inbox (I). Drop a task here to send it to the Inbox.">&#128229; Inbox<span class="cnt" id="inboxCnt" hidden></span></button>
           <button id="notesBtn" hidden title="Open your notes (N)">&#128221; Notes<span class="cnt" id="notesCnt" hidden></span></button>
+          <button id="grpBtn" hidden title="Groups tracker (G)">&#128204; Groups<span class="cnt" id="grpCnt" hidden></span></button>
           <span class="reports">
-            <button id="reportsBtn" aria-haspopup="true" aria-expanded="false" title="Reports">Reports &#9662;</button>
+            <button id="reportsBtn" aria-haspopup="true" aria-expanded="false" title="Reports">&#128202; Reports &#9662;</button>
             <div class="pop fixed" id="reportsPop" role="menu" hidden>
               <label id="repDone" role="menuitem" tabindex="0"><span>&#10003; Completed tasks<small>What you finished, by the day you completed it</small></span></label>
               <label id="repFlt" role="menuitem" tabindex="0"><span>&#9873; Saved filters<small>Tasks anywhere in your outline by priority, date, estimate or words</small></span></label>
@@ -1026,7 +1073,6 @@
     <button id="kbBtn" aria-pressed="false" title="Your chosen nodes as side-by-side panes (B)" style="display:inline-flex;align-items:center;gap:6px"><svg class="pic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l4.5 2v12L3 18zM7.5 8l4.5-2v12l-4.5 2zM12 6l4.5 2v12L12 18zM16.5 8L21 6v12l-4.5 2z"/></svg> Panes</button>
   </div>
   <div class="footright">
-    <div class="counters" id="counters" hidden></div>
     <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.5</span></div>
   </div>
 </footer>
@@ -1222,6 +1268,24 @@
   </div>
 </div>
 
+<div class="modal" id="grpModal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-label="Groups">
+    <div class="sm-head">
+      <h3>Groups</h3>
+      <button id="grpClose" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button>
+    </div>
+    <div class="grpm-bar">
+      <select id="grpFilter" class="grpm-filter" aria-label="Filter">
+        <option value="open">Open</option><option value="starred">Starred</option><option value="all">All</option>
+      </select>
+      <span style="flex:1"></span>
+      <span id="grpInfo" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div class="grpm-body" id="grpBody"></div>
+    <div class="grpm-foot"><span id="grpFoot"></span></div>
+  </div>
+</div>
+
 <div class="modal" id="doneModal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-label="Completed tasks">
     <div class="sm-head">
@@ -1278,11 +1342,11 @@
   </div>
 </div>
 
-<div class="modal" id="ntModal" hidden>
-  <div class="modal-box nt-box" role="dialog" aria-modal="true" aria-label="Notes">
+<dialog id="ntDialog" aria-label="Notes">
+  <div class="modal-box nt-box">
     <div class="sm-head">
       <h3 id="ntHead">Notes</h3>
-      <button id="ntClose" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button>
+      <button id="ntClose" class="nt-close" title="Close (Esc)" aria-label="Close (Esc)">Close</button>
     </div>
     <div class="nt-wrap">
       <div class="nt-side">
@@ -1293,12 +1357,16 @@
         <div class="nt-ehead" id="ntEhead" hidden>
           <svg class="nt-lockic" id="ntMark" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg>
           <input id="ntTitle" type="text" maxlength="200" autocomplete="off" aria-label="Note title" placeholder="Title">
-          <button id="ntCrypt" class="mini" type="button">Encrypt</button>
-          <button id="ntMenu" class="mini" type="button" aria-label="Note menu" aria-haspopup="true">&#8943;</button>
-          <div class="nt-pop" id="ntPop" hidden></div>
         </div>
         <p class="nt-hint" id="ntHint" hidden></p>
-        <div class="nt-bar" id="ntBar" hidden></div>
+        <div class="nt-bar" id="ntBar" hidden>
+          <span class="nt-acts">
+            <button id="ntCrypt" type="button" title="Encrypt (Ctrl/Cmd+Shift+E)"><svg viewBox="0 0 256 256"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg></button>
+            <button id="ntMenu" class="mini" type="button" aria-label="Note menu" aria-haspopup="true">&#8943;</button>
+            <div class="nt-pop" id="ntPop" hidden></div>
+          </span>
+        </div>
+        <div class="nt-ruler" id="ntRuler" hidden><canvas id="ntRulerC"></canvas></div>
         <textarea id="ntText" placeholder="Start writing…" aria-label="Note text" hidden></textarea>
         <div class="nt-view" id="ntView" hidden></div>
         <div class="nt-locked" id="ntLocked" hidden><p>This note is encrypted.</p><button id="ntUnlockBig" type="button">Unlock</button></div>
@@ -1310,7 +1378,7 @@
       <span class="nt-fright"><span id="ntPos"></span><span id="ntWords"></span><span id="ntLockSt"></span><span id="ntStatus" role="status" aria-live="polite"></span></span>
     </div>
   </div>
-</div>
+</dialog>
 
 <div id="selbar" hidden>
   <strong id="selCount">0 selected</strong>
@@ -3026,6 +3094,7 @@ function render() {
   renderPlan();                                      // (does nothing unless Plan day is open)
   scheduleKids();                                    // sub-item counts load in the background
   scheduleNested();                                  // so do the tasks under bullets (Nested)
+  if (window._grpUpdateBtn) window._grpUpdateBtn(); // Groups tracker badge
   if (adFocus) { const f = [...document.querySelectorAll(`.adband[data-key='${adFocus}'] textarea.ad-line`)].pop(); adFocus = null; if (f) f.focus(); }
 }
 
@@ -3052,7 +3121,7 @@ function renderCounters() {
   add("showSoon", "Upcoming", soon, "optSoon");
   box.replaceChildren(...parts);
   box.hidden = !parts.length;
-  document.getElementById("foot").classList.toggle("withcnt", !!parts.length);
+  // counters are now in the pagebar, no footer layout change needed
 }
 
 // Panel for tasks from days outside the visible range. Cards show their date;
@@ -4339,6 +4408,38 @@ function startEdit(n, textEl, onSaved, onClose, opts) {
   boardHooks.fire("editorOpen", { node: n, title, note, box, tools, save: () => finish(true), cancel: () => finish(false), onClose: (fn) => closers.push(fn) });
 }
 
+/* ---------- Custom sort order (persisted on the server, shared across browsers) ---------- */
+const sortCache = {};                                        // { parentId: ["id1","id2",...] | null }
+async function fetchSortOrder(parentId) {
+  if (parentId in sortCache) return sortCache[parentId];
+  try {
+    const r = await (await fetch(`/sort-order?parent=${encodeURIComponent(parentId)}`)).json();
+    sortCache[parentId] = r && r.order ? r.order : null;
+  } catch (e) { sortCache[parentId] = null; }
+  return sortCache[parentId];
+}
+async function saveSortOrder(parentId, order) {
+  sortCache[parentId] = order;
+  try {
+    const r = await fetch("/sort-order", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parent: parentId, order }) });
+    if (!r.ok) throw new Error(`${r.status}`);
+  } catch (e) { showError("Couldn't save sort order: " + e.message); }
+}
+async function clearSortOrder(parentId) {
+  sortCache[parentId] = null;
+  try { await fetch(`/sort-order?parent=${encodeURIComponent(parentId)}`, { method: "DELETE" }); } catch (e) { /* ok */ }
+}
+function applySortOrder(nodes, order) {
+  if (!order || !order.length) return nodes;
+  const pos = new Map(order.map((id, i) => [id, i]));
+  return nodes.slice().sort((a, b) => {
+    const ai = pos.has(a.id) ? pos.get(a.id) : Infinity;
+    const bi = pos.has(b.id) ? pos.get(b.id) : Infinity;
+    if (ai !== Infinity || bi !== Infinity) return ai - bi;
+    return a.priority - b.priority;                          // unknowns keep their WorkFlowy order at the end
+  });
+}
+
 /* ---------- Daily page (read from WorkFlowy, shown above the pad) ---------- */
 
 const PAGE_DEPTH = 12;       // how many levels of nesting to read (each bullet costs one request)
@@ -4401,6 +4502,8 @@ function renderPage() {
   if (deferRedraw("renderPage", renderPage)) return;
   if (viewItem && itemLiveOn()) { itemLiveRender(); return; }
   if (!viewItem && pageLiveOn() && !kbIsOpen()) { pageLiveRender(); return; }
+  // Ensure sort order is loaded for item view read mode
+  if (viewItem && !(viewItem in sortCache)) { fetchSortOrder(viewItem).then(() => renderPage()); return; }
   kbHostEnd();
   const tree = viewItem ? itemTree : pageTree;
   const roots = viewItem ? itemNodes : pageNodes;
@@ -4414,8 +4517,12 @@ function renderPage() {
   // With Hide completed on, ticked tasks (and anything indented under them) are left out of the Daily page too.
   const hideDone = prefs.hideDone && !viewItem;
   const visible = (list) => (hideDone ? list.filter((x) => !(x.data && x.data.layoutMode === "todo" && x.completedAt)) : list);
+  // Apply custom sort order when viewing an item's direct children
+  const itemSortOrder = viewItem ? (sortCache[viewItem] || null) : null;
   const walk = (all, level, inNotes, parent, grandId) => {
-    const nodes = visible(all);
+    let nodes = visible(all);
+    // Apply custom sort order to the viewed item's immediate children (level 1 in item view — level 0 is the item itself)
+    if (viewItem && level === 1 && itemSortOrder) nodes = applySortOrder(nodes, itemSortOrder);
     nodes.forEach((n, i) => {
       const isNotesBullet = !inNotes && !viewItem && level === 0 && isNotesName(plain(n.name));
       const here = inNotes || isNotesBullet;
@@ -4425,12 +4532,68 @@ function renderPage() {
       // In the item editor from search: only lines with nothing underneath, and never the opened item itself.
       const anyKids = !!(n.children && n.children.length);      // hidden completed lines still count: deleting a line deletes what is under it
       const removable = viewItem ? (level > 0 && !anyKids) : (!isNotesBullet && (!here || !anyKids));
-      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, removable, hasKids ? (closed ? "closed" : "open") : "", parent && grandId ? { parent, grandId } : null));
+      // Show grip handle for direct children of the viewed item (level 1 — level 0 is the item itself)
+      const draggable = viewItem && level === 1;
+      tree.appendChild(pageLine(n, level, i > 0 ? nodes[i - 1] : null, removable, hasKids ? (closed ? "closed" : "open") : "", parent && grandId ? { parent, grandId } : null, draggable));
       if (hasKids && !closed) walk(n.children, level + 1, here, n, parent ? parent.id : (viewItem ? null : pageKey()));
       if (addingFor === n.id) tree.appendChild(addRow(n, level + 1));   // new lines go at the bottom
     });
   };
   walk(roots, 0, false, null, null);
+
+  /* ---------- Drag-to-reorder for item view direct children ---------- */
+  if (viewItem) {
+    let dragId = null;
+    tree.addEventListener("dragstart", (e) => {
+      const row = e.target.closest(".pl[data-id]");
+      if (!row) return;
+      dragId = row.dataset.id;
+      row.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", dragId);
+    });
+    tree.addEventListener("dragend", (e) => {
+      dragId = null;
+      tree.querySelectorAll(".pl.dragging, .pl.drag-over-above, .pl.drag-over-below").forEach(el => {
+        el.classList.remove("dragging", "drag-over-above", "drag-over-below");
+      });
+    });
+    tree.addEventListener("dragover", (e) => {
+      const row = e.target.closest(".pl[data-id]");
+      if (!row || row.dataset.id === dragId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      // Determine above or below based on mouse position within the row
+      const rect = row.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      row.classList.toggle("drag-over-above", e.clientY < mid);
+      row.classList.toggle("drag-over-below", e.clientY >= mid);
+    });
+    tree.addEventListener("dragleave", (e) => {
+      const row = e.target.closest(".pl[data-id]");
+      if (row) row.classList.remove("drag-over-above", "drag-over-below");
+    });
+    tree.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const row = e.target.closest(".pl[data-id]");
+      if (!row || !dragId || row.dataset.id === dragId) return;
+      const rect = row.getBoundingClientRect();
+      const above = e.clientY < rect.top + rect.height / 2;
+      // Collect current order of direct-child rows from DOM (level 1 = 16px padding)
+      const rows = Array.from(tree.querySelectorAll(".pl[data-id]")).filter(r => r.style.paddingLeft === "28px");
+      const ids = rows.map(r => r.dataset.id);
+      // Move dragId before or after target
+      const fromIdx = ids.indexOf(dragId);
+      if (fromIdx >= 0) ids.splice(fromIdx, 1);
+      let toIdx = ids.indexOf(row.dataset.id);
+      if (!above) toIdx++;
+      ids.splice(toIdx, 0, dragId);
+      // Save and re-render
+      await saveSortOrder(viewItem, ids);
+      renderPage();
+    });
+  }
+
   if (!tree.children.length) tree.innerHTML = `<div class="empty">${viewItem ? "Nothing here" : "Nothing to show (completed items are hidden)"}</div>`;
   tree.scrollTop = keepScroll;
   const box = tree.querySelector(".pl-add input");
@@ -4465,7 +4628,7 @@ let addRowForce = null;
 function addRow(parent, level) {
   const wrap = document.createElement("div");
   wrap.className = "pl-add";
-  wrap.style.paddingLeft = level * 16 + "px";
+  wrap.style.paddingLeft = level * 28 + "px";
   const input = document.createElement("input");
   input.placeholder = "Add under this line… (Enter adds, Esc closes)";
   // Type picker: what kind of line Enter adds. Remembered in this browser.
@@ -4538,11 +4701,12 @@ function addRow(parent, level) {
 
 // One line of today's page. Todos get a checkbox; double-click any line to edit its text.
 // `prev` is the line directly above at the same level (none for the first line of a group).
-function pageLine(n, level, prev, removable, fold, out) {
+function pageLine(n, level, prev, removable, fold, out, draggable) {
   const mode = (n.data && n.data.layoutMode) || "bullets";
   const row = document.createElement("div");
   row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "");
-  row.style.paddingLeft = level * 16 + "px";
+  row.style.paddingLeft = level * 28 + "px";
+  if (draggable) { row.draggable = true; row.dataset.id = n.id; }
 
   // ▾ / ▸ hides or shows the lines underneath (a blank spacer keeps lines without children lined up)
   const tg = document.createElement(fold ? "button" : "span");
@@ -4554,6 +4718,15 @@ function pageLine(n, level, prev, removable, fold, out) {
     tg.addEventListener("click", () => { setCollapsed(n.id, fold === "open"); renderPage(); });
   }
   row.appendChild(tg);
+
+  if (draggable) {
+    const grip = document.createElement("button");
+    grip.className = "grip"; grip.textContent = "⠿"; grip.title = "Drag to reorder";
+    grip.setAttribute("aria-label", "Drag to reorder");
+    grip.addEventListener("mousedown", () => { row.draggable = true; });
+    grip.addEventListener("touchstart", () => { row.draggable = true; }, { passive: true });
+    row.appendChild(grip);
+  }
 
   if (mode === "todo") {
     const cb = document.createElement("input");
@@ -4975,6 +5148,7 @@ async function openItem(id, fromBoard) {
   document.getElementById("listPane").hidden = true;
   document.getElementById("itemPane").hidden = false;
   updateViewBar();
+  await fetchSortOrder(id);                                  // load sort order before render so custom order is applied
   renderPage();
   itemTree.scrollTop = 0;
 }
@@ -5004,7 +5178,7 @@ function updateViewBar() {
   const bar = document.getElementById("viewBar");
   bar.innerHTML = "";
   const back = document.createElement("button");
-  back.textContent = itemFromBoard ? "← Panes" : "← Results"; back.title = itemFromBoard ? "Back to the panes (Esc)" : "Back to the search results (Esc)"; back.onclick = () => closeItem();
+  back.textContent = itemFromBoard ? "← Week board" : "← Results"; back.title = itemFromBoard ? "Back to the week board (Esc)" : "Back to the search results (Esc)"; back.onclick = () => closeItem();
   const path = document.createElement("span");
   path.textContent = itemPath.map(maskTokens).concat(shownName(itemNodes[0].name) || "(empty)").join(" › ");
   const link = document.createElement("a");
@@ -5499,6 +5673,7 @@ document.addEventListener("keydown", (e) => {
 async function reloadBullet(id) {
   const data = await call("GET", `/nodes?parent_id=${id}`);
   nest[id] = { todos: (data && data.nodes ? data.nodes : []).filter((n) => n.data && n.data.layoutMode === "todo").sort((a, b) => a.priority - b.priority) };
+  if (window._grpRefreshOne) window._grpRefreshOne(id);       // keep group registry in sync
 }
 async function reloadParents(parents) {
   const ids = [...new Set(parents.filter(Boolean))];
@@ -6629,7 +6804,7 @@ function kbCardEl(n, col, ctx) {
 }
 /* ----- adding a line (to a column, or under a line of an outline) ----- */
 function kbAddRow(ctx, parentId, level) {
-  const row = document.createElement("div"); row.className = "kadd"; row.style.paddingLeft = level ? (level * 16 + 4) + "px" : "";
+  const row = document.createElement("div"); row.className = "kadd"; row.style.paddingLeft = level ? (level * 28 + 4) + "px" : "";
   const inp = document.createElement("input"); inp.type = "text"; inp.className = "kaddin"; inp.dataset.col = ctx.col.id; inp.dataset.parent = parentId;
   inp.placeholder = level ? "Add under this line… (Enter adds, Esc closes)" : ctx.col.id === "_page" ? "+ Add a task or line" : "+ Add a card"; inp.setAttribute("aria-label", "Add a line to " + ctx.col.name);
   const kinds = [["bullets", "•", "Bullet"], ["todo", "☐", "Task"], ["numbered", "1.", "Numbered line"]];
@@ -6705,7 +6880,7 @@ let kbTableOutline = new Set(); try { kbTableOutline = new Set(JSON.parse(localS
 function kbTableShow(id, grid) { if (grid) kbTableOutline.delete(id); else kbTableOutline.add(id); try { localStorage.setItem("kbTableOutline", JSON.stringify([...kbTableOutline])); } catch (e) {} if (kbHost) kbHost.render(); else kbRender(); }
 const kbIsTable = (n) => kbType(n) === "table" && !kbTableOutline.has(n.id) && (n.children || []).length > 0 && n.children.every((r) => !r.pending);
 function kbTableGrid(n, level, ctx) {
-  const wrap = document.createElement("div"); wrap.className = "ktw"; wrap.style.marginLeft = (level * 16 + 22) + "px";
+  const wrap = document.createElement("div"); wrap.className = "ktw"; wrap.style.marginLeft = (level * 28 + 22) + "px";
   const rows = (n.children || []).slice().sort((a, b) => a.priority - b.priority).map((r) => (r.children || []).slice().sort((a, b) => a.priority - b.priority));
   const cols = Math.max(1, ...rows.map((r) => r.length)), live = kbEditOn(ctx.col);
   const tb = document.createElement("table"); tb.className = "ktb";
@@ -6748,7 +6923,12 @@ function kbTableCell(c) {
   return ta;
 }
 function kbWalk(cont, all, level, parent, grandId, ctx) {
-  const vis = all.filter((x) => !kbHidden(x));
+  let vis = all.filter((x) => !kbHidden(x));
+  // Apply custom sort order to direct children of viewed item (level 1 in item view)
+  if (viewItem && level === 1 && ctx.col.id === "_item") {
+    const order = sortCache[viewItem];
+    if (order && order.length) vis = applySortOrder(vis, order);
+  }
   vis.forEach((n, i) => {
     if (kbIsTable(n)) {
       const sibT = { real: parent ? (parent.children || all) : (ctx.top || all), parentId: parent ? parent.id : ctx.rootId, virt: false };
@@ -6779,6 +6959,8 @@ const itemLiveOn = () => kbEditMap._item !== false;
 function kbHostEnd() { if (!kbHost) return; kbOpenSet = kbHostOpen; kbHost = null; kbHostOpen = null; kbSelClear(); }
 function itemLiveRender() {
   const it = itemNodes[0]; if (!it) return;
+  // Ensure sort order is loaded before rendering; if not cached, fetch then re-render
+  if (viewItem && !(viewItem in sortCache)) { fetchSortOrder(viewItem).then(() => itemLiveRender()); return; }
   if (kbHost && kbHost.kind !== "item") kbHostEnd();
   if (!kbHost) { kbHost = { kind: "item", root: document.getElementById("itemTree"), render: itemLiveRender }; kbHostOpen = kbOpenSet; kbOpenSet = new Set(kbAllParents(itemNodes, [])); }   // every line starts unfolded here
   const tree = kbHost.root, keep = tree.scrollTop; tree.textContent = "";
@@ -6790,6 +6972,56 @@ function itemLiveRender() {
   wrap.append(list, kbAddRow(ctx, viewItem, 0));
   tree.appendChild(wrap); tree.scrollTop = keep;
   kbRestoreFocus();
+  // Drag-to-reorder handlers for item view children
+  if (!tree._sortBound) {
+    tree._sortBound = true;
+    let dragId = null;
+    tree.addEventListener("dragstart", (e) => {
+      const row = e.target.closest(".pl[data-id]");
+      if (!row || !row.draggable) return;
+      dragId = row.dataset.id;
+      row.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", dragId);
+    });
+    tree.addEventListener("dragend", () => {
+      dragId = null;
+      tree.querySelectorAll(".pl.dragging, .pl.drag-over-above, .pl.drag-over-below").forEach(el => {
+        el.classList.remove("dragging", "drag-over-above", "drag-over-below");
+      });
+    });
+    tree.addEventListener("dragover", (e) => {
+      const row = e.target.closest(".pl[data-id]");
+      if (!row || row.dataset.id === dragId || !row.draggable) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = row.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      row.classList.toggle("drag-over-above", e.clientY < mid);
+      row.classList.toggle("drag-over-below", e.clientY >= mid);
+    });
+    tree.addEventListener("dragleave", (e) => {
+      const row = e.target.closest(".pl[data-id]");
+      if (row) row.classList.remove("drag-over-above", "drag-over-below");
+    });
+    tree.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const row = e.target.closest(".pl[data-id]");
+      if (!row || !dragId || row.dataset.id === dragId || !viewItem) return;
+      const rect = row.getBoundingClientRect();
+      const above = e.clientY < rect.top + rect.height / 2;
+      // Collect direct-child rows (level 1 = paddingLeft 16px)
+      const rows = Array.from(tree.querySelectorAll(".pl[data-id]")).filter(r => r.style.paddingLeft === "28px");
+      const ids = rows.map(r => r.dataset.id);
+      const fromIdx = ids.indexOf(dragId);
+      if (fromIdx >= 0) ids.splice(fromIdx, 1);
+      let toIdx = ids.indexOf(row.dataset.id);
+      if (!above) toIdx++;
+      ids.splice(toIdx, 0, dragId);
+      await saveSortOrder(viewItem, ids);
+      itemLiveRender();
+    });
+  }
 }
 /* ----- the Daily page uses it too ----- */
 const kbPageCol = { id: "_page", name: "the Daily page" };
@@ -7373,10 +7605,20 @@ async function kbOutdent(n, parent, grandId, ctx) {        // as the Daily page:
 }
 function kbLine(n, level, prev, out, fold, ctx, sib) {
   const mode = kbType(n), row = document.createElement("div"), zoomable = ctx.col.kind !== "calendar" && kbView(ctx.col) === "outline";
-  row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "") + (kbSel.ids.includes(n.id) ? " sel" : ""); row.style.paddingLeft = level * 16 + "px"; row.dataset.id = n.id;
+  row.className = "pl" + (mode === "todo" && n.completedAt ? " done" : "") + (/^h[1-3]$/.test(mode) ? " h" : "") + (kbSel.ids.includes(n.id) ? " sel" : ""); row.style.paddingLeft = level * 28 + "px"; row.dataset.id = n.id;
   const tg = document.createElement(fold ? "button" : "span"); tg.className = "tg";
   if (fold) { tg.textContent = fold === "open" ? "▾" : "▸"; tg.title = fold === "open" ? "Collapse" : "Expand"; tg.setAttribute("aria-label", tg.title); tg.addEventListener("click", () => { if (n._g) { if (fold === "open") kbHeadShut.add(n.id); else kbHeadShut.delete(n.id); kbSaveHeadShut(); } else kbSetOpen(n.id, fold !== "open"); if (kbAddingFor === n.id) kbAddingFor = null; kbRender(); }); }
   row.appendChild(tg);
+  // Grip handle for drag-to-reorder in item view (direct children = level 1)
+  if (viewItem && level === 1 && ctx.col.id === "_item") {
+    row.draggable = true;
+    const grip = document.createElement("button");
+    grip.className = "grip"; grip.textContent = "⠿"; grip.title = "Drag to reorder";
+    grip.setAttribute("aria-label", "Drag to reorder");
+    grip.addEventListener("mousedown", () => { row.draggable = true; });
+    grip.addEventListener("touchstart", () => { row.draggable = true; }, { passive: true });
+    row.appendChild(grip);
+  }
   if (mode === "todo") {
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!n.completedAt; cb.disabled = !!n.pending; cb.setAttribute("aria-label", "Done");
     cb.addEventListener("change", async () => {
@@ -7760,7 +8002,8 @@ async function loadPlan(force) {
   const token = ++planToken;
   const keys = planExtraKeys().filter((k) => force || k === planDay || !(k in cache));
   planLoading = true; renderPlan();
-  const [err] = await Promise.all([loadMany(keys), ...planSources.map((x) => loadSource(x, force))]);
+  const grpLoad = window._grpLoadForPlan ? window._grpLoadForPlan(force) : Promise.resolve();
+  const [err] = await Promise.all([loadMany(keys), ...planSources.map((x) => loadSource(x, force)), grpLoad]);
   if (token !== planToken) return;
   planLoading = false;
   if (err) showError(err);
@@ -7930,8 +8173,36 @@ function renderPlan() {
     for (const n of open) scroll.appendChild(planRow(n, src.id, "Add"));
   }
 
+  // Groups: show open tasks from tracked groups so they can be assigned to this day
+  if (prefs.nested === "group" && window._grpReg) {
+    const reg = window._grpReg();
+    const grpEntries = Object.entries(reg)
+      .filter(([id, g]) => g.open > 0)
+      .sort((a, b) => (b[1].k > a[1].k ? 1 : b[1].k < a[1].k ? -1 : 0));
+    if (grpEntries.length) {
+      const gh = document.createElement("div"); gh.className = "bgh";
+      const gt = document.createElement("span");
+      const totalOpen = grpEntries.reduce((s, [, g]) => s + g.open, 0);
+      gt.textContent = `Groups (${totalOpen})` + (planLoading ? " · loading…" : "");
+      gh.appendChild(gt);
+      scroll.appendChild(gh);
+      for (const [id, g] of grpEntries) {
+        const info = nest[id];
+        const todos = info ? info.todos || [] : [];
+        const open = todos.filter((t) => !t.completedAt);
+        if (!open.length && !planLoading) continue;
+        // Sub-heading for each group
+        const sub = document.createElement("div"); sub.className = "bgh";
+        sub.style.cssText = "font-size:11px;padding-left:12px;opacity:.7;border:none;margin-top:2px";
+        sub.textContent = `${g.name} (${open.length})`;
+        scroll.appendChild(sub);
+        for (const n of open) scroll.appendChild(planRow(n, id, "Add"));
+      }
+    }
+  }
+
   for (const k of planAheadKeys()) {
-    const open = (cache[k] || []).filter((n) => !n.completedAt);
+    const open = (cache[k] || []).filter((n) => !n.completedAt && !BLK_RE.test(plain(n.name)));
     const gh = document.createElement("div");
     gh.className = "bgh";
     gh.textContent = `${dayLabel(k)} (${open.length})`;
@@ -8225,7 +8496,7 @@ updateNotesUi(); refreshNotesCount(); loadPhoneNotes();
    you stop typing, and new notes go to the top. With the Encrypt add-on, words can be encrypted: Encrypt wraps the selection as ⟦…⟧, which
    is sealed into wbenc1 text on every save; Unlock shows a locked note as ⟦readable⟧ text; Decrypt takes the encryption off one part.
    Locked encrypted text shows as ‹secret›, and a locked note can't be edited, so nothing encrypted can be overwritten. */
-const ntModal = document.getElementById("ntModal"), ntList = document.getElementById("ntList"), ntSearch = document.getElementById("ntSearch");
+const ntDialog = document.getElementById("ntDialog"), ntList = document.getElementById("ntList"), ntSearch = document.getElementById("ntSearch");
 const ntTitle = document.getElementById("ntTitle"), ntText = document.getElementById("ntText"), ntStatus = document.getElementById("ntStatus");
 const ntCryptBtn = document.getElementById("ntCrypt"), ntHint = document.getElementById("ntHint"), ntPop = document.getElementById("ntPop");
 const NT_TOK = /wbenc1\.[A-Za-z0-9_-]{59,}/, NT_TOKG = /wbenc1\.[A-Za-z0-9_-]{59,}/g, NT_BR = /[⟦⟧]/;
@@ -8295,10 +8566,11 @@ function ntUi() {
   document.getElementById("ntEmpty").hidden = !!cur;
   const locked = !!cur && ntText.readOnly && NT_TOK.test(cur.note || ""), whole = locked && ntAllSecret(cur.note);
   ntText.hidden = !cur || whole;
+  document.getElementById("ntBar").hidden = !cur || whole;
+  ntDrawRuler();
   document.getElementById("ntLocked").hidden = !whole;
   document.getElementById("ntUnlockBig").hidden = !ntCrypto();
   ntCryptBtn.hidden = st === "none" || whole;
-  ntCryptBtn.textContent = st === "unlock" ? "Unlock" : st === "decrypt" ? "Decrypt" : "Encrypt";
   ntCryptBtn.classList.toggle("dim", st === "idle");
   ntCryptBtn.title = st === "unlock" ? "Unlock this note to read and edit it" : st === "decrypt" ? "Take the encryption off these words" : "Encrypt the selected words (Ctrl/Cmd+Shift+E)";
   document.getElementById("ntMark").style.display = cur && (ntHas(cur) || (ntEnc && NT_BR.test(ntText.value))) ? "" : "none";
@@ -8307,7 +8579,7 @@ function ntUi() {
   ntHint.textContent = noAddon ? "Has encrypted text. Turn on the Encrypt add-on (Settings > Encryption) to read and edit it." : locked ? "Has encrypted text. Unlock it to read and edit it." : "Words between ⟦ ⟧ are encrypted when the note saves.";
   if (whole && noAddon) document.querySelector("#ntLocked p").textContent = "This note is encrypted. Turn on the Encrypt add-on to read it.";
   else document.querySelector("#ntLocked p").textContent = "This note is encrypted.";
-  wbNotes.state({ shown: !ntModal.hidden, id: cur ? (cur.id || "new") : null, rev: ntRev, readOnly: !!ntText.readOnly, locked, whole, unlocked: !!ntEnc });
+  wbNotes.state({ shown: ntDialog.open, id: cur ? (cur.id || "new") : null, rev: ntRev, readOnly: !!ntText.readOnly, locked, whole, unlocked: !!ntEnc });
 }
 function ntShowLocked() { ntEnc = null; ntRev++; ntText.value = ntSecret(ntCur.note); ntText.readOnly = true; ntTitle.readOnly = true; ntUi(); }
 async function ntOpenSealed() {                             // a locked note: ask for the passphrase if needed, then show it readable
@@ -8401,7 +8673,7 @@ function ntFoot() {
 ntText.addEventListener("input", () => { ntUntouched = false; ntDirty = true; ntLater(); if (ntCrypto()) ntCrypto().touch && ntCrypto().touch(); ntUi(); });
 ntTitle.addEventListener("input", () => { ntUntouched = false; ntDirty = true; ntTitleEdited = true; ntLater(); });
 ntTitle.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ntText.focus(); } });
-document.addEventListener("selectionchange", () => { if (!ntModal.hidden && document.activeElement === ntText) ntUi(); });
+document.addEventListener("selectionchange", () => { if (ntDialog.open && document.activeElement === ntText) ntUi(); });
 ["select", "keyup", "mouseup"].forEach((ev) => ntText.addEventListener(ev, () => { if (ntCur) ntUi(); }));
 
 async function ntCryptTap() {
@@ -8433,13 +8705,73 @@ document.getElementById("ntMenu").onclick = (e) => {
   const add = (label, fn, cls) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (cls) b.className = cls; b.onclick = () => { ntPop.hidden = true; fn(); }; ntPop.appendChild(b); };
   const c = ntCrypto();
   if (c && c.unlocked()) add("Lock encryption", () => { const btn = document.getElementById("cryptLock"); if (btn) btn.click(); else ntLockNow(); });
+  const rulerOn = !ntRuler.hidden;
+  add(rulerOn ? "Hide ruler" : "Show ruler", ntToggleRuler);
   add("Delete note", ntDelete, "danger");
-  ntPop.hidden = false; const f = ntPop.querySelector("button"); if (f) f.focus();
+  ntPop.hidden = false;
+  const mr = document.getElementById("ntMenu").getBoundingClientRect();
+  ntPop.style.top = (mr.bottom + 4) + "px";
+  ntPop.style.right = (window.innerWidth - mr.right) + "px";
+  const f = ntPop.querySelector("button"); if (f) f.focus();
 };
 async function ntLockNow() {                                  // without the add-on's own Lock button: save sealed, then show the note locked
   if (ntEnc) { await ntFlush(); if (!ntDirty && ntCur) ntShowLocked(); }
 }
 document.addEventListener("click", (e) => { if (!ntPop.hidden && !e.target.closest("#ntPop, #ntMenu")) ntPop.hidden = true; });
+
+// ── Column ruler ──
+const ntRuler = document.getElementById("ntRuler"), ntRulerC = document.getElementById("ntRulerC");
+let ntRulerShown = false;
+try { ntRulerShown = localStorage.getItem("ntRuler") === "1"; } catch (e) {}
+function ntDrawRuler() {
+  if (!ntRulerShown || ntText.hidden) { ntRuler.hidden = true; return; }
+  ntRuler.hidden = false;
+  const cs = getComputedStyle(ntText);
+  const font = cs.fontSize + " " + cs.fontFamily;
+  const dpr = window.devicePixelRatio || 1;
+  // Measure a single character width using the textarea's font
+  const ctx = ntRulerC.getContext("2d");
+  ctx.font = font;
+  const cw = ctx.measureText("M").width;   // character cell width
+  // Ruler should match the textarea's visible width (inside its padding)
+  const pad = parseFloat(cs.paddingLeft) || 16;
+  const tw = ntText.clientWidth - pad * 2;
+  const cols = Math.floor(tw / cw);
+  const w = ntRuler.clientWidth;
+  ntRulerC.width = w * dpr; ntRulerC.height = 20 * dpr;
+  ntRulerC.style.width = w + "px";
+  ctx.scale(dpr, dpr);
+  // Colours
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const tickColor = dark ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.18)";
+  const numColor = dark ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.38)";
+  ctx.font = "10px system-ui, sans-serif";
+  ctx.textBaseline = "bottom";
+  for (let i = 1; i <= cols; i++) {
+    const x = i * cw;   // ruler padding matches textarea padding via container padding
+    const tall = i % 10 === 0;
+    const mid = i % 5 === 0;
+    ctx.strokeStyle = tickColor;
+    ctx.beginPath();
+    ctx.moveTo(x, tall ? 4 : mid ? 8 : 12);
+    ctx.lineTo(x, 18);
+    ctx.stroke();
+    if (tall) {
+      ctx.fillStyle = numColor;
+      ctx.textAlign = "center";
+      ctx.fillText(String(i), x, 13);
+    }
+  }
+}
+function ntToggleRuler() {
+  ntRulerShown = !ntRulerShown;
+  try { if (ntRulerShown) localStorage.setItem("ntRuler", "1"); else localStorage.removeItem("ntRuler"); } catch (e) {}
+  ntDrawRuler();
+}
+// Redraw ruler on resize (window and dialog drag-resize)
+{ let rRaf; const schedRuler = () => { cancelAnimationFrame(rRaf); rRaf = requestAnimationFrame(ntDrawRuler); };
+  window.addEventListener("resize", schedRuler);
+  try { new ResizeObserver(schedRuler).observe(ntText); } catch (e) {} }
 async function ntDelete() {
   const cur = ntCur; if (!cur) return;
   if (cur.isNew) { ntCur = null; ntUi(); ntRenderList(); return; }
@@ -8457,7 +8789,18 @@ async function ntDelete() {
 }
 
 async function ntOpen() {
-  ntModal.hidden = false; modalFocusIn(ntModal, ntSearch);
+  if (!ntDialog.open) {
+    /* Centre the dialog on first open; subsequent opens keep the last position */
+    if (!ntDialog.dataset.placed) {
+      const bw = window.innerWidth, bh = window.innerHeight;
+      const dw = Math.min(1040, bw * 0.96), dh = Math.min(bh * 0.84, 760);
+      ntDialog.style.left = Math.max(0, (bw - dw) / 2) + "px";
+      ntDialog.style.top = Math.max(0, (bh - dh) * 0.38) + "px";
+      ntDialog.dataset.placed = "1";
+    }
+    ntDialog.show();
+  }
+  modalFocusIn(ntDialog, ntSearch);
   ntLoaded = false; ntRenderList(); ntHook();
   await ntLoad();
   if (ntCur) { const fresh = ntNotes.find((x) => x.id === ntCur.id); if (!fresh) { ntCur = null; ntEnc = null; } }
@@ -8468,20 +8811,223 @@ async function ntCloseWin() {
   await ntFlush();
   if (ntDirty) { if (!confirm("The note couldn't be saved (" + ntStatus.textContent.replace(/^Not saved: /, "") + "). Close anyway and lose the last change?")) return; ntDirty = false; }
   if (ntEnc && ntCur) ntShowLocked();                         // nothing readable stays on screen behind a closed window
-  ntModal.hidden = true; modalFocusBack(ntModal);
+  ntDialog.close(); modalFocusBack(ntDialog);
   ntUi();                                                     // tells add-ons the window is closed (a preview must drop its readable text)
 }
 wbNotes.start({ text: ntText, bar: document.getElementById("ntBar"), view: document.getElementById("ntView"), box: document.querySelector(".nt-main"), refreshList: ntRenderList });
 document.getElementById("ntClose").onclick = ntCloseWin;
 document.getElementById("ntNew").onclick = () => ntShow(null);
-ntModal.addEventListener("click", (e) => { if (e.target === ntModal) ntCloseWin(); });
-ntModal.addEventListener("keydown", (e) => {
+/* Drag the floating dialog by its title bar */
+{
+  const hd = ntDialog.querySelector(".sm-head");
+  let dx = 0, dy = 0, dragging = false;
+  hd.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button, input")) return;             // don't drag when clicking Close or a control
+    dragging = true; dx = e.clientX - ntDialog.offsetLeft; dy = e.clientY - ntDialog.offsetTop;
+    hd.setPointerCapture(e.pointerId);
+  });
+  hd.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const x = Math.max(0, Math.min(e.clientX - dx, window.innerWidth - 80));
+    const y = Math.max(0, Math.min(e.clientY - dy, window.innerHeight - 40));
+    ntDialog.style.left = x + "px"; ntDialog.style.top = y + "px";
+  });
+  hd.addEventListener("pointerup", () => { dragging = false; });
+  hd.addEventListener("lostpointercapture", () => { dragging = false; });
+}
+ntDialog.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   e.stopPropagation(); e.preventDefault();
   if (!ntPop.hidden) { ntPop.hidden = true; document.getElementById("ntMenu").focus(); return; }
   if (document.querySelector(".crypt-modal, .crypt-back")) return;     // the add-on's passphrase dialog handles its own Esc
   ntCloseWin();
 });
+
+/* ---------- Groups tracker: persists discovered groups in localStorage, with starring ---------- */
+{
+  const grpModal = document.getElementById("grpModal"), grpBody = document.getElementById("grpBody");
+  const grpBtn = document.getElementById("grpBtn"), grpCnt = document.getElementById("grpCnt");
+  const grpFilter = document.getElementById("grpFilter"), grpInfo = document.getElementById("grpInfo");
+  const grpFoot = document.getElementById("grpFoot");
+
+  // --- Persistent registry: { id: { name, k (dayKey), open, total, ts } } ---
+  // Saved to localStorage so groups survive across page loads and week navigation.
+  let grpReg = {};
+  try { grpReg = JSON.parse(localStorage.getItem("grpReg") || "{}"); } catch (e) {}
+  function saveReg() { try { localStorage.setItem("grpReg", JSON.stringify(grpReg)); } catch (e) {} }
+
+  // Starred group IDs (persisted)
+  let grpStarred = new Set();
+  try { grpStarred = new Set(JSON.parse(localStorage.getItem("grpStarred") || "[]")); } catch (e) {}
+  function saveStarred() { try { localStorage.setItem("grpStarred", JSON.stringify([...grpStarred])); } catch (e) {} }
+
+  // Scan loaded dayBullets/nest and update the registry with fresh data.
+  // Only registers bullets that actually have child tasks (real groups).
+  function grpScanLoaded() {
+    let changed = false;
+    for (const k of Object.keys(dayBullets)) {
+      for (const b of dayBullets[k] || []) {
+        const info = nest[b.id];
+        if (!info) continue;                              // not loaded yet
+        const todos = info.todos || [];
+        if (!todos.length) {
+          // Bullet with no tasks — remove from registry if it was there
+          if (grpReg[b.id]) { delete grpReg[b.id]; changed = true; }
+          continue;
+        }
+        const open = todos.filter((t) => !t.completedAt).length;
+        const total = todos.length;
+        const name = shownVisible(b.name) || "(empty)";
+        const prev = grpReg[b.id];
+        if (!prev || prev.name !== name || prev.k !== k || prev.open !== open || prev.total !== total) {
+          grpReg[b.id] = { name, k, open, total, ts: Date.now() };
+          changed = true;
+        }
+      }
+    }
+    if (changed) saveReg();
+  }
+
+  // Build the display list from the registry
+  function collectGroups() {
+    return Object.entries(grpReg)
+      .map(([id, g]) => ({ id, ...g, starred: grpStarred.has(id) }))
+      .sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0) || (b.k > a.k ? 1 : b.k < a.k ? -1 : 0));
+  }
+
+  function renderGroups() {
+    grpScanLoaded();                                      // refresh from live data first
+    const filter = grpFilter.value;
+    let groups = collectGroups();
+    if (filter === "open") groups = groups.filter((g) => g.open > 0 || g.starred);
+    else if (filter === "starred") groups = groups.filter((g) => g.starred);
+    grpBody.textContent = "";
+    if (!groups.length) {
+      const e = document.createElement("div"); e.className = "grpm-empty";
+      e.textContent = filter === "starred" ? "No starred groups yet. Star a group to keep it at the top."
+        : filter === "open" ? "No groups with open tasks."
+        : "No groups found yet. Groups are remembered as you navigate through weeks with Nested set to Group.";
+      grpBody.appendChild(e);
+      grpInfo.textContent = "";
+      grpFoot.textContent = "";
+      return;
+    }
+    let lastDay = null;
+    for (const g of groups) {
+      if (g.k !== lastDay) {
+        lastDay = g.k;
+        const dh = document.createElement("div"); dh.className = "grpm-day";
+        dh.textContent = dayLabel(g.k);
+        grpBody.appendChild(dh);
+      }
+      const row = document.createElement("div"); row.className = "grpm-row";
+
+      const star = document.createElement("button"); star.type = "button"; star.className = "grpm-star" + (g.starred ? " on" : "");
+      star.textContent = g.starred ? "★" : "☆"; star.title = g.starred ? "Unstar" : "Star to keep at top";
+      star.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (grpStarred.has(g.id)) grpStarred.delete(g.id); else grpStarred.add(g.id);
+        saveStarred(); renderGroups();
+      });
+
+      const name = document.createElement("span"); name.className = "grpm-name"; name.textContent = g.name;
+
+      const stat = document.createElement("span");
+      stat.className = "grpm-stat" + (g.open === 0 && g.total > 0 ? " alldone" : "");
+      stat.textContent = g.total === 0 ? "empty" : g.open === 0 ? "✓ all done" : `${g.open}/${g.total} open`;
+
+      const go = document.createElement("button"); go.type = "button"; go.className = "grpm-go";
+      go.textContent = "Go ▸"; go.title = "Navigate to this day";
+      go.addEventListener("click", (e) => { e.stopPropagation(); goToGroup(g.k); });
+
+      row.append(star, name, stat, go);
+      row.addEventListener("click", () => goToGroup(g.k));
+      grpBody.appendChild(row);
+    }
+    const totalOpen = groups.filter((g) => g.open > 0).length;
+    grpInfo.textContent = `${groups.length} group${groups.length !== 1 ? "s" : ""}`;
+    grpFoot.textContent = totalOpen ? `${totalOpen} with open tasks` : "All caught up";
+  }
+
+  // Navigate to a group's day, then re-open the modal once the week loads so it refreshes with live data
+  function goToGroup(k) {
+    closeGrpModal();
+    const d = keyToDate(k);
+    weekStart = span === 3 ? d : startOfWeek(d);
+    calMonth = firstOfMonth(d);
+    loadWeek();
+  }
+
+  function openGrpModal() { grpModal.hidden = false; modalFocusIn(grpModal, grpFilter); renderGroups(); }
+  function closeGrpModal() { grpModal.hidden = true; modalFocusBack(grpModal); }
+
+  grpBtn.onclick = openGrpModal;
+  document.getElementById("grpClose").onclick = closeGrpModal;
+  grpModal.addEventListener("click", (e) => { if (e.target === grpModal) closeGrpModal(); });
+  grpFilter.onchange = renderGroups;
+
+  // Remove a group from the registry (e.g. if it was deleted)
+  function grpRemove(id) { delete grpReg[id]; grpStarred.delete(id); saveReg(); saveStarred(); renderGroups(); }
+
+  // Update the Groups button visibility and badge whenever the board renders
+  function grpUpdateBtn() {
+    const hasGroups = prefs.nested === "group";
+    grpBtn.hidden = !hasGroups;
+    if (!hasGroups) return;
+    grpScanLoaded();                                      // persist any newly discovered groups
+    const groups = collectGroups();
+    const oc = groups.filter((g) => g.open > 0).length;
+    if (oc > 0) { grpCnt.textContent = oc; grpCnt.hidden = false; }
+    else { grpCnt.hidden = true; }
+  }
+
+  // Keyboard shortcut: G to toggle, Esc to close
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !grpModal.hidden) { e.stopPropagation(); closeGrpModal(); return; }
+    if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+    if (e.key === "g" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (!grpModal.hidden) { closeGrpModal(); return; }
+      if (prefs.nested === "group") { e.preventDefault(); openGrpModal(); }
+    }
+  });
+
+  // Load group tasks for Plan day — fetches from API for groups not already in nest[]
+  async function grpLoadForPlan(force) {
+    grpScanLoaded();
+    const toFetch = Object.entries(grpReg)
+      .filter(([id, g]) => g.open > 0 || force)
+      .filter(([id]) => force || !nest[id]);
+    await Promise.all(toFetch.map(async ([id]) => {
+      try {
+        const data = await call("GET", `/nodes?parent_id=${id}`);
+        nest[id] = { todos: (data && data.nodes ? data.nodes : []).filter((n) => n.data && n.data.layoutMode === "todo").sort((a, b) => a.priority - b.priority) };
+        // Update registry with fresh counts
+        const todos = nest[id].todos;
+        const open = todos.filter((t) => !t.completedAt).length;
+        if (grpReg[id]) { grpReg[id].open = open; grpReg[id].total = todos.length; grpReg[id].ts = Date.now(); }
+      } catch (e) { /* group may have been deleted; leave nest empty */ }
+    }));
+    if (toFetch.length) saveReg();
+  }
+
+  // Update a single group's registry entry from nest[] (called after a task is moved out/in)
+  function grpRefreshOne(id) {
+    const info = nest[id];
+    if (!info || !grpReg[id]) return;
+    const todos = info.todos || [];
+    if (!todos.length) { delete grpReg[id]; saveReg(); return; }
+    grpReg[id].open = todos.filter((t) => !t.completedAt).length;
+    grpReg[id].total = todos.length;
+    grpReg[id].ts = Date.now();
+    saveReg();
+  }
+
+  // Expose for render() and renderPlan() to call
+  window._grpUpdateBtn = grpUpdateBtn;
+  window._grpReg = () => grpReg;
+  window._grpLoadForPlan = grpLoadForPlan;
+  window._grpRefreshOne = grpRefreshOne;
+}
 
 // ── WorkFlowy template sync settings ──
 const tbSyncNameEl = document.getElementById("tbSyncName"), tbSyncLinkEl = document.getElementById("tbSyncLink"), tbSyncSetEl = document.getElementById("tbSyncSet");

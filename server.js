@@ -3,7 +3,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.5";
+const VERSION = "1.5.6.1";
 
 const http = require("http");
 const fs = require("fs");
@@ -13,7 +13,8 @@ const crypto = require("crypto");
 const KEY = process.env.WORKFLOWY_API_KEY;
 const BASE = (process.env.WORKFLOWY_BASE_URL || "https://workflowy.com/api/v1").replace(/\/$/, "");
 const PORT = Number(process.env.PORT || 3000);
-// Default name of the notes bullet on today's page. Each browser can override it with the pencil in the board.
+// The name of the old per-day notes bullet (retired: new all-day notes are "!alld" bullets). Only used to read days that still have one,
+// and to keep it out of task scans. Set NOTES_NAME only if you once renamed that bullet.
 const NOTES_NAME = (process.env.NOTES_NAME || "").trim() || "WB-Notes";
 // An old all-day notes bullet (named by NOTES_NAME, and "WB-Notes") is skipped when scanning for tasks. Checklists ("!list") and all-day notes ("!alld") are skipped too.
 const skipsAsNotes = (rawName) => { const t = stripHtml(String(rawName || "")).trim().toLowerCase(); return t === NOTES_NAME.toLowerCase() || t === "wb-notes" || /(^|\s)!(?:list|alld[1-9]?)(?=$|[\s.,;!?)])/i.test(t); };
@@ -745,7 +746,7 @@ const APP_MANIFEST = {
   icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" }, { src: "/icon-180.png", sizes: "180x180", type: "image/png" }],
 };
 // The board's JSON routes: signed out, these answer 401 instead of redirecting to the sign-in page.
-const DATA_PATHS = new Set(["/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/features", "/timeblocks", "/m/settings", "/d/settings", "/colors", "/targets", "/resolve-target"]);
+const DATA_PATHS = new Set(["/search", "/item", "/done", "/filter", "/encrypted", "/resolve", "/update-check", "/addons", "/reminders", "/reminders/test", "/recurring/run", "/features", "/timeblocks", "/m/settings", "/d/settings", "/colors", "/sort-order", "/targets", "/resolve-target"]);
 const CORE_PATHS = new Set(["/", "/index.html", "/m", "/mobile.html", ...APP_ASSETS, "/login", "/logout", "/healthz", ...DATA_PATHS]);
 /* ---------- Phone page settings shared between devices ----------
    Off unless a device turns on "Share settings across my devices" on the phone page. Only a few known choices are kept
@@ -847,6 +848,50 @@ async function serveColors(req, res) {
   catch (e) { console.error("Could not save the card colours:", e.message); return sendJson(res, 500, { error: "The server could not write " + path.basename(COLORS_FILE) + " (is the board folder writable?)" }); }
   return sendJson(res, 200, { colors, updated: doc.updated, palette: CARD_COLORS });
 }
+/* ---------- Sort order: a persistent custom order for children of any node ----------
+   GET /sort-order?parent=<id> -> { order: ["id1","id2",...] | null }.
+   PUT /sort-order { parent: "<id>", order: ["id1","id2",...] } saves.
+   DELETE /sort-order?parent=<id> removes the custom order. */
+const SORT_ORDER_FILE = process.env.SORT_ORDER_FILE || path.join(__dirname, "sort-order.json");
+const SORT_ORDER_MAX = 500;           // max number of parents with a custom order
+function readSortOrder() { try { const d = JSON.parse(fs.readFileSync(SORT_ORDER_FILE, "utf8")); return d && typeof d === "object" && !Array.isArray(d) ? d : {}; } catch (e) { return {}; } }
+function writeSortOrder(data) {
+  const tmp = SORT_ORDER_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 1));
+  fs.renameSync(tmp, SORT_ORDER_FILE);
+}
+const SORT_ID_RE = /^[a-f0-9-]{6,50}$/i;
+async function serveSortOrder(req, res, url) {
+  if (req.method === "GET") {
+    const parentId = url.searchParams.get("parent");
+    if (!parentId || !SORT_ID_RE.test(parentId)) return sendJson(res, 400, { error: "bad parent id" });
+    const data = readSortOrder();
+    return sendJson(res, 200, { order: data[parentId] || null });
+  }
+  if (req.method === "DELETE") {
+    const parentId = url.searchParams.get("parent");
+    if (!parentId || !SORT_ID_RE.test(parentId)) return sendJson(res, 400, { error: "bad parent id" });
+    const data = readSortOrder();
+    if (data[parentId]) { delete data[parentId]; try { writeSortOrder(data); } catch (e) { return sendJson(res, 500, { error: "could not write " + path.basename(SORT_ORDER_FILE) }); } }
+    return sendJson(res, 200, { ok: true });
+  }
+  if (req.method === "PUT") {
+    let body;
+    try { body = JSON.parse((await readBody(req, 128 * 1024)).toString() || "{}"); } catch (e) { return sendJson(res, 400, { error: "bad request" }); }
+    const pid = body && body.parent;
+    const order = body && body.order;
+    if (!pid || !SORT_ID_RE.test(pid)) return sendJson(res, 400, { error: "bad parent id" });
+    if (!Array.isArray(order) || !order.every((x) => typeof x === "string" && SORT_ID_RE.test(x))) return sendJson(res, 400, { error: "order must be an array of ids" });
+    if (order.length > 500) return sendJson(res, 400, { error: "too many items" });
+    const data = readSortOrder();
+    if (!data[pid] && Object.keys(data).length >= SORT_ORDER_MAX) return sendJson(res, 400, { error: `too many sort orders (limit ${SORT_ORDER_MAX})` });
+    data[pid] = order;
+    try { writeSortOrder(data); } catch (e) { return sendJson(res, 500, { error: "could not write " + path.basename(SORT_ORDER_FILE) }); }
+    return sendJson(res, 200, { ok: true });
+  }
+  res.writeHead(405); res.end();
+}
+
 const addons = [];                    // { id, name, version, description, status, error, docs }
 const addonRoutes = new Map();        // "METHOD /path" -> handler
 const addonPaths = new Set();         // paths the login guard should treat as data
@@ -1591,6 +1636,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/m/settings" && (req.method === "GET" || req.method === "POST")) return serveMobileSettings(req, res);
   if (url.pathname === "/d/settings" && (req.method === "GET" || req.method === "POST")) return serveDesktopSettings(req, res);
   if (url.pathname === "/colors" && (req.method === "GET" || req.method === "POST")) return serveColors(req, res);
+  if (url.pathname === "/sort-order") return serveSortOrder(req, res, url);
   if (req.method === "GET" && url.pathname === "/addons") return sendJson(res, 200, { addons });
   const addonHandler = addonRoutes.get(`${req.method} ${url.pathname}`);
   if (addonHandler) return addonHandler(req, res, url);
@@ -1664,6 +1710,6 @@ const server = http.createServer(async (req, res) => {
 // Your key has full access to your outline: "local" listens on this computer only; the other modes require a login.
 server.listen(PORT, HOST, () => {
   const where = REMOTE ? PUBLIC.origin : `http://localhost:${PORT}`;
-  console.log(`Workflowy Week Board v${VERSION} running at ${where}  (mode: ${MODE}, listening on ${HOST}:${PORT}, API: ${BASE}, notes bullet: "${NOTES_NAME}")`);
+  console.log(`Workflowy Week Board v${VERSION} running at ${where}  (mode: ${MODE}, listening on ${HOST}:${PORT}, API: ${BASE}${NOTES_NAME !== "WB-Notes" ? `, old notes bullet: "${NOTES_NAME}"` : ""})`);
   if (REMOTE) console.log(`Login required. Sessions last ${SESSION_DAYS} day${SESSION_DAYS === 1 ? "" : "s"}.`);
 });

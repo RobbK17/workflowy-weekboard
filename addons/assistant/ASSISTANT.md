@@ -13,7 +13,7 @@ It runs in local mode (`DEPLOY_MODE=local`). In `vps` or `fly` mode (for example
 The Assistant is an add-on: a folder, `addons/assistant/`, next to `server.js` and `index.html`. The board works exactly as before without it.
 
 1. Copy the whole `assistant` folder into an `addons` folder beside `server.js` (create `addons` if it doesn't exist). The folder holds `manifest.json`, `backend.js` (the server part), `page.html`, `page.js` and this file.
-2. Restart the board with `AI_PROVIDER` set (see "Turn it on"). It needs board 1.5.5 or newer; an older board skips it and says why at startup. The startup line should say `Add-ons loaded: assistant 0.4.0`.
+2. Restart the board with `AI_PROVIDER` set (see "Turn it on"). It needs board 1.5.5 or newer; an older board skips it and says why at startup. The startup line should say `Add-ons loaded: assistant 0.4.1`.
 3. To remove it, delete the folder and restart. Nothing else changes, and the page has no trace of it.
 
 If something is wrong (a missing file, a version the board is too old for), the board starts normally without it and prints a line saying why. `http://localhost:3000/addons` lists every add-on and its status.
@@ -88,7 +88,9 @@ Click **Assistant** in the header to open the side panel. Enter sends, Shift+Ent
 
 **Priorities.** "Make that urgent" (`!p1`), "set the report to low" (`!p4`), "no priority". "What are my urgent tasks this week?" and "what has no estimate?" use the board's **Saved filter** words (`p:1-2 due:week`, `est:none` and the rest), across your whole outline.
 
-Renaming a task keeps its markers (priority, estimate, time block, reminder, repeat and the rest): it only changes the words.
+**Time block or reminder?** They're different: a **time block** reserves time on the day's timeline (`^2:30pm`, with its length as the estimate `~20m`) and pops up nothing; a **reminder** is a 🔔 notification at one moment (`@14:30`) with no length. "Block", "reserve" or a length ("for 20 minutes") gets a time block; "remind me", "alert" or "ping" gets a reminder; "put it at 3" on its own makes it ask which you mean. A task can have both: "call mum at 10 for half an hour, remind me at 9:50".
+
+Renaming a task keeps its markers (priority, estimate, time block, reminder, repeat and the rest): it only changes the words. The Assistant never types markers itself: a name with marker text (`@2:32pm`, `^10am`, `~20m`, `!p1`, `!blk` …) is refused, and it uses the right setting instead.
 
 **Your Notes.** With a notes location set (Settings > Week board > Notes, or the phone's Notes location) it can list your notes, read one, start a new note, and add to the end of one ("add 'call the bank' to my Errands note"). It never replaces a note's text. Encrypted words in a note stay `‹secret›`.
 
@@ -202,6 +204,11 @@ WorkFlowy limits how fast it can be asked for things, and a question like "how b
 - Board controls change the view in the browser you are using, not in any other open tab.
 
 ## Changes
+
+**0.4.1**
+- Time blocks and reminders can't be mixed up: names, renames, groups and notes with typed markers (`@…`, `^…`, `~…`, `!p…`, `!blk`, `!list`, `!alld`, `!every`, `!1h`) are refused with a pointer to the right tool, so the model fixes them itself (it had written "Gardening @2:32pm ~20m !blk", a reminder and a template marker, when asked for a block). Ordinary text such as "~3 apples" or "@alex" is fine.
+- `add_task` takes a `reminder` time, separate from the block's `start`.
+- What it reads now says `[reminder 3:00 PM]` as well as `[block …]`, and the instructions spell out the difference and to ask when "at 3" is unclear.
 
 **0.4.0**
 - Time blocks and estimates: `set_time_block`, `set_estimate`, `day_schedule` (blocks, overlaps, free gaps), `workload` (per day against your Plan day hours), and `add_task` with `start`, `length` and `priority`. What it reads shows each task's markers in plain words.

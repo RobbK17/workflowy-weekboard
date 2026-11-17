@@ -424,7 +424,9 @@
     let state = { shown: false, id: null, rev: 0, readOnly: true, locked: false, whole: false, unlocked: false };
     let mode = "edit", prevShown = false;
 
+    const _barKeep = bar.querySelector(".nt-acts");   // host action buttons to preserve
     bar.textContent = "";
+    const pvFlag = document.createElement("span"); pvFlag.className = "wbmd-pvflag"; pvFlag.textContent = "Preview"; pvFlag.hidden = true;
     const fmt = document.createElement("div"); fmt.className = "wbmd-fmt"; fmt.setAttribute("role", "toolbar"); fmt.setAttribute("aria-label", "Format");
     const buttons = [];
     for (const [id, label, title, run, cls] of BUTTONS) {
@@ -438,7 +440,8 @@
     const tog = document.createElement("button"); tog.type = "button"; tog.className = "wbmd-btn wbmd-tog";
     tog.addEventListener("pointerdown", (e) => { if (mode === "edit") e.preventDefault(); });
     tog.addEventListener("click", () => setMode(mode === "edit" ? "preview" : "edit"));
-    bar.append(fmt, sp, tog);
+    bar.append(fmt, pvFlag, sp, tog);
+    if (_barKeep) bar.append(_barKeep);               // restore host action buttons at the end
 
     function clearView() { view.textContent = ""; view.hidden = true; box.classList.remove("wbmd-preview"); }
     function paint() {
@@ -454,9 +457,14 @@
     }
     function sync() {
       const on = usable();
-      bar.hidden = !on;
+      /* Don't hide the bar itself — the host controls that so it can hold its own buttons (lock, menu).
+         Hide addon elements individually instead. */
+      const pe = on && mode === "preview";
+      fmt.hidden = !on || !settings.showToolbar || pe;
+      pvFlag.hidden = !pe;
+      sp.hidden = !on;
+      tog.hidden = !on;
       if (!on) { if (mode === "preview" || !view.hidden) { mode = "edit"; clearView(); } return; }   // nothing readable stays on screen
-      fmt.hidden = !settings.showToolbar || mode === "preview";
       for (const b of buttons) b.disabled = state.readOnly;
       tog.textContent = mode === "preview" ? "Edit" : "Preview";
       tog.title = mode === "preview" ? "Back to editing" : "Show the note with its formatting (read-only)";
@@ -472,12 +480,149 @@
       sync();
     }
     ta.addEventListener("keydown", (e) => {
-      if (!settings.enabled || !settings.shortcuts || state.readOnly || mode !== "edit") return;
-      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
-      const k = e.key.toLowerCase();
-      if (k === "b") { e.preventDefault(); toggleInline(ta, "**", notify); }
-      else if (k === "i") { e.preventDefault(); toggleInline(ta, "*", notify); }
-      else if (k === "k") { e.preventDefault(); insertLink(ta, notify); }
+      if (!settings.enabled || state.readOnly || mode !== "edit") return;
+
+      /* ── Ctrl/Cmd shortcuts (Bold, Italic, Link) ── */
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && settings.shortcuts) {
+        const k = e.key.toLowerCase();
+        if (k === "b") { e.preventDefault(); toggleInline(ta, "**", notify); return; }
+        if (k === "i") { e.preventDefault(); toggleInline(ta, "*", notify); return; }
+        if (k === "k") { e.preventDefault(); insertLink(ta, notify); return; }
+      }
+
+      /* ── Smart editing helpers ── */
+      const t = ta.value, cur = ta.selectionStart, end = ta.selectionEnd;
+      const lineStart = t.lastIndexOf("\n", cur - 1) + 1;
+      const lineEnd = t.indexOf("\n", cur); const le = lineEnd < 0 ? t.length : lineEnd;
+      const line = t.slice(lineStart, le);
+
+      /* Regex for list markers: "  - ", "  * ", "  1. ", "  - [ ] ", "  - [x] " with optional leading indent */
+      const LIST_RE = /^(\s*)([-*]\s\[[ x]\]\s|[-*]\s|\d+\.\s)/;
+      const NUM_RE = /^(\s*)(\d+)\.\s/;
+
+      /* ── Enter: auto-continue or exit list ── */
+      if (e.key === "Enter" && !e.shiftKey && cur === end) {
+        const m = line.match(LIST_RE);
+        if (m) {
+          e.preventDefault();
+          const indent = m[1], marker = m[2];
+          const afterMarker = line.slice(m[0].length);
+
+          /* Empty marker line → remove the marker and exit the list */
+          if (!afterMarker.trim()) {
+            replaceRange(ta, lineStart, le, "", lineStart, lineStart);
+            return;
+          }
+
+          /* Build the next marker */
+          let next;
+          const nm = marker.match(/^(\d+)\.\s$/);
+          if (nm) {
+            /* Numbered list → increment */
+            next = indent + (parseInt(nm[1], 10) + 1) + ". ";
+            /* Auto-renumber: bump numbers on all following lines in this list */
+            const rest = t.slice(le + 1);                            // text after the \n at end of current line
+            if (rest) {
+              const lines = rest.split("\n");
+              let renumbered = [], num = parseInt(nm[1], 10) + 2, changed = false;
+              for (let i = 0; i < lines.length; i++) {
+                const lm = lines[i].match(/^(\s*)(\d+)(\.\s)/);
+                if (lm && lm[1] === indent) {
+                  renumbered.push(indent + num + lm[3] + lines[i].slice(lm[0].length));
+                  num++; changed = true;
+                } else {
+                  /* End of contiguous numbered list — append rest unchanged */
+                  renumbered.push(...lines.slice(i)); break;
+                }
+              }
+              if (changed) {
+                const ins = "\n" + next;
+                const full = ins + "\n" + renumbered.join("\n");
+                replaceRange(ta, cur, t.length, full, cur + ins.length, cur + ins.length);
+                return;
+              }
+            }
+          } else if (/^[-*]\s\[[ x]\]\s$/.test(marker)) {
+            /* Task list → always unchecked */
+            next = indent + marker[0] + " [ ] ";
+          } else {
+            /* Bullet (- or *) */
+            next = indent + marker;
+          }
+          const ins = "\n" + next;
+          replaceRange(ta, cur, cur, ins, cur + ins.length, cur + ins.length);
+          return;
+        }
+      }
+
+      /* ── Tab / Shift+Tab: indent / outdent current line(s) ── */
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const selStart = ta.selectionStart, selEnd = ta.selectionEnd;
+        const firstLine = t.lastIndexOf("\n", selStart - 1) + 1;
+        const lastLine = selEnd > selStart && t[selEnd - 1] === "\n" ? selEnd - 1 : (t.indexOf("\n", selEnd) < 0 ? t.length : t.indexOf("\n", selEnd));
+        const block = t.slice(firstLine, lastLine);
+        const lines = block.split("\n");
+        let newBlock, delta = 0, firstDelta = 0;
+        if (e.shiftKey) {
+          /* Outdent: remove up to 2 leading spaces per line */
+          newBlock = lines.map((l, i) => {
+            const rm = l.match(/^( {1,2})/);
+            if (rm) { if (i === 0) firstDelta = -rm[1].length; delta -= rm[1].length; return l.slice(rm[1].length); }
+            return l;
+          }).join("\n");
+        } else {
+          /* Indent: add 2 spaces per line */
+          newBlock = lines.map((l, i) => { if (i === 0) firstDelta = 2; delta += 2; return "  " + l; }).join("\n");
+        }
+        replaceRange(ta, firstLine, lastLine, newBlock, selStart + firstDelta, selEnd + delta);
+
+        /* Renumber after indent change — the list context may have shifted */
+        return;
+      }
+
+      /* ── Auto-close pairs: ` ** _ ( [ ── */
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const sel = t.slice(cur, end);
+        const pairs = { "`": "`", "(": ")", "[": "]" };
+        const ch = e.key;
+
+        /* Skip over closing character if the next char matches — check BEFORE auto-close */
+        if ((ch === ")" || ch === "]" || ch === "`") && t[cur] === ch && cur === end) {
+          e.preventDefault();
+          ta.setSelectionRange(cur + 1, cur + 1);
+          return;
+        }
+
+        /* Backtick, paren, bracket — wrap selection or auto-close */
+        if (pairs[ch]) {
+          if (sel.length > 0) {
+            /* Wrap selection */
+            e.preventDefault();
+            const wrapped = ch + sel + pairs[ch];
+            replaceRange(ta, cur, end, wrapped, cur + 1, cur + 1 + sel.length);
+            return;
+          }
+          /* For backtick with no selection, insert pair and place cursor inside */
+          if (ch === "`") {
+            e.preventDefault();
+            replaceRange(ta, cur, cur, "``", cur + 1, cur + 1);
+            return;
+          }
+        }
+
+        /* Bold ** — typed as two consecutive * */
+        if (ch === "*" && cur > 0 && t[cur - 1] === "*") {
+          if (sel.length > 0) {
+            /* Selection exists: the first * is already typed, so wrap: insert * before selection, ** after */
+            /* Actually this fires on the second *, so t[cur-1] is the first *. Wrap selection in ** ** */
+            e.preventDefault();
+            const wrapped = "*" + sel + "**";
+            replaceRange(ta, cur, end, wrapped, cur + 1, cur + 1 + sel.length);
+            return;
+          }
+        }
+      }
     });
     listeners.push(() => { if (!settings.enabled && (mode === "preview" || !view.hidden)) { mode = "edit"; clearView(); } sync(); });
     return { onState, setMode, get mode() { return mode; } };

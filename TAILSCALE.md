@@ -51,15 +51,18 @@ Use this exact name everywhere below.
 
 ## 4. Start the board
 
-Stop any board that is already running (Ctrl+C in its Terminal window). From the board's folder, run this as one line, replacing the key, password and address:
+Stop any board that is already running (Ctrl+C in its Terminal window). From the board's folder, run this as one line, replacing the token, Worker address, password and board address:
 
 ```
-DEPLOY_MODE=vps WORKFLOWY_API_KEY=your_key BOARD_PASSWORD=choose-a-long-password PUBLIC_URL=https://my-mac.tail1234.ts.net ASSUME_HTTPS=1 node server.js
+DEPLOY_MODE=vps WORKFLOWY_BASE_URL=https://workflowy-proxy.<your-subdomain>.workers.dev/api/v1 WORKFLOWY_API_KEY=tok_your_proxy_token BOARD_PASSWORD=choose-a-long-password PUBLIC_URL=https://my-mac.tail1234.ts.net ASSUME_HTTPS=1 node server.js
 ```
+
+- **Recommended: the key proxy.** `WORKFLOWY_BASE_URL` and the `tok_…` token come from the key proxy (`workflowy-proxy/QUICKSTART.md`), so your real WorkFlowy key never sits on this Mac or in its scripts. A board reachable from your other devices is exactly where that matters. Without the proxy, drop `WORKFLOWY_BASE_URL=…` and use your real key from https://workflowy.com/api-key as `WORKFLOWY_API_KEY`.
+- If you keep this command in a script (say `starttailscale.sh`), make it readable only by you: `chmod 600 starttailscale.sh`, and run it with `sh starttailscale.sh`.
 
 - `PUBLIC_URL` must start with `https://`, have **no port** and **no path**, and match exactly what you type in the browser.
 - `ASSUME_HTTPS=1` tells the board that the proxy on this same computer is already speaking HTTPS (Tailscale Serve doesn't say so itself). It is ignored unless the board is listening on this computer only, which is the default.
-- Leave this Terminal window open. The board should print `Workflowy Week Board v1.3.2 running at https://…`.
+- Leave this Terminal window open. The board should print `Workflowy Week Board v… running at https://…`, with your `workers.dev` address after `API:` when you use the key proxy.
 
 ## 5. Start Tailscale Serve
 

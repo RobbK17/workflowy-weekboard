@@ -1,6 +1,9 @@
 # Fly.io settings for the Workflowy Week Board.
 # 1. Change both CHANGE-ME values below (the app name must be unique across Fly).
-# 2. Secrets (your WorkFlowy key and the sign-in password) are NOT stored here. Set them with:
+# 2. Secrets are NOT stored here. Set them with fly secrets. Recommended, with the key proxy (workflowy-proxy/QUICKSTART.md),
+#    so your real WorkFlowy key never reaches Fly; WORKFLOWY_API_KEY is then the proxy token (tok_...):
+#      fly secrets set WORKFLOWY_BASE_URL=https://workflowy-proxy.<your-subdomain>.workers.dev/api/v1 WORKFLOWY_API_KEY=tok_... BOARD_PASSWORD=...
+#    Without the proxy, set your real key instead (and no WORKFLOWY_BASE_URL):
 #      fly secrets set WORKFLOWY_API_KEY=... BOARD_PASSWORD=...
 app = "CHANGE-ME"
 primary_region = "iad"          # pick the region closest to you: https://fly.io/docs/reference/regions/

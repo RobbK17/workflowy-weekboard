@@ -1,0 +1,9 @@
+# Never commit secrets or Wrangler's local state
+tokens.json
+tokens*.json
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+.wrangler/
+node_modules/

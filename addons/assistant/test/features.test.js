@@ -46,7 +46,7 @@ const lastNote = async (id) => { const lg = await fetch(W + "/__log").then(j); c
   check("a bad time is refused before a card", !r.out.pending && /start must look like/.test(r.sent));
 
   r = await chat([{ tool: "add_task", input: { parent: TODAY, name: "Gym", start: "7am", length: "1h", priority: 3 } }], ask("add gym at 7 for an hour, medium"));
-  check("add_task card shows priority and block", r.out.pending && /Add task “Gym” to .* \(P3, 7:00 AM–8:00 AM\)/.test(r.out.pending.actions[0].summary), r.out.pending && r.out.pending.actions[0].summary);
+  check("add_task card shows priority and block", r.out.pending && /Add task “Gym” to .* \(P3, block 7:00 AM–8:00 AM\)/.test(r.out.pending.actions[0].summary), r.out.pending && r.out.pending.actions[0].summary);
   await approve(r.out);
   const lg = await fetch(W + "/__log").then(j);
   check("add_task writes the markers", lg.some((x) => x.create && x.name === "Gym ^7am ~1h !p3"), JSON.stringify(lg.filter((x) => x.create).slice(-1)));
@@ -81,6 +81,27 @@ const lastNote = async (id) => { const lg = await fetch(W + "/__log").then(j); c
   check("append can't add ‹secret›", !r.out.pending && /can't contain encrypted text/.test(r.sent));
   r = await chat([{ tool: "list_notes", input: {} }, { text: "no" }], ask("notes", { notesNode: null }));
   check("notes tools explain when no Notes location is set", /no Notes location is set/.test(r.lastTool), r.lastTool);
+
+  // Time block vs reminder: the gardening case. The model types markers; the server refuses; it uses the tool's options instead.
+  const TOM = (() => { const x = new Date(); x.setDate(x.getDate() + 1); return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`; })();
+  r = await chat([{ tool: "add_task", input: { parent: TOM, name: "Gardening @2:32pm ~20m !blk" } }, { tool: "add_task", input: { parent: TOM, name: "Gardening", start: "2:32pm", length: "20m" } }], ask("block 20 minutes for gardening tomorrow at 2:32pm"));
+  check("typed markers are refused, with the right tool named", /reminder time \(@…\): use set_reminder/.test(r.sent) && /never type markers into names/.test(r.sent), r.sent.slice(-600));
+  check("…and the corrected call becomes a time block card", r.out.pending && r.out.pending.actions.length === 1 && r.out.pending.actions[0].summary === `Add task “Gardening” to ${TOM} (block 2:32 PM–2:52 PM)`, r.out.pending && JSON.stringify(r.out.pending.actions));
+  await approve(r.out);
+  check("…written as a time block (^, ~), not a reminder (@) or !blk", (await fetch(W + "/__log").then(j)).some((x) => x.create && x.name === "Gardening ^14:32 ~20m" && x.parent_id === TOM));
+  r = await chat([{ tool: "add_task", input: { parent: TODAY, name: "Call mum", start: "10am", length: "30m", reminder: "9:50am" } }], ask("call mum at 10 for half an hour, remind me at 9:50"));
+  check("add_task can set a block and a reminder together", r.out.pending && /\(block 10:00 AM–10:30 AM, reminder 9:50 AM\)$/.test(r.out.pending.actions[0].summary), r.out.pending && r.out.pending.actions[0].summary);
+  await approve(r.out);
+  check("…written as ^10am ~30m @09:50", (await fetch(W + "/__log").then(j)).some((x) => x.create && x.name === "Call mum ^10am ~30m @09:50"));
+  r = await chat([{ tool: "set_time_block", input: { id: WATER, start: "10am", length: "30m" } }], ask("block watering")); await approve(r.out);
+  r = await chat([{ tool: "set_reminder", input: { id: WATER, time: "9:50am" } }], ask("remind me at 9:50")); await approve(r.out);
+  r = await chat([{ tool: "list_day", input: { date: TODAY } }, { text: "ok" }], ask("today"));
+  check("reading tells a block from a reminder", /Water plants[^\n]*\[block 10:00 AM–10:30 AM · est 30m · reminder 9:50 AM\]/.test(r.lastTool.replace(/\\n/g, "\n")), r.lastTool);
+  r = await chat([{ tool: "add_task", input: { parent: TODAY, name: "Buy ~3 apples for @alex" } }], ask("add it"));
+  check("ordinary text that looks a bit like a marker is fine", r.out.pending && r.out.pending.actions[0].summary.startsWith("Add task “Buy ~3 apples for @alex”"), r.out.pending && r.out.pending.actions[0].summary);
+  r = await chat([{ tool: "rename_item", input: { id: WATER, name: "Water plants ^9am" } }, { text: "ok" }], ask("x"));
+  check("a rename with a typed marker is refused", !r.out.pending && /time block start \(\^…\)/.test(r.sent));
+  check("the instructions explain block vs reminder", /Time block or reminder\? They are different/.test(r.sent));
 
   const ph = await fetch(B + "/ai/chat", { method: "POST", headers: { "Content-Type": "application/json", Origin: B }, body: JSON.stringify(ask("hi", { client: "phone" })) });
   check("phone requests are refused unless AI_PHONE=1", ph.status === 403);
