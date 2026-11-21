@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.6.1">
+<meta name="version" content="1.5.7">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -4588,7 +4588,9 @@ function renderPage() {
       let toIdx = ids.indexOf(row.dataset.id);
       if (!above) toIdx++;
       ids.splice(toIdx, 0, dragId);
-      // Save and re-render
+      // Persist in WorkFlowy with numeric position, then update board overlay as fallback
+      const moveId = dragId;
+      try { await call("POST", `/nodes/${moveId}/move`, { parent_id: viewItem, position: toIdx }); } catch (err) { showError("Reorder failed: " + err.message); }
       await saveSortOrder(viewItem, ids);
       renderPage();
     });
@@ -7018,6 +7020,9 @@ function itemLiveRender() {
       let toIdx = ids.indexOf(row.dataset.id);
       if (!above) toIdx++;
       ids.splice(toIdx, 0, dragId);
+      // Persist in WorkFlowy with numeric position, then update board overlay as fallback
+      const moveId = dragId;
+      try { await call("POST", `/nodes/${moveId}/move`, { parent_id: viewItem, position: toIdx }); } catch (err) { showError("Reorder failed: " + err.message); }
       await saveSortOrder(viewItem, ids);
       itemLiveRender();
     });

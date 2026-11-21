@@ -3,7 +3,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.6.1";
+const VERSION = "1.5.7";
 
 const http = require("http");
 const fs = require("fs");
@@ -126,7 +126,11 @@ function addToKids(index, parentId, node) {
   const key = parentId || TOP;
   let list = index.kids.get(key);
   if (!list) index.kids.set(key, (list = []));
-  list.push(node);
+  // Insert in priority order so the list stays sorted
+  const p = node.priority;
+  let i = 0;
+  while (i < list.length && list[i].priority < p) i++;
+  list.splice(i, 0, node);
 }
 
 function makeNode(r) {
@@ -444,11 +448,17 @@ function removeFromKids(parentId, node) {
   const list = idx.kids.get(parentId || TOP);
   if (list) { const i = list.indexOf(node); if (i !== -1) list.splice(i, 1); }
 }
-function edgePriority(parentId, position) {
+function calcPriority(parentId, position) {
   const list = idx.kids.get(parentId || TOP) || [];
   if (!list.length) return 100;
-  const ps = list.map((c) => c.priority);
-  return position === "top" ? Math.min(...ps) - 100 : Math.max(...ps) + 100;
+  list.sort((a, b) => a.priority - b.priority);
+  if (position === "top") return list[0].priority - 100;
+  if (position === "bottom" || position == null) return list[list.length - 1].priority + 100;
+  // Numeric index: 0-based position among siblings
+  const idx_pos = Math.max(0, Math.min(Number(position), list.length));
+  if (idx_pos === 0) return list[0].priority - 100;
+  if (idx_pos >= list.length) return list[list.length - 1].priority + 100;
+  return (list[idx_pos - 1].priority + list[idx_pos].priority) / 2;
 }
 function dropSubtree(n) {
   for (const c of (idx.kids.get(n.id) || []).slice()) dropSubtree(c);
@@ -467,7 +477,7 @@ function patchIndex(method, pathname, reqBody, resBody) {
     const todo = String(reqBody.name || "").match(/^- \[( |x|X)\]\s+([\s\S]*)$/);
     const n = makeNode({
       id: newId, parent_id: reqBody.parent_id, name: todo ? todo[2] : reqBody.name, note: reqBody.note,
-      priority: edgePriority(reqBody.parent_id, reqBody.position),
+      priority: calcPriority(reqBody.parent_id, reqBody.position),
       data: { layoutMode: reqBody.layoutMode || (todo ? "todo" : "bullets") },
       completedAt: todo && todo[1] !== " " ? Math.floor(Date.now() / 1000) : null,
       modifiedAt: Math.floor(Date.now() / 1000),
@@ -484,7 +494,7 @@ function patchIndex(method, pathname, reqBody, resBody) {
   else if (action === "uncomplete") { n.completedAt = null; n.modifiedAt = now; }
   else if (action === "move" && reqBody) {
     removeFromKids(n.parent_id, n);
-    n.priority = edgePriority(reqBody.parent_id, reqBody.position);
+    n.priority = calcPriority(reqBody.parent_id, reqBody.position);
     n.parent_id = reqBody.parent_id || null;
     addToKids(idx, n.parent_id, n);
     n.modifiedAt = now;

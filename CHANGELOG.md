@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.7 (2026-11-21)
+
+- **Numeric position support in WorkFlowy API.** The WorkFlowy MCP server now accepts a 0-based integer index as the `position` parameter on `create_node` and `move_node`, in addition to `"top"` and `"bottom"`. WorkFlowy auto-calculates the priority between adjacent siblings.
+- **Item view reorders sync to WorkFlowy.** Drag-to-reorder in the item view (both `pageLine` and `kbLine`/`kbWalk` paths) and the kanban item view now call the WorkFlowy move API with the numeric drop position before saving the local sort order, so the reorder persists in WorkFlowy itself, not just on the board.
+- **`calcPriority()` handles numeric positions.** The search index priority calculator (renamed from `edgePriority()`) now computes midpoint priorities for numeric index positions, and `addToKids()` inserts nodes in priority-sorted order.
+- **AI Assistant 0.5.1: `reorder_task` tool.** A new tool lets the AI reorder an item within its current parent to a specific 0-based position among siblings ("move X above Y", "put that first", "make it the third item"), without changing which parent it belongs to. The system prompt guides the AI on when to use `reorder_task` versus `move_task`. All existing tools also accept numeric position values.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `server.js` | `edgePriority()` renamed to `calcPriority()` with numeric index support; `addToKids()` inserts in priority-sorted order; version 1.5.7 |
+| `index.html` | Item view and kanban item view drop handlers call WorkFlowy move API with numeric position before `saveSortOrder()`; version 1.5.7 |
+| `addons/assistant/backend.js` | `normalizePosition()` and `posLabel()` helpers; all move tools accept numeric position; new `reorder_task` tool (reorder within current parent); system prompt guidance for reordering vs moving; version 0.5.1 |
+
 ## 1.5.6.1 (2026-11-16)
 
 - **Drag-to-reorder in item view.** Children of the open item can be reordered by dragging a grip handle (⠿) that appears on each top-level row. The new order is saved on the server (`/sort-order` endpoint) and persists across page reloads and browsers. Works in both read mode (`pageLine`) and live-edit mode (`kbLine`/`kbWalk`).

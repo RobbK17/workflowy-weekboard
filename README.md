@@ -4,7 +4,14 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.6.1**
+**Version 1.5.7**
+
+### What's new in 1.5.7
+
+Replace `server.js`, `index.html` and the `addons/assistant/` folder, then **restart the server**.
+
+- **Item view reorders sync to WorkFlowy.** Dragging items in the item view now writes the new position to WorkFlowy through its API, so the order persists in WorkFlowy itself, not just on the board server.
+- **AI Assistant 0.5.1: reorder and numeric positions.** A new `reorder_task` tool lets the AI reorder an item within its current parent ("move X above Y", "put that first"). All move tools now accept a 0-based numeric index as the position, in addition to "top" and "bottom". See `addons/assistant/ASSISTANT.md`.
 
 ### What's new in 1.5.6.1
 
