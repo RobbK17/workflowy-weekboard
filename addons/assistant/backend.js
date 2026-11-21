@@ -61,6 +61,10 @@ const AI_TOOLS = [
     params: { id: "string: item id" }, required: ["id"] },
   { name: "plan_day", ui: true, description: "Open or close the Plan day view. action is 'open' or 'close'; date (optional, YYYY-MM-DD) picks the day to plan, default today.",
     params: { action: "string: open or close", date: "string: optional YYYY-MM-DD" }, required: ["action"] },
+  { name: "peek_section", ui: true, description: "Open the Past due or Upcoming panel as a temporary peek (the same as clicking the counter link in the bar under the Daily page). The setting stays off; use pin_section to make it permanent.",
+    params: { section: "string: past_due or upcoming" }, required: ["section"] },
+  { name: "pin_section", ui: true, description: "Pin a peeked Past due or Upcoming panel so it stays visible (turns the setting on). Call peek_section first if the panel isn't already peeked.",
+    params: { section: "string: past_due or upcoming" }, required: ["section"] },
   { name: "add_task", write: true, description: "Add a task. parent is a YYYY-MM-DD date, an item id, or 'inbox'. Optionally give it a time block (start, and length), an estimate (length alone) and a priority. Needs the user's approval.",
     params: { parent: "string: date, item id or 'inbox'", name: "string: task text, without markers", note: "string: optional note", start: "string: optional time block start, like 10am or 14:30", length: "string: optional length / estimate, like 30m, 1h or 1h30m", priority: "integer: optional 1 (urgent), 2 (high), 3 (medium) or 4 (low)", reminder: "string: optional reminder time (a notification), like 9:50am; separate from start" }, required: ["parent", "name"] },
   { name: "set_time_block", write: true, description: "Give a task a time block on its day (a start time, shown on the board's timeline), change it, or remove it with start 'none'. length (optional) also sets the task's estimate, which is the block's length; without one a block is 30 minutes. To block time on another day, move the task there first. Needs the user's approval.",
@@ -93,8 +97,14 @@ const AI_TOOLS = [
     params: { id: "string: item id" }, required: ["id"] },
   { name: "complete_task", write: true, description: "Tick a task off. Needs the user's approval.", params: { id: "string: item id" }, required: ["id"] },
   { name: "uncomplete_task", write: true, description: "Un-tick a completed task. Needs the user's approval.", params: { id: "string: item id" }, required: ["id"] },
-  { name: "move_task", write: true, description: "Move an item to a date, another item, or 'inbox' (top or bottom). Needs the user's approval.",
-    params: { id: "string: item id", parent: "string: date, item id or 'inbox'", position: "string: top or bottom (default top)" }, required: ["id", "parent"] },
+  { name: "move_task", write: true, description: "Move an item to a date, another item, or 'inbox'. Position can be 'top', 'bottom', or a 0-based numeric index to place it at a specific position among siblings. Needs the user's approval.",
+    params: { id: "string: item id", parent: "string: date, item id or 'inbox'", position: "string: 'top', 'bottom', or a number (0-based index). Default 'top'" }, required: ["id", "parent"] },
+  { name: "move_many", write: true, description: "Move several items to the same destination in one go. Each item appears on the approval card. Use this instead of repeated move_task calls when the user asks to move multiple tasks at once. Needs the user's approval.",
+    params: { ids: "string: comma-separated item ids (2-20)", parent: "string: date, item id or 'inbox'", position: "string: 'top', 'bottom', or a number (0-based index). Default 'top'" }, required: ["ids", "parent"] },
+  { name: "reorder_task", write: true, description: "Reorder an item within its current parent to a specific 0-based position among its siblings. Use this when the user wants to change the order of items without moving them to a different parent. Needs the user's approval.",
+    params: { id: "string: item id", position: "integer: 0-based target position among siblings" }, required: ["id", "position"] },
+  { name: "set_note", write: true, description: "Set or add to an item's note field (the note shown under a task, not the Notes window). mode 'replace' overwrites the note; mode 'append' adds to the end. Needs the user's approval.",
+    params: { id: "string: item id", text: "string: the note text", mode: "string: 'replace' (default) or 'append'" }, required: ["id", "text"] },
   { name: "rename_item", write: true, description: "Change an item's text. Needs the user's approval.", params: { id: "string: item id", name: "string: new text" }, required: ["id", "name"] },
 ];
 const toolSchema = (t) => ({
@@ -175,10 +185,26 @@ function checkParent(p, ctx) {
   throw new Error("parent must be a YYYY-MM-DD date, an item id, or 'inbox'");
 }
 const parentLabelA = async (p, ctx) => (RE_DATE.test(p) ? p : p === "inbox" ? "WorkFlowy's Inbox" : ctx && ctx.inbox && p === ctx.inbox.id ? `the Inbox (${ctx.inbox.name})` : infoName(p));
+/** Normalise position: "top", "bottom", or a 0-based numeric index (string or number). Default "top". */
+function normalizePosition(v) {
+  if (v === "bottom") return "bottom";
+  if (v === "top" || v == null || v === "") return "top";
+  const n = Number(v);
+  if (Number.isInteger(n) && n >= 0) return n;
+  return "top";
+}
+function posLabel(p) { return typeof p === "number" ? `position ${p}` : p; }
 function checkId(id) {
   id = String(id || "").trim();
   if (!RE_ID.test(id)) throw new Error("bad item id");
   return fullId(id);
+}
+function parseManyIds(raw) {
+  const ids = String(raw || "").split(",").map((s) => s.trim()).filter(Boolean).map(checkId);
+  if (ids.length < 2) throw new Error("ids must contain at least 2 comma-separated item ids");
+  if (ids.length > 20) throw new Error("ids must contain at most 20 item ids");
+  if (new Set(ids).size !== ids.length) throw new Error("ids contains duplicates");
+  return ids;
 }
 function checkText(s, what) {
   s = String(s == null ? "" : s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim();
@@ -356,44 +382,60 @@ async function describeWrite(name, a, ctx) {
       if (x.prio) bits.push(`P${x.prio}`);
       if (x.start != null) bits.push(`block ${clock(x.start)}–${clock(x.start + (x.len || 30))}`); else if (x.len) bits.push(`est ${fmtMin(x.len)}`);
       if (x.rem != null) bits.push(`reminder ${clock(x.rem)}`);
-      return `Add task “${clip(asTyped(checkText(a.name, "name")), 120)}” to ${await parentLabelA(checkParent(a.parent, ctx), ctx)}` + (bits.length ? ` (${bits.join(", ")})` : "");
+      return `Add task "${clip(asTyped(checkText(a.name, "name")), 120)}" to ${await parentLabelA(checkParent(a.parent, ctx), ctx)}` + (bits.length ? ` (${bits.join(", ")})` : "");
     }
     case "set_time_block": {
       const n = await taskNode(checkId(a.id)), nm = clip(bare(n.name), 100);
-      if (isNone(a.start)) return `Remove the time block from “${nm}”`;
+      if (isNone(a.start)) return `Remove the time block from "${nm}"`;
       const st = startOf(a.start), len = a.length ? lengthOf(a.length) : parseEst(stripHtml(n.name)) || 30;
-      return `Block “${nm}” ${clock(st)}–${clock(st + len)}` + (a.length ? ` (estimate ${fmtMin(len)})` : "");
+      return `Block "${nm}" ${clock(st)}–${clock(st + len)}` + (a.length ? ` (estimate ${fmtMin(len)})` : "");
     }
-    case "set_estimate": { const n = await taskNode(checkId(a.id)); return isNone(a.length) ? `Remove the estimate from “${clip(bare(n.name), 100)}”` : `Set the estimate of “${clip(bare(n.name), 100)}” to ${fmtMin(lengthOf(a.length))}`; }
-    case "set_priority": { const n = await taskNode(checkId(a.id)), p = prioOf(a.priority); return p ? `Set “${clip(bare(n.name), 100)}” to P${p} (${PRIO_NAMES[p]})` : `Remove the priority from “${clip(bare(n.name), 100)}”`; }
-    case "create_note": { notesHome(ctx); const t = noEnc(checkText(a.title, "title"), "a title"); if (a.text) noEnc(String(a.text), "a note"); return `Create note “${clip(asTyped(t), 100)}” in ${ctx.notesNode.name}`; }
-    case "append_to_note": { const n = await noteNode(checkId(a.id), ctx); noEnc(checkText(a.text, "text"), "a note"); return `Add to the note “${clip(oneLine(n.name), 100)}”: “${clip(asTyped(a.text), 100)}”`; }
-    case "add_group": { noMarkers(noEnc(checkText(a.name, "name"), "a group"), "The group name"); for (const t of groupTasks(a)) noMarkers(t, "A task in the group"); const n = groupTasks(a).length; return `Add group “${clip(asTyped(checkText(a.name, "name")), 120)}” to ${await parentLabelA(checkParent(a.parent, ctx), ctx)}` + (n ? ` with ${n} task${n === 1 ? "" : "s"}` : ""); }
+    case "set_estimate": { const n = await taskNode(checkId(a.id)); return isNone(a.length) ? `Remove the estimate from "${clip(bare(n.name), 100)}"` : `Set the estimate of "${clip(bare(n.name), 100)}" to ${fmtMin(lengthOf(a.length))}`; }
+    case "set_priority": { const n = await taskNode(checkId(a.id)), p = prioOf(a.priority); return p ? `Set "${clip(bare(n.name), 100)}" to P${p} (${PRIO_NAMES[p]})` : `Remove the priority from "${clip(bare(n.name), 100)}"`; }
+    case "create_note": { notesHome(ctx); const t = noEnc(checkText(a.title, "title"), "a title"); if (a.text) noEnc(String(a.text), "a note"); return `Create note "${clip(asTyped(t), 100)}" in ${ctx.notesNode.name}`; }
+    case "append_to_note": { const n = await noteNode(checkId(a.id), ctx); noEnc(checkText(a.text, "text"), "a note"); return `Add to the note "${clip(oneLine(n.name), 100)}": "${clip(asTyped(a.text), 100)}"`; }
+    case "add_group": { noMarkers(noEnc(checkText(a.name, "name"), "a group"), "The group name"); for (const t of groupTasks(a)) noMarkers(t, "A task in the group"); const n = groupTasks(a).length; return `Add group "${clip(asTyped(checkText(a.name, "name")), 120)}" to ${await parentLabelA(checkParent(a.parent, ctx), ctx)}` + (n ? ` with ${n} task${n === 1 ? "" : "s"}` : ""); }
     case "set_reminder": {
       const n = await reminderTarget(checkId(a.id));
-      if (/^(none|off|remove|clear)$/i.test(String(a.time || "").trim())) return `Remove the reminder from “${clip(oneLine(stripTimeToken(stripHtml(n.name))), 100)}”`;
+      if (/^(none|off|remove|clear)$/i.test(String(a.time || "").trim())) return `Remove the reminder from "${clip(oneLine(stripTimeToken(stripHtml(n.name))), 100)}"`;
       const c = parseClock(a.time);
       if (!c) throw new Error("time must look like 3pm, 15:30 or 9:15 am");
-      return `Set a reminder for “${clip(oneLine(stripTimeToken(stripHtml(n.name))), 100)}” at ${new Date(2000, 0, 1, c.h, c.mi).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+      return `Set a reminder for "${clip(oneLine(stripTimeToken(stripHtml(n.name))), 100)}" at ${new Date(2000, 0, 1, c.h, c.mi).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
     }
     case "add_note": {
       const lines = noteLines(a);
       if (!lines.length) throw new Error("text is required");
       for (const l of lines) noMarkers(l, "The note");
       const day = a.date ? checkDate(a.date) : (ctx && ctx.day) || ctx.today;
-      return `Add ${lines.length === 1 ? "an all-day note" : lines.length + " all-day notes"} to ${day}: “${clip(lines[0], 100)}”${lines.length > 1 ? " …" : ""}`;
+      return `Add ${lines.length === 1 ? "an all-day note" : lines.length + " all-day notes"} to ${day}: "${clip(lines[0], 100)}"${lines.length > 1 ? " …" : ""}`;
     }
     case "delete_item": {
       const n = await deletable(checkId(a.id), ctx), t = await snapTree(n);
-      return `Delete “${clip(oneLine(stripHtml(n.name)), 120)}”` + (t.count ? ` and its ${t.count}${t.cut ? "+" : ""} sub-item${t.count === 1 ? "" : "s"}` : "") + " (can be undone)";
+      return `Delete "${clip(oneLine(stripHtml(n.name)), 120)}"` + (t.count ? ` and its ${t.count}${t.cut ? "+" : ""} sub-item${t.count === 1 ? "" : "s"}` : "") + " (can be undone)";
     }
-    case "complete_task": return `Tick off “${await infoName(checkId(a.id))}”`;
-    case "uncomplete_task": return `Un-tick “${await infoName(checkId(a.id))}”`;
-    case "move_task": return `Move “${await infoName(checkId(a.id))}” to ${await parentLabelA(checkParent(a.parent, ctx), ctx)} (${a.position === "bottom" ? "bottom" : "top"})`;
+    case "complete_task": return `Tick off "${await infoName(checkId(a.id))}"`;
+    case "uncomplete_task": return `Un-tick "${await infoName(checkId(a.id))}"`;
+    case "move_task": return `Move "${await infoName(checkId(a.id))}" to ${await parentLabelA(checkParent(a.parent, ctx), ctx)} (${posLabel(normalizePosition(a.position))})`;
+    case "move_many": {
+      const ids = parseManyIds(a.ids); const dest = await parentLabelA(checkParent(a.parent, ctx), ctx);
+      const names = await Promise.all(ids.map((id) => infoName(id)));
+      return names.map((n, i) => `Move "${n}" to ${dest}`).join("\n");
+    }
+    case "reorder_task": {
+      const pos = Number(a.position);
+      if (!Number.isInteger(pos) || pos < 0) throw new Error("position must be a non-negative integer");
+      return `Reorder "${await infoName(checkId(a.id))}" to position ${pos} within its current parent`;
+    }
+    case "set_note": {
+      const id = checkId(a.id), mode = String(a.mode || "replace").toLowerCase();
+      if (mode !== "replace" && mode !== "append") throw new Error("mode must be 'replace' or 'append'");
+      noEnc(checkText(a.text, "note text"), "a note");
+      return `${mode === "append" ? "Add to" : "Set"} the note on "${await infoName(id)}": "${clip(asTyped(a.text), 100)}"`;
+    }
     case "rename_item": {
       const id = checkId(a.id), info = await nodeInfo(id), nm = noMarkers(checkText(a.name, "name"), "The new name");
       restoreEnc(info ? info.name : "", nm);              // refuses here, before the card, if an encrypted part would be lost
-      return `Rename “${await infoName(id)}” to “${clip(asTyped(nm), 120)}”`;
+      return `Rename "${await infoName(id)}" to "${clip(asTyped(nm), 120)}"`;
     }
   }
   throw new Error("unknown tool");
@@ -503,11 +545,61 @@ async function doWrite(name, a, ctx) {
     return { text: `Done. ${DONE_HINT}`, undo: [{ method: "POST", path: `/nodes/${id}/${act === "complete" ? "uncomplete" : "complete"}` }] };
   }
   if (name === "move_task") {
-    const body = { parent_id: checkParent(a.parent, ctx), position: a.position === "bottom" ? "bottom" : "top" };
+    const body = { parent_id: checkParent(a.parent, ctx), position: normalizePosition(a.position) };
     await wfCall("POST", `/nodes/${id}/move`, body);
     patchIndex("POST", `/api/v1/nodes/${id}/move`, body, null);
     const undo = before && before.parent_id ? [{ method: "POST", path: `/nodes/${id}/move`, body: { parent_id: before.parent_id, position: "top" } }] : [];
     return { text: `Moved. ${DONE_HINT}`, undo };
+  }
+  if (name === "move_many") {
+    const ids = parseManyIds(a.ids), dest = checkParent(a.parent, ctx), pos = normalizePosition(a.position);
+    const undo = [];
+    let moved = 0;
+    for (const mid of ids) {
+      const prev = await nodeInfo(mid);
+      const body = { parent_id: dest, position: pos };
+      await wfCall("POST", `/nodes/${mid}/move`, body);
+      patchIndex("POST", `/api/v1/nodes/${mid}/move`, body, null);
+      if (prev && prev.parent_id) undo.push({ method: "POST", path: `/nodes/${mid}/move`, body: { parent_id: prev.parent_id, position: "top" }, label: "move" });
+      moved++;
+    }
+    return { text: `Moved ${moved} item${moved === 1 ? "" : "s"}. ${DONE_HINT}`, undo };
+  }
+  if (name === "reorder_task") {
+    const pos = Number(a.position);
+    if (!Number.isInteger(pos) || pos < 0) throw new Error("position must be a non-negative integer");
+    const before = await nodeInfo(id);
+    if (!before) throw new Error("item not found");
+    const parentId = before.parent_id;
+    if (!parentId) throw new Error("cannot reorder a top-level item");
+    const body = { parent_id: parentId, position: pos };
+    await wfCall("POST", `/nodes/${id}/move`, body);
+    patchIndex("POST", `/api/v1/nodes/${id}/move`, body, null);
+    return { text: `Reordered to position ${pos}. ${DONE_HINT}`, undo: [{ method: "POST", path: `/nodes/${id}/move`, body: { parent_id: parentId, position: "top" } }] };
+  }
+  if (name === "set_note") {
+    const nid = checkId(a.id), mode = String(a.mode || "replace").toLowerCase();
+    if (mode !== "replace" && mode !== "append") throw new Error("mode must be 'replace' or 'append'");
+    const cur = await wfCall("GET", `/nodes/${nid}`), curNode = cur && (cur.node || cur);
+    const oldNote = curNode && typeof curNode.note === "string" ? curNode.note : "";
+    const newText = noEnc(checkText(a.text, "note text"), "a note");
+    const body = { note: mode === "append" && oldNote ? oldNote.replace(/\s+$/, "") + "\n" + newText : newText };
+    // Encrypted-text rules: preserve ‹secret› on edits
+    if (mode === "replace" && hasEnc(oldNote)) {
+      // Count encrypted tokens in old note; new text must keep them
+      const oldToks = oldNote.match(ENC_RE) || [];
+      if (oldToks.length) {
+        const parts = body.note.split(SECRET);
+        if (parts.length - 1 !== oldToks.length) throw new Error(`the existing note has ${oldToks.length} encrypted part${oldToks.length === 1 ? "" : "s"} (${SECRET}). The replacement must keep ${oldToks.length === 1 ? "it" : "all " + oldToks.length} exactly as ${SECRET}`);
+        if (/wbenc1\./.test(body.note)) throw new Error("the note text can't contain encrypted text");
+        let restored = parts[0];
+        for (let i = 0; i < oldToks.length; i++) restored += oldToks[i] + parts[i + 1];
+        body.note = restored;
+      }
+    }
+    await wfCall("POST", `/nodes/${nid}`, body);
+    patchIndex("POST", `/api/v1/nodes/${nid}`, body, null);
+    return { text: `${mode === "append" ? "Added to" : "Set"} the note. ${DONE_HINT}`, undo: [{ method: "POST", path: `/nodes/${nid}`, body: { note: oldNote } }] };
   }
   if (name === "rename_item") {
     const cur = await wfCall("GET", `/nodes/${id}`), curNode = cur && (cur.node || cur);      // the live name, so its encrypted parts are the current ones
@@ -695,7 +787,7 @@ async function runRead(name, a, ctx) {
   }
   if (name === "read_note") {
     const n = await noteNode(checkId(a.id), ctx);
-    return `Note “${clip(oneLine(n.name), 200)}” (id ${n.id}):\n` + (n.note ? clip(hideEnc(stripHtml(n.note)), 5500) : "(no text)");
+    return `Note "${clip(oneLine(n.name), 200)}" (id ${n.id}):\n` + (n.note ? clip(hideEnc(stripHtml(n.note)), 5500) : "(no text)");
   }
   if (name === "list_source") {
     const want = String(a.name || "").trim().toLowerCase();
@@ -885,6 +977,10 @@ function systemPrompt(ctx) {
     "Open your reply by tying it to what was asked, in a natural sentence that echoes their request and gives the range and total, for example: Here are the top 10 matches for \"security\" (1-10 of 35): or Here are the next 5 (11-15 of 35):. Never open with a bare \"You have the following items\". When the user asks for the next ones, call the tool again with offset set past what you already showed. When a tool returns a list, show the user every item it returned (you may shorten each line) and say how many there are in total; if you show fewer than were returned without the user having asked for a smaller number, say how many you left out and offer the rest. When the user asks for a specific number (the first 5, the top 3), pass that number as limit, show exactly that many, and do not talk about results you did not show; just give the total and offer more.",
     "Never show item ids to the user (you still use them when calling tools). Refer to items by name, with their path if it helps.",
     `Encrypted text: ${"‹secret›"} stands for words the user encrypted. You can't read them and must not guess them. When renaming an item that has ${"‹secret›"}, keep each one exactly as ${"‹secret›"} in the new name (only the words around it can change); never write ${"‹secret›"} into new tasks or notes.`,
+    "Bulk moves: when the user asks to move several tasks at once ('move all those to Friday', 'move the top 3 to Inbox'), use move_many with their comma-separated ids instead of calling move_task multiple times. Each item appears as its own checkbox on the approval card, so the user can approve or decline each one. Position can be 'top', 'bottom', or a 0-based numeric index to place items at a specific position among siblings.",
+    "Reordering: when the user wants to change the order of items within the same parent ('move X above Y', 'put that first', 'make it the third item'), use reorder_task with the item's id and the 0-based target position. This keeps the item under its current parent and only changes its position among siblings. Use move_task instead when the item needs to go to a different parent.",
+    "Task notes: set_note sets or appends to an item's note (the small text shown under a task). Use mode 'replace' to overwrite or 'append' to add to the end. When replacing, encrypted parts (‹secret›) must be preserved as-is.",
+    "Peek and pin: when the user says 'show past due', 'show upcoming', 'let me see upcoming' or similar, use peek_section to open it temporarily (like clicking the counter link in the bar), not set_board_option. Use pin_section only when the user says 'pin', 'keep it', 'turn on' or 'make it permanent'. set_board_option with past_due or upcoming is the same as pin (it flips the setting), so only use it when the user explicitly wants the setting turned on or off. These are board tools and take effect instantly.",
     "Only suggest or propose moving an item to a place you have confirmed: a date the user names, one of their Plan day sources, the Inbox, or an item you found by searching. If you are not sure a place exists, ask first.",
     "When the user asks for a specific number of results, show exactly that many and say nothing about the rest.",
     "Be brief and plain. Your reply must itself contain the answer: list the actual tasks, or say plainly that there are none (for example \"You have no open tasks today\"). Never just say that you looked or listed something. Answer only what was asked: after you make a change, confirm it in one short sentence and do not list or re-read other tasks unless asked. Do not use markdown formatting such as ** or #. Open means not ticked ([ ] rather than [x]).",
@@ -985,14 +1081,26 @@ async function aiRunInner(state) {
       if (!tool.write) {
         let content;
         try { content = clip(await runRead(c.name, c.args, state.ctx), AI_RESULT_MAX); } catch (e) { content = "Error: " + e.message; }
-        pushStep(state, { tool: c.name, summary: c.name === "search_outline" ? `Searched “${clip(c.args.query, 60)}”` : c.name === "get_item" ? `Read item ${clip(String(c.args.id || ""), 14)}` : c.name === "outline_stats" ? "Counted the whole outline" : c.name === "list_day" ? `Read ${c.args.date}` : c.name === "list_source" ? `Read source ${clip(String(c.args.name || ""), 30)}` : c.name === "day_schedule" ? `Read the schedule for ${c.args.date}` : c.name === "workload" ? `Checked the workload ${c.args.from} to ${c.args.to}` : c.name === "find_tasks" ? `Filtered “${clip(String(c.args.filter || ""), 50)}”` : c.name === "list_notes" ? "Listed your notes" + (c.args.query ? ` about “${clip(String(c.args.query), 30)}”` : "") : c.name === "read_note" ? "Read a note" : `Read ${c.args.from} to ${c.args.to}`, detail: clip(content, 3000) });
+        pushStep(state, { tool: c.name, summary: c.name === "search_outline" ? `Searched "${clip(c.args.query, 60)}"` : c.name === "get_item" ? `Read item ${clip(String(c.args.id || ""), 14)}` : c.name === "outline_stats" ? "Counted the whole outline" : c.name === "list_day" ? `Read ${c.args.date}` : c.name === "list_source" ? `Read source ${clip(String(c.args.name || ""), 30)}` : c.name === "day_schedule" ? `Read the schedule for ${c.args.date}` : c.name === "workload" ? `Checked the workload ${c.args.from} to ${c.args.to}` : c.name === "find_tasks" ? `Filtered "${clip(String(c.args.filter || ""), 50)}"` : c.name === "list_notes" ? "Listed your notes" + (c.args.query ? ` about "${clip(String(c.args.query), 30)}"` : "") : c.name === "read_note" ? "Read a note" : `Read ${c.args.from} to ${c.args.to}`, detail: clip(content, 3000) });
         state.messages.push({ role: "tool", callId: c.id, name: c.name, content });
       } else if (state.writes !== "ask") {
         state.messages.push({ role: "tool", callId: c.id, name: c.name, content: "Changes are turned off (read-only). Tell the user what you would have done." });
       } else {
-        let summary;
-        try { summary = await describeWrite(c.name, c.args, state.ctx); } catch (e) { state.messages.push({ role: "tool", callId: c.id, name: c.name, content: "Error: " + e.message }); continue; }
-        pending.push({ id: c.id, name: c.name, args: c.args, summary });
+        // move_many is expanded into individual move_task pending items so each gets its own checkbox on the approval card.
+        if (c.name === "move_many") {
+          try {
+            const ids = parseManyIds(c.args.ids), dest = checkParent(c.args.parent, state.ctx), pos = normalizePosition(c.args.position);
+            const destLabel = await parentLabelA(dest, state.ctx);
+            for (let i = 0; i < ids.length; i++) {
+              const nm = await infoName(ids[i]);
+              pending.push({ id: `${c.id}_${i}`, name: "move_task", args: { id: ids[i], parent: c.args.parent, position: pos }, summary: `Move "${nm}" to ${destLabel} (${posLabel(pos)})`, moveMany: c.id });
+            }
+          } catch (e) { state.messages.push({ role: "tool", callId: c.id, name: c.name, content: "Error: " + e.message }); continue; }
+        } else {
+          let summary;
+          try { summary = await describeWrite(c.name, c.args, state.ctx); } catch (e) { state.messages.push({ role: "tool", callId: c.id, name: c.name, content: "Error: " + e.message }); continue; }
+          pending.push({ id: c.id, name: c.name, args: c.args, summary });
+        }
       }
     }
     if (uiCalls.length) {                       // the browser runs these first, then sends the results back
@@ -1012,6 +1120,8 @@ async function aiRunInner(state) {
 async function aiResume(entry, decisions) {
   const state = entry.state;
   let applied = 0;
+  // move_many items share a moveMany callId: consolidate their results into one tool message for the model.
+  const moveManyResults = new Map();   // callId -> { moved, denied, errors }
   for (const p of state.pending) {
     if (decisions[p.id] === true) {
       try {
@@ -1020,15 +1130,35 @@ async function aiResume(entry, decisions) {
         state.changed = true; applied++;
         for (const u of r.undo) state.undo.push({ ...u, label: p.summary });
         pushStep(state, { tool: p.name, summary: p.summary, done: true });
-        state.messages.push({ role: "tool", callId: p.id, name: p.name, content: r.text });
+        if (p.moveMany) {
+          const m = moveManyResults.get(p.moveMany) || { moved: 0, denied: 0, errors: [] }; m.moved++; moveManyResults.set(p.moveMany, m);
+        } else {
+          state.messages.push({ role: "tool", callId: p.id, name: p.name, content: r.text });
+        }
       } catch (e) {
         pushStep(state, { tool: p.name, summary: p.summary, error: e.message });
-        state.messages.push({ role: "tool", callId: p.id, name: p.name, content: "Error: " + e.message });
+        if (p.moveMany) {
+          const m = moveManyResults.get(p.moveMany) || { moved: 0, denied: 0, errors: [] }; m.errors.push(e.message); moveManyResults.set(p.moveMany, m);
+        } else {
+          state.messages.push({ role: "tool", callId: p.id, name: p.name, content: "Error: " + e.message });
+        }
       }
     } else {
       pushStep(state, { tool: p.name, summary: p.summary, denied: true });
-      state.messages.push({ role: "tool", callId: p.id, name: p.name, content: "The user declined this change. Do not retry it or propose a different change. Reply with one short sentence saying you left it as it was; do not list tasks." });
+      if (p.moveMany) {
+        const m = moveManyResults.get(p.moveMany) || { moved: 0, denied: 0, errors: [] }; m.denied++; moveManyResults.set(p.moveMany, m);
+      } else {
+        state.messages.push({ role: "tool", callId: p.id, name: p.name, content: "The user declined this change. Do not retry it or propose a different change. Reply with one short sentence saying you left it as it was; do not list tasks." });
+      }
     }
+  }
+  // Consolidate move_many results into one tool message per original call.
+  for (const [callId, m] of moveManyResults) {
+    const parts = [];
+    if (m.moved) parts.push(`Moved ${m.moved} item${m.moved === 1 ? "" : "s"}`);
+    if (m.denied) parts.push(`${m.denied} declined`);
+    if (m.errors.length) parts.push(`${m.errors.length} failed`);
+    state.messages.push({ role: "tool", callId, name: "move_many", content: parts.join("; ") + ". " + DONE_HINT });
   }
   state.pending = null;
   // Streaming: hand over Undo for what was applied right away, so pressing Stop afterwards can't lose it.

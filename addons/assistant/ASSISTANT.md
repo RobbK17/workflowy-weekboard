@@ -77,7 +77,7 @@ Click **Assistant** in the header to open the side panel. Enter sends, Shift+Ent
 
 **Looking things up.** It can search your whole outline, read any day (including the Daily page notes, and tasks inside groups), and it is given the open tasks on the days shown on the board. Examples: "What's on my plate today?", "Find tasks about the budget", "What's due Friday?"
 
-**Changing tasks.** It can add a task or a group (a bullet that holds tasks, optionally with tasks inside it), tick or un-tick a task, move an item to a date (or another item, or your Inbox), rename an item, set or remove a reminder, and add a note. Every change appears as an approval card with a checkbox per change. Choose **Apply** (unticked changes are skipped) or **Deny all**. Nothing changes before you approve. Applied changes appear in the board's undo toast. Deleting is off unless you turn on **Allow deleting** (see Settings).
+**Changing tasks.** It can add a task or a group (a bullet that holds tasks, optionally with tasks inside it), tick or un-tick a task, move an item to a date (or another item, or your Inbox), reorder an item within its current parent ("put that first", "move X above Y"), rename an item, set or remove a reminder, and add a note. Moving and reordering accept a 0-based numeric position to place items at a specific spot among siblings. Every change appears as an approval card with a checkbox per change. Choose **Apply** (unticked changes are skipped) or **Deny all**. Nothing changes before you approve. Applied changes appear in the board's undo toast. Deleting is off unless you turn on **Allow deleting** (see Settings).
 
 **Scheduling (time blocks and estimates).** It reads and writes the board's own markers, so what it sets shows on the timeline, the desktop and the phone:
 - "Block 2 hours tomorrow at 10 for the budget": it finds the task (or adds it), moves it to that day if needed, checks the day for clashes, and proposes a time block (`^10am`) with the length as its estimate (`~2h`).
@@ -172,7 +172,7 @@ WorkFlowy limits how fast it can be asked for things, and a question like "how b
 
 ## What it can and cannot do
 
-- **Can:** search, read days and items, add / tick / un-tick / move / rename, set reminders, time blocks, estimates and priorities, add all-day notes, create and add to notes in your Notes (all with approval), delete if you turn on Allow deleting, read schedules and workload, find tasks with filter words, change the board's view (desktop).
+- **Can:** search, read days and items, add / tick / un-tick / move / rename / reorder, set reminders, time blocks, estimates and priorities, add all-day notes, create and add to notes in your Notes (all with approval), delete if you turn on Allow deleting, read schedules and workload, find tasks with filter words, change the board's view (desktop). Moving and reordering accept a 0-based numeric position to place items at a specific spot among siblings.
 - **Cannot:** change anything without approval, read or change encrypted words, replace or edit the existing text of a note (it only adds to the end), set a task's note field, or reach anything outside your WorkFlowy outline and the board.
 - It sees one outline: yours, through your WorkFlowy key. Text it reads from your outline is treated as data, not instructions, but a small local model can still be fooled by odd text, so review each change before approving.
 
@@ -204,6 +204,11 @@ WorkFlowy limits how fast it can be asked for things, and a question like "how b
 - Board controls change the view in the browser you are using, not in any other open tab.
 
 ## Changes
+
+**0.5.1**
+- New `reorder_task` tool: reorder an item within its current parent to a specific 0-based position among siblings ("move X above Y", "put that first", "make it the third item"). Uses the WorkFlowy move API with the item's current parent and the target position.
+- All move tools (`move_task`, `move_many`) now accept a 0-based numeric index as the position, in addition to "top" and "bottom". `normalizePosition()` and `posLabel()` helpers handle the conversion.
+- System prompt guidance tells the AI when to use `reorder_task` (same parent, change order) versus `move_task` (different parent).
 
 **0.4.1**
 - Time blocks and reminders can't be mixed up: names, renames, groups and notes with typed markers (`@…`, `^…`, `~…`, `!p…`, `!blk`, `!list`, `!alld`, `!every`, `!1h`) are refused with a pointer to the right tool, so the model fixes them itself (it had written "Gardening @2:32pm ~20m !blk", a reminder and a template marker, when asked for a block). Ordinary text such as "~3 apples" or "@alex" is fine.
