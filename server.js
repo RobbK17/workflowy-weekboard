@@ -3,7 +3,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.7";
+const VERSION = "1.5.8";
 
 const http = require("http");
 const fs = require("fs");

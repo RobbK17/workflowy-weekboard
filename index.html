@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.7">
+<meta name="version" content="1.5.8">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -177,6 +177,19 @@
   .cd-live::placeholder { color: var(--muted); }
   .cd-note { display: block; width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--muted); font: inherit; font-size: 12px; line-height: 1.35; padding: 0; margin: 2px 0 0; resize: none; overflow: hidden; outline: none; border-radius: 3px; }
   .cd-note:focus { background: rgba(127,127,127,.14); }
+  .card .grip { flex: none; border: none; background: none; color: var(--muted); padding: 0 2px; cursor: grab; opacity: 0; font-size: 11px; letter-spacing: -1px; user-select: none; -webkit-user-select: none; align-self: center; }
+  .card:hover .grip, .card:focus-within .grip { opacity: .6; }
+  .card .grip:hover { opacity: 1; color: var(--accent); }
+  .card .grip:active { cursor: grabbing; }
+  .card.drag-over-above { box-shadow: inset 0 2px 0 var(--accent); }
+  .card.drag-over-below { box-shadow: inset 0 -2px 0 var(--accent); }
+  .grp .grip { flex: none; border: none; background: none; color: var(--muted); padding: 0 2px; cursor: grab; opacity: 0; font-size: 11px; letter-spacing: -1px; user-select: none; -webkit-user-select: none; }
+  .grp:hover .grip, .grp:focus-within .grip { opacity: .6; }
+  .grp .grip:hover { opacity: 1; color: var(--accent); }
+  .grp .grip:active { cursor: grabbing; }
+  .grp.drag-over-above { box-shadow: inset 0 2px 0 var(--accent); }
+  .grp.drag-over-below { box-shadow: inset 0 -2px 0 var(--accent); }
+  @media (hover: none) { .card .grip, .grp .grip { opacity: .5; } }
   .card.dragging { opacity: .4; }
   .card input[type=checkbox] { font-size: inherit; margin-top: max(2px, calc(0.7em - 6.5px)); }      /* level with the first line of text, as in the panes */
   .txt { flex: 1; word-break: break-word; }
@@ -1936,6 +1949,8 @@ async function loadWeek(force = false) {
   if (err1) showError(err1);
   await loadNotes(weekDays().map(key));
   if (token !== loadToken) return;
+  await Promise.all(weekDays().map(key).map((k) => fetchSortOrder(k)));
+  if (token !== loadToken) return;
   loadingExtras = true;                       // Past due / Upcoming are always read: a panel that is off still gets its count
   render();
 
@@ -1948,7 +1963,13 @@ async function loadWeek(force = false) {
   if (token !== loadToken) return;
   loadingExtras = false;
   if (err2 || err3) showError(err2 || err3);
-  if (span === 5) { await loadNotes(fullWeekKeys().filter((k) => !visibleKeys.has(k))); if (token !== loadToken) return; }
+  if (span === 5) {
+    const rest = fullWeekKeys().filter((k) => !visibleKeys.has(k));
+    await loadNotes(rest);
+    if (token !== loadToken) return;
+    await Promise.all(rest.map((k) => fetchSortOrder(k)));
+    if (token !== loadToken) return;
+  }
   render();
   autoCompleteBlocks();
 }
@@ -1986,8 +2007,34 @@ function entries(k, onlyOpen, noBlk) {      // noBlk: leave template blocks (!bl
       }
     }
   }
-  // On today, time-blocked tasks come first (sorted by time), then priority, then outline order
-  return out.sort((a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s);
+  // A saved column order (from a drag) wins, so the card stays in the slot the toast named.
+  // Anything not in that list keeps the usual order: time block, then priority, then outline.
+  const byUsual = (a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s;
+  const order = sortCache[k];
+  if (order && order.length) {
+    const pos = new Map(order.map((id, i) => [id, i]));
+    const idOf = (e) => e.kind === "group" ? e.b.id : e.n.id;
+    return out.sort((a, b) => {
+      const ai = pos.has(idOf(a)) ? pos.get(idOf(a)) : Infinity;
+      const bi = pos.has(idOf(b)) ? pos.get(idOf(b)) : Infinity;
+      if (ai !== bi) return ai - bi;
+      return byUsual(a, b);
+    });
+  }
+  return out.sort(byUsual);
+}
+// 0-based WorkFlowy position: where `id` lands among every sibling of the day
+// (notes, bullets and completed lines included), counted in priority order
+// after this node is taken out. `visualIds` is the column order the drop just built.
+function outlinePosition(dayKey, visualIds, id) {
+  const sibs = (dayAll[dayKey] || []).slice().sort((a, b) => a.priority - b.priority).map((n) => n.id).filter((s) => s !== id);
+  const at = visualIds.indexOf(id);
+  if (at < 0) return sibs.length;
+  for (let i = at + 1; i < visualIds.length; i++) {
+    const j = sibs.indexOf(visualIds[i]);
+    if (j >= 0) return j;
+  }
+  return sibs.length;
 }
 const entriesFor = (keys, onlyOpen, noBlk) => keys.flatMap((k) => entries(k, onlyOpen, noBlk));
 function entryOpen(e) {
@@ -3030,12 +3077,81 @@ function render() {
     { const band = allDayBand(k); if (band) head.appendChild(band); }
     col.append(head, list);
 
-    col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("over"); });
-    col.addEventListener("dragleave", () => col.classList.remove("over"));
+    /* ---------- Drag / drop: cross-column move + same-column reorder ---------- */
+    col.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      // Card-level indicators for same-column reorder
+      const cardEl = e.target.closest(".card[data-id], .grp[data-id]");
+      if (cardEl) {
+        // Clear old indicators in this column
+        list.querySelectorAll(".card.drag-over-above, .card.drag-over-below, .grp.drag-over-above, .grp.drag-over-below").forEach(el => {
+          if (el !== cardEl) el.classList.remove("drag-over-above", "drag-over-below");
+        });
+        const rect = cardEl.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        cardEl.classList.toggle("drag-over-above", e.clientY < mid);
+        cardEl.classList.toggle("drag-over-below", e.clientY >= mid);
+      }
+      col.classList.add("over");
+    });
+    col.addEventListener("dragleave", (e) => {
+      const cardEl = e.target.closest(".card[data-id], .grp[data-id]");
+      if (cardEl) cardEl.classList.remove("drag-over-above", "drag-over-below");
+      // Only remove column highlight when truly leaving the column
+      if (!col.contains(e.relatedTarget)) col.classList.remove("over");
+    });
     col.addEventListener("drop", async (e) => {
       e.preventDefault(); col.classList.remove("over");
-      const { id, from, name } = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
-      if (!id || from === k) return;
+      list.querySelectorAll(".drag-over-above, .drag-over-below").forEach(el => el.classList.remove("drag-over-above", "drag-over-below"));
+      let data; try { data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}"); } catch { return; }
+      const { id, from, name, reorder } = data;
+      if (!id) return;
+
+      // Same-column reorder (grip handle was used)
+      if (reorder && from === k) {
+        const targetEl = e.target.closest(".card[data-id], .grp[data-id]");
+        if (!targetEl || targetEl.dataset.id === id) return;
+        const rect = targetEl.getBoundingClientRect();
+        const above = e.clientY < rect.top + rect.height / 2;
+        // Collect all card/group elements in the column's task list
+        const allCards = Array.from(list.querySelectorAll(":scope > .card[data-id], :scope > .grp[data-id]"));
+        const ids = allCards.map(c => c.dataset.id);
+        // When prioSort is ON, only allow reordering among unprioritized cards
+        if (prefs.prioSort) {
+          const pinnedIds = new Set();
+          for (const c of allCards) {
+            const cid = c.dataset.id;
+            // A card is pinned if it has a prio class
+            if (c.classList.contains("prio1") || c.classList.contains("prio2") || c.classList.contains("prio3") || c.classList.contains("prio4")) pinnedIds.add(cid);
+          }
+          if (pinnedIds.has(id) || pinnedIds.has(targetEl.dataset.id)) return; // can't reorder pinned cards
+        }
+        // Compute the new order
+        const fromIdx = ids.indexOf(id);
+        if (fromIdx >= 0) ids.splice(fromIdx, 1);
+        let toIdx = ids.indexOf(targetEl.dataset.id);
+        if (!above) toIdx++;
+        ids.splice(toIdx, 0, id);
+        // Toast names the 1-based place in the column. The API index counts every sibling.
+        const shown = ids.indexOf(id);
+        const wfPos = outlinePosition(k, ids, id);
+        const prevOrder = sortCache[k] ? sortCache[k].slice() : null;
+        const oldApi = (dayAll[k] || []).slice().sort((a, b) => a.priority - b.priority).findIndex((n) => n.id === id);
+        await act(async () => {
+          try { await call("POST", `/nodes/${id}/move`, { parent_id: k, position: wfPos }); } catch (err) { showError("Reorder failed: " + err.message); }
+          await saveSortOrder(k, ids);
+          await loadDay(k);
+        });
+        pushUndo(`Reordered "${name || "task"}" to position ${shown + 1}`, async () => {
+          try { await call("POST", `/nodes/${id}/move`, { parent_id: k, position: oldApi < 0 ? fromIdx : oldApi }); } catch (err) { /* best effort */ }
+          if (prevOrder) await saveSortOrder(k, prevOrder); else await clearSortOrder(k);
+          await loadDay(k);
+        });
+        return;
+      }
+
+      // Cross-column move (the existing behaviour)
+      if (from === k) return;
       await act(() => moveMany([{ id, from, name: name || "task" }], k));
     });
 
@@ -3060,12 +3176,51 @@ function render() {
         sec.appendChild(secHead);
         if (!ents.length) { const em = document.createElement("div"); em.className = "empty"; em.textContent = (cache[k] || []).length ? "All done 🎉" : "Nothing yet"; sec.appendChild(em); }
         for (const e of ents) sec.appendChild(entryEl(e, false));
-        sec.addEventListener("dragover", (e) => { e.preventDefault(); sec.classList.add("over"); });
-        sec.addEventListener("dragleave", () => sec.classList.remove("over"));
+        sec.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          const cardEl = e.target.closest(".card[data-id], .grp[data-id]");
+          if (cardEl) {
+            sec.querySelectorAll(".drag-over-above, .drag-over-below").forEach(el => { if (el !== cardEl) el.classList.remove("drag-over-above", "drag-over-below"); });
+            const rect = cardEl.getBoundingClientRect(); const mid = rect.top + rect.height / 2;
+            cardEl.classList.toggle("drag-over-above", e.clientY < mid);
+            cardEl.classList.toggle("drag-over-below", e.clientY >= mid);
+          }
+          sec.classList.add("over");
+        });
+        sec.addEventListener("dragleave", (e) => {
+          const cardEl = e.target.closest(".card[data-id], .grp[data-id]");
+          if (cardEl) cardEl.classList.remove("drag-over-above", "drag-over-below");
+          if (!sec.contains(e.relatedTarget)) sec.classList.remove("over");
+        });
         sec.addEventListener("drop", async (e) => {
           e.preventDefault(); e.stopPropagation(); sec.classList.remove("over");
-          const { id, from, name } = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
-          if (!id || from === k) return;
+          sec.querySelectorAll(".drag-over-above, .drag-over-below").forEach(el => el.classList.remove("drag-over-above", "drag-over-below"));
+          let data; try { data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}"); } catch { return; }
+          const { id, from, name, reorder } = data;
+          if (!id) return;
+          if (reorder && from === k) {
+            const targetEl = e.target.closest(".card[data-id], .grp[data-id]");
+            if (!targetEl || targetEl.dataset.id === id) return;
+            const rect = targetEl.getBoundingClientRect(); const above = e.clientY < rect.top + rect.height / 2;
+            const allCards = Array.from(sec.querySelectorAll(":scope > .card[data-id], :scope > .grp[data-id]"));
+            const ids = allCards.map(c => c.dataset.id);
+            if (prefs.prioSort) {
+              const pinnedIds = new Set();
+              for (const c of allCards) { if (c.classList.contains("prio1") || c.classList.contains("prio2") || c.classList.contains("prio3") || c.classList.contains("prio4")) pinnedIds.add(c.dataset.id); }
+              if (pinnedIds.has(id) || pinnedIds.has(targetEl.dataset.id)) return;
+            }
+            const fromIdx = ids.indexOf(id); if (fromIdx >= 0) ids.splice(fromIdx, 1);
+            let toIdx = ids.indexOf(targetEl.dataset.id); if (!above) toIdx++;
+            ids.splice(toIdx, 0, id);
+            const wfPos = outlinePosition(k, ids, id);
+            await act(async () => {
+              try { await call("POST", `/nodes/${id}/move`, { parent_id: k, position: wfPos }); } catch (err) { showError("Reorder failed: " + err.message); }
+              await saveSortOrder(k, ids);
+              await loadDay(k);
+            });
+            return;
+          }
+          if (from === k) return;
           await act(() => moveMany([{ id, from, name: name || "task" }], k));
         });
         list.appendChild(sec);
@@ -3340,10 +3495,11 @@ function groupCard(e, showDate) {
     toggleSel(b, k, null, el, true);
   }, true);
   el.addEventListener("dragstart", (ev) => {
-    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40) }));
+    const reorder = !!el.dataset.reorder;
+    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40), reorder }));
     el.classList.add("dragging");
   });
-  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+  el.addEventListener("dragend", () => { el.classList.remove("dragging"); delete el.dataset.reorder; });
 
   const closed = groupsClosed.has(b.id);
   const open = e.todos.filter((t) => !t.completedAt).length;
@@ -3382,7 +3538,11 @@ function groupCard(e, showDate) {
   const opn = document.createElement("button");
   opn.className = "mv gopen"; opn.textContent = "Open ▸"; opn.title = "Open this bullet to see and edit everything under it"; opn.setAttribute("aria-label", opn.title);
   opn.addEventListener("click", (ev) => { ev.stopPropagation(); openItem(b.id, true); });
-  head.append(selMark(), arrow, title, pill, mv, opn);
+  const gGrip = document.createElement("button"); gGrip.className = "grip"; gGrip.textContent = "⠿"; gGrip.title = "Drag to reorder";
+  gGrip.setAttribute("aria-label", "Drag to reorder");
+  gGrip.addEventListener("mousedown", () => { el.draggable = true; el.dataset.reorder = "1"; });
+  gGrip.addEventListener("touchstart", () => { el.draggable = true; el.dataset.reorder = "1"; }, { passive: true });
+  head.append(selMark(), arrow, title, pill, mv, opn, gGrip);
   el.appendChild(selPick(b, k, null, true));            // on the group's top edge, like a card's hover bar, so the name keeps its width
   el.appendChild(head);
 
@@ -3530,6 +3690,7 @@ function card(n, k, showDate, opts) {
   el.className = "card" + (n.completedAt ? " done" : "") + (nested ? " nested" : "") + (pr ? " prio" + pr : "");
   el.dataset.id = n.id;
   if (pr) el.title = PRIO_NAMES[pr] + " priority";
+  const pinned = prefs.prioSort && pr > 0;               // priority cards are pinned (not reorderable) when prioSort is on
   el.draggable = !nested && !selMode;                    // moving it out of its bullet would be a surprise
   if (sel.has(n.id)) el.classList.add("sel");
   el.addEventListener("click", (ev) => {                 // in select mode a click picks the card instead of using what's inside it
@@ -3538,10 +3699,11 @@ function card(n, k, showDate, opts) {
     toggleSel(n, k, nested ? opts.bullet : null, el);
   }, true);
   el.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: k, name: shortName(n) }));
+    const reorder = !!el.dataset.reorder;
+    e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: k, name: shortName(n), reorder }));
     el.classList.add("dragging");
   });
-  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+  el.addEventListener("dragend", () => { el.classList.remove("dragging"); delete el.dataset.reorder; });
 
   // Time block badge (if scheduled)
   const tb = n.pending ? null : timeBlockOf(n);
@@ -3662,7 +3824,9 @@ function card(n, k, showDate, opts) {
   };
   mv.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => openMovePop(mv, k, moveTo)); });
 
-  if (!n.pending) el.append(selMark(), cb, txt, selPick(n, k, nested ? opts.bullet : null, false), mv, del);
+  // Grip handle for same-column reorder (not on nested, pending, or priority-pinned cards)
+  const grip = (!nested && !n.pending && !pinned) ? (() => { const g = document.createElement("button"); g.className = "grip"; g.textContent = "⠿"; g.title = "Drag to reorder"; g.setAttribute("aria-label", "Drag to reorder"); g.addEventListener("mousedown", () => { el.draggable = true; el.dataset.reorder = "1"; }); g.addEventListener("touchstart", () => { el.draggable = true; el.dataset.reorder = "1"; }, { passive: true }); return g; })() : null;
+  if (!n.pending) { const parts = [selMark(), cb, txt, selPick(n, k, nested ? opts.bullet : null, false), mv, del]; if (grip) parts.push(grip); el.append(...parts); }
   else el.append(cb, txt, mv, del);           // reminder and repeat live in the right-click menu (live cards) or this card's own menu below
   if (!liveOk) el.addEventListener("contextmenu", (ev) => {            // plain cards have no text box, so they get a short menu of their own
     if (selMode || ev.target.closest("button, a, input, textarea, .pl-edit")) return;
@@ -3673,6 +3837,19 @@ function card(n, k, showDate, opts) {
     add(parseTag(n.name) || parseTime(plain(n.name)) ? "Change the reminder…" : "Set a reminder…", () => setTimeout(() => openRemPop(el, n, k, nested ? opts.bullet : null, parseTag(n.name) || parseTime(plain(n.name))), 0), "mark");
     add("Repeat…", () => setTimeout(() => openRepeatPop(el, n, k, nested ? opts.bullet : null), 0), "rep");
     if (ISO_DAY.test(k)) add("Time block…", () => setTimeout(() => openTimelinePanel(k), 0), "tb");
+    // Priority row (same as in live-card menu)
+    const plainMetaRow = (label, picks, cur, which) => {
+      const row = document.createElement("div"); row.className = "kmrow";
+      const l = document.createElement("span"); l.textContent = label + (wf.mark ? "" : " · off in Settings"); row.appendChild(l);
+      for (const [v, text, title] of picks) {
+        const b2 = document.createElement("button"); b2.type = "button"; b2.textContent = text; b2.title = title; if (!wf.mark) wfOffBtn(b2, "mark");
+        b2.className = (v === 0 ? "none" : "") + (v === cur ? " on" : "");
+        b2.onclick = () => { kbMenu.hidden = true; setMeta(n, k, nested ? opts.bullet : null, which, v === cur ? 0 : v); };
+        row.appendChild(b2);
+      }
+      kbMenu.appendChild(row);
+    };
+    plainMetaRow("Priority", [1, 2, 3, 4].map((p) => [p, "P" + p, PRIO_NAMES[p] + " (!p" + p + ")"]).concat([[0, "✕", "No priority"]]), prioOf(n), "prio");
     kbMenu.hidden = false; kbMenu.style.left = Math.max(8, Math.min(ev.clientX, innerWidth - kbMenu.offsetWidth - 8)) + "px"; kbMenu.style.top = Math.max(8, Math.min(ev.clientY, innerHeight - kbMenu.offsetHeight - 8)) + "px";
   });
   return el;

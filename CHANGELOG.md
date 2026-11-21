@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.8 (2026-11-21)
+
+- **Day column drag-to-reorder.** Cards and groups in day columns can be reordered by dragging a grip handle (⠿) that appears on each card. The new position is written to WorkFlowy through its move API with a numeric index, and also saved as a local sort-order overlay. Undo is supported.
+- **Hybrid priority pinning.** When "Order by priority" (prioSort) is ON, priority-marked cards (P1–P4) are pinned at the top of each column and have no grip handle — they cannot be reordered by drag. Unprioritized cards get grip handles and can be freely reordered among themselves. When prioSort is OFF, all cards can be reordered.
+- **Right-click priority on plain cards.** Plain (non-live) cards now have a Priority row (P1–P4 / ✕) in their right-click context menu, matching the live-card menu. Setting a priority on an unprioritized card moves it into the pinned zone when prioSort is ON.
+- **Weekend column reorder.** The same drag-to-reorder logic applies to weekend day sections, with the same pinned-card guards.
+- **Drag indicators.** An accent-coloured line appears above or below the target card during a reorder drag, showing where the card will land.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `index.html` | CSS for `.grip`, `.drag-over-above`, `.drag-over-below` on `.card` and `.grp`; `card()` conditional grip handle with pinned logic; `groupCard()` grip handle; day column and weekend section dragover/dragleave/drop handlers for same-column reorder with pinned guard; plain card right-click priority menu row; version 1.5.8 |
+
 ## 1.5.7 (2026-11-21)
 
 - **Numeric position support in WorkFlowy API.** The WorkFlowy MCP server now accepts a 0-based integer index as the `position` parameter on `create_node` and `move_node`, in addition to `"top"` and `"bottom"`. WorkFlowy auto-calculates the priority between adjacent siblings.

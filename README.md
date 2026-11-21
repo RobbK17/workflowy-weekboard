@@ -4,7 +4,16 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.7**
+**Version 1.5.8**
+
+### What's new in 1.5.8
+
+Replace `index.html`, then **restart the server** (or just refresh the page).
+
+- **Day column drag-to-reorder.** Drag the grip handle (⠿) on any card or group in a day column to reorder it. The new position is written to WorkFlowy through its move API.
+- **Hybrid priority pinning.** When "Order by priority" is ON, priority-marked cards (P1–P4) are pinned at the top — no grip handle, no reordering. Unprioritized cards get grip handles and can be freely reordered. When the setting is OFF, all cards can be reordered.
+- **Right-click priority on plain cards.** Plain cards now have a P1–P4 priority picker in their right-click context menu.
+- **Weekend column reorder.** The same drag-to-reorder works in weekend day sections.
 
 ### What's new in 1.5.7
 
