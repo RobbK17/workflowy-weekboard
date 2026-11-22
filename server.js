@@ -3,7 +3,7 @@
 // Open: http://localhost:3000
 // DEPLOY_MODE is required: local, vps or fly (see README.md).
 
-const VERSION = "1.5.9";
+const VERSION = "1.5.9.1";
 
 const http = require("http");
 const fs = require("fs");
@@ -521,7 +521,7 @@ async function serveUpdate(res) {
     let latest = null;
     try {
       const r = await fetch(UPDATE_URL, { signal: AbortSignal.timeout(8000) });
-      if (r.ok) { const m = (await r.text()).match(/const VERSION = "(\d+\.\d+\.\d+)"/); if (m) latest = m[1]; }
+      if (r.ok) { const m = (await r.text()).match(/const VERSION = "(\d+\.\d+\.\d+(?:\.\d+)?)"/); if (m) latest = m[1]; }
     } catch (e) { /* offline or blocked: just no answer */ }
     updateCache = { latest, at: Date.now() - (latest ? 0 : UPDATE_TTL_MS - 10 * 60 * 1000) };   // retry a failure after 10 min
   }
@@ -910,7 +910,7 @@ const addonScripts = [];              // desktop page scripts, in order (an add-
 const addonMobile = { css: [], scripts: [] };   // the same for the phone page (mobile.html)
 const versionAtLeast = (have, need) => {
   const a = String(have).split(".").map(Number), b = String(need).split(".").map(Number);
-  for (let i = 0; i < 3; i++) { const x = a[i] || 0, y = b[i] || 0; if (x !== y) return x > y; }
+  for (let i = 0; i < Math.max(a.length, b.length); i++) { const x = a[i] || 0, y = b[i] || 0; if (x !== y) return x > y; }
   return true;
 };
 function loadAddons() {
@@ -1617,8 +1617,7 @@ function cachedPage(file, addons) {
   text = text
     .replace(/(<meta name="notes-name" content=")[^"]*(")/, (_, a, b) => a + escapeAttr(NOTES_NAME) + b)   // the configured notes-bullet name
     .replace(/(<meta name="remote" content=")[^"]*(")/, (_, a, b) => a + (REMOTE ? "1" : "0") + b)
-    .replace(/(<meta name="version" content=")[^"]*(")/, (_, a, b) => a + VERSION + b)             // the pages always show the running server's version
-    .replace(/(<span id="verText">Workflowy Week Board v)[^<]*(<\/span>)/, (_, a, b) => a + VERSION + b)
+    .replace(/(<meta name="server-version" content=")[^"]*(")/, (_, a, b) => a + VERSION + b)   // the page keeps its own version; this is the running server, shown only when the two differ
     .replace(/<script>/g, `<script nonce="${NONCE_SLOT}">`);
   pageCache.set(file, { mtime, text });
   return text;

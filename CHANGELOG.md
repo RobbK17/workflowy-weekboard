@@ -1,20 +1,21 @@
 # Changelog
 
-## 1.5.9 (2026-11-22)
+## 1.5.9.1 (2026-11-22)
 
 - **A downward drop lands on the slot the toast names.** The toast number is the 1-based place in the visible column. WorkFlowy's `position` is a 0-based index among every sibling under the day (notes, bullets and completed lines included), counted in priority order after the node is removed. The drop now sends that sibling index. A note above the cards used to make a one-step move downward compute the slot the card already occupied, so WorkFlowy left it there and the column snapped back.
 - **Time-blocked cards stay in clock order.** A `^9am`-style card has no grip on the desktop and does not lift on a phone long-press. Saved drag order does not apply to it. A `!p1` at 4pm stays at 4pm under a normal 9am card. Change the order of timed cards in the time-blocking panel, which rewrites the `^time`. Moving the card to another day (desktop: drag the card body; phone: **Move to another day…**) still takes the time marker with it. A completed timed card stays in the clock band while it is visible. This refines 1.5.8, which gave a grip to every card that was not priority-pinned.
 - **A free card can sit between two time blocks.** The drop line can rest in that gap, on the desktop and on the phone, and the saved order keeps the card there after a redraw. Timed cards themselves are not rearranged. With Order by priority on, `!p1`–`!p4` stay pinned, and a free card cannot pass a pin. A group stays pinned when it holds an urgent open task; a group whose most urgent open task is unprioritized can move. Nested tasks are not reorderable. With Order by priority off, any unscheduled card can be rearranged.
 - **Phone long-press reorder.** On the day view only, a press of about half a second lifts a free row: a floating copy, a drop line, the position number, a short vibration when the phone allows it, and auto-scroll near the top and bottom of the list. Moving a finger before the lift, or off the list, cancels. The click that follows a lift does not open the task sheet. The checkbox and ⋯ do not start the timer. A sideways swipe still changes the day. A group moves from a long-press on its title row; tasks inside the group do not.
 - **Dragging does not select the text underneath.** While a card is moving, the browser selection highlight is cleared and the board does not accept a new selection, so the highlight no longer paints across the background. Editing a card's text box still allows a cursor.
+- **The version on screen is the page's own.** `server.js` no longer writes its `VERSION` over the version tag or the desktop corner. Each page shows the version in its file. A `server-version` tag carries the running server, and the corner and the phone menu add `· server …` only when that differs from the page. The GitHub update notice still compares the running server with `VERSION` in `server.js`.
 
 ### Files changed
 
 | File | Change |
 |------|--------|
-| `index.html` | Same-day grip drop sends the WorkFlowy sibling index the toast names; time-blocked, pinned and nested rows stay put; a free card may land between time blocks; dragging suppresses text selection |
-| `mobile.html` | Long-press reorder on the day view, with the same time-block, priority and between-blocks rules; dragging suppresses text selection |
-| `server.js` | Version 1.5.9 |
+| `index.html` | Same-day grip drop sends the WorkFlowy sibling index the toast names; time-blocked, pinned and nested rows stay put; a free card may land between time blocks; dragging suppresses text selection; the corner shows this file's version, and the server version only when it differs |
+| `mobile.html` | Long-press reorder on the day view, with the same time-block, priority and between-blocks rules; dragging suppresses text selection; the phone undo toast stays on one line; the menu shows this file's version, and the server version only when it differs |
+| `server.js` | Version 1.5.9.1. The update check reads an optional fourth part, so 1.5.9.1 is newer than 1.5.9. Pages keep their own version; the server writes only a `server-version` tag |
 | `README.md`, `CHANGELOG.md` | Updated |
 
 ## 1.5.8 (2026-11-21)

@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.5.6.1">
+<meta name="version" content="1.5.9.1">
+<meta name="server-version" content="">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <meta name="theme-color" content="#2f6fed">
@@ -164,7 +165,9 @@
   #sheet label.tbl { display: block; margin: 12px 0 0; }
   #sheet select.tbsel { width: 100%; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); margin-top: 8px; }
   #sheet input[type=date], #sheet input[type=time] { width: 100%; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); margin-top: 8px; }
-  #toast { display: none; align-items: center; gap: 12px; position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #172b4d; color: #fff; padding: 9px 14px; border-radius: 999px; font-size: 14px; z-index: 30; display: none; max-width: 90vw; }
+  #toast { display: none; align-items: center; gap: 12px; position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #172b4d; color: #fff; padding: 9px 14px; border-radius: 999px; font-size: 14px; z-index: 30; max-width: 90vw; white-space: nowrap; overflow: hidden; }
+  #toast span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast button { flex: none; }
   /* Notes editor (full-screen) */
   #noteEditor { position: fixed; inset: 0; z-index: 19;     /* under the menu sheet (21) and its shade (20), so the ⋯ menu can be used */ background: var(--bg); display: none; flex-direction: column; }
   #noteEditor.open { display: flex; }
@@ -1747,11 +1750,29 @@ function head(parent, title, sub) {
   if (sub) { const p = document.createElement("div"); p.className = "sub"; p.textContent = sub; parent.appendChild(p); }
 }
 let toastTimer = 0;
+// One line. When a card title in “…” makes it wrap, shorten that title and keep the rest.
+function fitToastTitle(span) {
+  const msg = span.textContent;
+  const q = msg.match(/^(.*)“([^”]*)”(.*)$/);
+  if (!q || span.scrollWidth <= span.clientWidth + 1) return;
+  const pre = q[1], title = q[2], post = q[3];
+  let lo = 0, hi = title.length, best = "…";
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const cut = mid >= title.length ? title : title.slice(0, mid).trimEnd() + "…";
+    span.textContent = pre + "“" + cut + "”" + post;
+    if (span.scrollWidth <= span.clientWidth + 1) { best = cut; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  span.textContent = pre + "“" + best + "”" + post;
+}
 function toast(msg, undoable) {
   const t = $("toast"); t.textContent = "";
   const m = document.createElement("span"); m.textContent = msg; t.appendChild(m);
   if (undoable) { const b = document.createElement("button"); b.type = "button"; b.textContent = "Undo"; b.onclick = doUndo; t.appendChild(b); }
-  t.style.display = "flex"; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = "none"; }, undoable ? 7000 : 2600);
+  t.style.display = "flex";
+  fitToastTitle(m);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = "none"; }, undoable ? 7000 : 2600);
 }
 function pushUndo(label, run) { undoStack.push({ label, run }); if (undoStack.length > 20) undoStack.shift(); toast(label, true); }
 async function doUndo() {
@@ -2277,7 +2298,9 @@ function openUnlock() {
 }
 function openMainMenu() {
   openSheet((s) => {
-    head(s, "Week Board", "Phone view · v" + ((document.querySelector('meta[name="version"]') || {}).content || "?"));
+    const pageV = ((document.querySelector('meta[name="version"]') || {}).content) || "?";
+    const serverV = (document.querySelector('meta[name="server-version"]') || {}).content || "";
+    head(s, "Week Board", "Phone view · v" + pageV + (serverV && serverV !== pageV ? " · server " + serverV : ""));
     if (view === "day" || view === "inbox") sbtn(s, "＋ Add group…", openAddGroup);
     sbtn(s, "🔍 Search…", () => openSearch(""));
     sbtn(s, "⚙ Settings", openSettings);

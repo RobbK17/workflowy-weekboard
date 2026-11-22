@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.8">
+<meta name="version" content="1.5.9.1">
+<meta name="server-version" content="">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -1091,7 +1092,7 @@
     <button id="kbBtn" aria-pressed="false" title="Your chosen nodes as side-by-side panes (B)" style="display:inline-flex;align-items:center;gap:6px"><svg class="pic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l4.5 2v12L3 18zM7.5 8l4.5-2v12l-4.5 2zM12 6l4.5 2v12L12 18zM16.5 8L21 6v12l-4.5 2z"/></svg> Panes</button>
   </div>
   <div class="footright">
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.5</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.9.1</span></div>
   </div>
 </footer>
 
@@ -5501,22 +5502,30 @@ if (document.querySelector('meta[name="remote"]').content === "1") {
   document.getElementById("ver").append(" · ", out);
 }
 
-// Update check: the server looks at GitHub (at most every 6 hours) and tells us the newest version.
-function newer(a, b) {      // is version a newer than b?
+// The corner shows this file's version. The server's version is added only when it differs.
+(function () {
+  const page = (document.querySelector('meta[name="version"]') || {}).content || "";
+  const server = (document.querySelector('meta[name="server-version"]') || {}).content || "";
+  const el = document.getElementById("verText");
+  if (!el || !page) return;
+  el.textContent = "Workflowy Week Board v" + page + (server && server !== page ? " · server " + server : "");
+})();
+// Update check: the server looks at GitHub (at most every 6 hours) and tells us the newest server version.
+function newer(a, b) {      // is version a newer than b? A fourth part counts, so 1.5.9.1 is newer than 1.5.9.
   const x = a.split(".").map(Number), y = b.split(".").map(Number);
-  for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
   return false;
 }
 (async () => {
   try {
-    const mine = document.querySelector('meta[name="version"]').content;
     const r = await fetch("/update-check");
     if (!r.ok) return;
     const info = await r.json();
-    if (!info.latest || !newer(info.latest, mine)) return;
+    const mine = info.current || (document.querySelector('meta[name="server-version"]') || {}).content || "";
+    if (!mine || !info.latest || !newer(info.latest, mine)) return;
     const a = document.createElement("a");
     a.textContent = `⬆ v${info.latest} available`;
-    a.title = `You have v${mine}. Download the new files from GitHub, replace server.js, index.html and mobile.html, and restart.`;
+    a.title = `This server is v${mine}. Download the new files from GitHub, replace server.js, index.html and mobile.html, and restart.`;
     if (info.url) { a.href = info.url; a.target = "_blank"; a.rel = "noopener"; }
     document.getElementById("ver").append(" · ", a);
   } catch (e) { /* no network or no answer: stay quiet */ }

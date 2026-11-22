@@ -4,17 +4,18 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.9**
+**Version 1.5.9.1**
 
-### What's new in 1.5.9
+### What's new in 1.5.9.1
 
-Replace `index.html` and `mobile.html`, then reload. Replace `server.js` too if the corner still shows an older version, and restart the server.
+Replace `index.html` or `mobile.html`, then reload. That page's own version shows in the desktop corner and in the phone menu. Replace `server.js` and restart when the server changes. Its version is shown beside the page version only when the two differ.
 
 - **A card dropped down a day stays where the toast says.** The toast's number is the place in the column (1 is the top). WorkFlowy is given the matching slot among every item on that day, so a note or a completed line above the cards no longer makes a one-step move downward a no-op.
 - **Time-blocked cards stay in clock order.** A card with `^9am` (or any `^time`) has no grip on the desktop and does not lift on a long-press on the phone. Change its place by changing the time in the time-blocking panel. Dragging another card onto a different day still takes the time with it. This refines 1.5.8: a timed card is not part of the grip reorder, even when Order by priority is off.
 - **A free card can sit between two time blocks.** Drag it by the grip (desktop) or long-press it (phone) and drop it in the gap. It stays there after a reload. With Order by priority on, a priority pin still has no grip, and a free card cannot pass one.
 - **The phone can reorder a day.** On the day view, press a task or a group title for about half a second, then drag. The checkbox, the ⋯ menu, and tasks inside a group do not start a drag. A sideways swipe still changes the day. **Move to another day…** is unchanged.
 - **Dragging no longer selects the text underneath.** The selection highlight does not paint across the board while a card is moving. A card's own text box still accepts a cursor when you are editing it.
+- **The version on screen is the page you are looking at.** `index.html` and `mobile.html` each keep the version written in the file. The running server's version is added only when it is different, as in `v1.5.9.2 · server 1.5.9.1`. Reload after replacing a page. Restart after replacing `server.js`.
 
 ### What's new in 1.5.8
 
@@ -814,7 +815,7 @@ The board is a web page, so a phone only needs to reach the server in its browse
 
 Phones open the phone page (`/m`); tablets 820px wide or narrower do too, while wider tablets (landscape) get the desktop board. Use **⋯ > Open the desktop page** on the phone page to switch.
 
-**On the phone page (1.5.9): Reorder a day**
+**On the phone page (1.5.9.1): Reorder a day**
 
 - **Long-press to reorder.** On the day view, press a task for about half a second, then drag it up or down. A line shows where it will land, and the board vibrates once when it lifts, if the phone allows that. Let go to save. The order is the same one the desktop grip saves.
 - **What does not lift.** A time-blocked task, a priority pin while **Sort by priority** is on, and a task inside a group stay put. Press the group title to move the group as one row. The checkbox and ⋯ do not start a drag. Moving your finger before the half-second is up scrolls the list instead.
