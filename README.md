@@ -4,7 +4,17 @@ A kanban-style week view for your WorkFlowy todos. Each day is a column, and eve
 
 <img width="1750" height="918" alt="Workflowy Week Board" src="https://github.com/user-attachments/assets/44ea2b16-ffdd-4d0f-b279-2f1305ac4577" />
 
-**Version 1.5.8**
+**Version 1.5.9**
+
+### What's new in 1.5.9
+
+Replace `index.html` and `mobile.html`, then reload. Replace `server.js` too if the corner still shows an older version, and restart the server.
+
+- **A card dropped down a day stays where the toast says.** The toast's number is the place in the column (1 is the top). WorkFlowy is given the matching slot among every item on that day, so a note or a completed line above the cards no longer makes a one-step move downward a no-op.
+- **Time-blocked cards stay in clock order.** A card with `^9am` (or any `^time`) has no grip on the desktop and does not lift on a long-press on the phone. Change its place by changing the time in the time-blocking panel. Dragging another card onto a different day still takes the time with it. This refines 1.5.8: a timed card is not part of the grip reorder, even when Order by priority is off.
+- **A free card can sit between two time blocks.** Drag it by the grip (desktop) or long-press it (phone) and drop it in the gap. It stays there after a reload. With Order by priority on, a priority pin still has no grip, and a free card cannot pass one.
+- **The phone can reorder a day.** On the day view, press a task or a group title for about half a second, then drag. The checkbox, the ⋯ menu, and tasks inside a group do not start a drag. A sideways swipe still changes the day. **Move to another day…** is unchanged.
+- **Dragging no longer selects the text underneath.** The selection highlight does not paint across the board while a card is moving. A card's own text box still accepts a cursor when you are editing it.
 
 ### What's new in 1.5.8
 
@@ -654,7 +664,7 @@ Combine them freely, for example `p:1-2 due:week #work` or `due:week est:none`.
 Plan a day by the hour. Like priorities, the start time is a short marker in the task's own text, so it travels with the task in WorkFlowy and nothing extra is stored.
 
 - **Set a time:** type `^9am`, `^9:30am`, `^2pm` or `^14:00` in a task, right-click the card and choose **Time block…** (it opens the panel on that day), then drag the task onto the timeline, or click a placed block to change its time. The length is the task's `~` estimate; with none, it is 30 minutes.
-- **On the cards:** every day shows a blue badge with the time and length ("3 PM · 1h"), the badge is a green **▶ NOW** on today while the clock is inside the block, and a yellow **⚠** warns when two blocks overlap. Blocked tasks list first on each day, in time order, then the rest in their usual order. The badge sits in the card's lower right.
+- **On the cards:** every day shows a blue badge with the time and length ("3 PM · 1h"), the badge is a green **▶ NOW** on today while the clock is inside the block, and a yellow **⚠** warns when two blocks overlap. Blocked tasks stay in time order. They have no grip: change that order in the panel, which rewrites the `^time`. Another card can be dropped between two of them and stays there. The badge sits in the card's lower right.
 - **The panel:** the clock icon at the right end of today's icon row (beside Add task and Note) opens it. The top lists the day's **Unscheduled** tasks. Below is a timeline in half-hour steps (8 AM to 6 PM, stretching for tasks outside those hours). Drag an unscheduled task onto a time; if it has no estimate it asks how long (Cancel schedules nothing). Drag a placed block to move it, press its **✕** to take it off the schedule, and drag its bottom edge to change its length in 15-minute steps.
 - **Save and Cancel:** nothing you do in the panel is written to WorkFlowy until you press **Save**. Dragging a task, resizing or editing a block, dropping a quick block, adding a block and leaving a planned block out all show on the timeline with a dashed outline, and the footer says "Not saved to WorkFlowy yet". **Save** lists exactly what it will write ("Change “Report”: no time → 3 PM", "Add 12 PM “Lunch” (1h) from your template") and asks you to confirm. **Cancel** throws every change away. Changing day or closing the panel with unsaved changes asks first.
 - **Any day:** the ‹ › arrows, the date box and **Today** at the top of the panel change the day, and the weekday is shown beside the date.
@@ -803,6 +813,13 @@ The board is a web page, so a phone only needs to reach the server in its browse
 - **Home Wi-Fi without Tailscale:** the plain `local` mode only answers on this computer, so another device on your Wi-Fi can't use it. Use the Tailscale option above.
 
 Phones open the phone page (`/m`); tablets 820px wide or narrower do too, while wider tablets (landscape) get the desktop board. Use **⋯ > Open the desktop page** on the phone page to switch.
+
+**On the phone page (1.5.9): Reorder a day**
+
+- **Long-press to reorder.** On the day view, press a task for about half a second, then drag it up or down. A line shows where it will land, and the board vibrates once when it lifts, if the phone allows that. Let go to save. The order is the same one the desktop grip saves.
+- **What does not lift.** A time-blocked task, a priority pin while **Sort by priority** is on, and a task inside a group stay put. Press the group title to move the group as one row. The checkbox and ⋯ do not start a drag. Moving your finger before the half-second is up scrolls the list instead.
+- **Between time blocks.** A task that does lift can be dropped between two time-blocked tasks. The timed tasks stay in clock order.
+- **Other gestures.** A sideways swipe still changes the day. Tap a task, or ⋯, and **Move to another day…** still moves it to another day, time block included. Zoom, Inbox, Past due, Upcoming and Notes do not reorder this way.
 
 **On the phone page (1.5.3): Time blocks and hiding estimates**
 

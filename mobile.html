@@ -65,6 +65,14 @@
   .nbwrap .na { background: none; border: none; color: var(--muted); font-size: 14px; padding: 6px 2px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; line-height: 1.2; } .nbwrap .nabar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 18px; } .nbwrap .na span { text-decoration: underline; }
   .wtag { color: var(--muted); text-decoration: underline; cursor: pointer; }
   .card { display: flex; align-items: flex-start; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  #list.reordering { touch-action: none; }
+  #list > .card, #list > .grp { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body.reordering, body.reordering * { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none; }
+  body.reordering ::selection, body.reordering *::selection { background: transparent; color: inherit; }
+  .card.touch-dragging, .grp.touch-dragging { opacity: .35; }
+  .card.drag-over-above, .grp.drag-over-above { box-shadow: inset 0 3px 0 var(--accent); }
+  .card.drag-over-below, .grp.drag-over-below { box-shadow: inset 0 -3px 0 var(--accent); }
+  .touch-float { position: fixed; z-index: 40; left: 10px; right: 10px; margin: 0; pointer-events: none; transform: scale(1.03); box-shadow: 0 10px 28px rgba(0,0,0,.28); opacity: .95; }
   .card.done .t { text-decoration: line-through; color: var(--muted); }
   .card input[type=checkbox] { flex: none; width: 24px; height: 24px; margin: 1px 0 0; accent-color: var(--accent); }
   .card .body { flex: 1; min-width: 0; }
@@ -580,7 +588,120 @@ function entriesOf(k) {
     if (mode === "group") out.push({ kind: "group", b, todos: vis, all: info.todos, p: b.priority, s: 0, r: prioSort ? Math.min(PRIO_RANK[0], ...info.todos.filter((t) => !t.completedAt).map(prioRank)) : 0, tb: 9999 });     // a group sorts by its most urgent open task
     else for (const t of vis) out.push({ kind: "nested", n: t, b, p: b.priority, s: t.priority, r: prioRank(t), tb: tbMins(t) });
   }
-  return out.sort((a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s);      // time-blocked tasks first, earliest first, as on the desktop; then priority and outline order
+  // Time-blocked rows stay in clock order. A saved drag order may place a free
+  // row in a gap between them; it does not reorder the timed rows themselves.
+  const byUsual = (a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s;
+  return placeManual(out.sort(byUsual), sortCache[k]);
+}
+const sortCache = {};
+function entryId(e) { return e.kind === "group" ? e.b.id : e.n.id; }
+function entryFree(e) {
+  if (e.tb < 9999 || e.kind === "nested") return false;
+  if (e.kind === "group") return !(prioSort && e.r > 0 && e.r < PRIO_RANK[0]);
+  return !(prioSort && parsePrio(plain(e.n.name)) > 0);
+}
+function placeManual(sorted, order) {
+  const free = [], rest = [];
+  let at = -1;
+  for (const e of sorted) {
+    if (entryFree(e)) { if (at < 0) at = rest.length; free.push(e); }
+    else rest.push(e);
+  }
+  if (at < 0) return sorted;
+  if (!order || !order.length) { rest.splice(at, 0, ...free); return rest; }
+  // Locked rows keep clock and priority order. Free rows sit where the save put them,
+  // including in a gap between two time blocks.
+  const lockedIds = new Set(rest.map(entryId));
+  const freeById = new Map(free.map((e) => [entryId(e), e]));
+  const result = [];
+  let li = 0;
+  const used = new Set();
+  for (const id of order) {
+    if (lockedIds.has(id)) {
+      const idx = rest.findIndex((e) => entryId(e) === id);
+      if (idx >= li) while (li <= idx) result.push(rest[li++]);
+    } else if (freeById.has(id) && !used.has(id)) {
+      result.push(freeById.get(id));
+      used.add(id);
+    }
+  }
+  if (li < rest.length) {
+    const extra = rest.slice(li);
+    let insertAt = result.length;
+    if (li > 0) {
+      const anchor = entryId(rest[li - 1]);
+      const ai = result.findIndex((e) => entryId(e) === anchor);
+      insertAt = ai < 0 ? result.length : ai + 1;
+    }
+    result.splice(insertAt, 0, ...extra);
+  }
+  const leftovers = free.filter((e) => !used.has(entryId(e)));
+  if (leftovers.length) {
+    leftovers.sort((a, b) => a.p - b.p || a.s - b.s);
+    let insertAt = result.length;
+    if (at === 0) insertAt = 0;
+    else {
+      const anchor = entryId(rest[at - 1]);
+      const ai = result.findIndex((e) => entryId(e) === anchor);
+      insertAt = ai < 0 ? result.length : ai + 1;
+    }
+    result.splice(insertAt, 0, ...leftovers);
+  }
+  return result;
+}
+async function fetchSortOrder(parentId) {
+  if (parentId in sortCache) return sortCache[parentId];
+  try {
+    const r = await (await fetch(`/sort-order?parent=${encodeURIComponent(parentId)}`)).json();
+    sortCache[parentId] = r && r.order ? r.order : null;
+  } catch (e) { sortCache[parentId] = null; }
+  return sortCache[parentId];
+}
+function outlinePosition(dayKey, visualIds, id) {
+  const sibs = (allOf[dayKey] || []).map((n) => n.id).filter((s) => s !== id);
+  const at = visualIds.indexOf(id);
+  if (at < 0) return sibs.length;
+  for (let i = at + 1; i < visualIds.length; i++) {
+    const j = sibs.indexOf(visualIds[i]);
+    if (j >= 0) return j;
+  }
+  return sibs.length;
+}
+function manualIds(allCards, id, targetEl, above) {
+  const dragEl = allCards.find((c) => c.dataset.id === id);
+  if (!dragEl || dragEl.dataset.lock || !dragEl.dataset.reorder) return null;
+  if (targetEl && targetEl.dataset.id === id) return null;
+  const rest = allCards.filter((c) => c.dataset.id !== id);
+  const hi = allCards.findIndex((c) => c.dataset.id === id);
+  const hard = (c) => !!(c && c.dataset.lock && c.dataset.lock !== "time");
+  const timed = (c) => !!(c && c.dataset.lock === "time");
+  const legal = new Set();
+  const freeAt = [];
+  rest.forEach((c, i) => { if (!c.dataset.lock) freeAt.push(i); });
+  if (freeAt.length) for (let i = freeAt[0]; i <= freeAt[freeAt.length - 1] + 1; i++) legal.add(i);
+  else legal.add(hi);
+  for (let i = 0; i <= rest.length; i++) {
+    const prev = rest[i - 1], next = rest[i];
+    if (hard(prev) && (hard(next) || !next)) continue;
+    if (hard(next) && !prev) continue;
+    if (timed(prev) || timed(next)) legal.add(i);
+  }
+  if (!legal.size) return null;
+  const ti = targetEl ? rest.findIndex((c) => c.dataset.id === targetEl.dataset.id) : -1;
+  let toIdx = ti < 0 ? rest.length : ti + (above ? 0 : 1);
+  if (!legal.has(toIdx)) {
+    let best = toIdx, dist = Infinity;
+    for (const i of legal) {
+      const d = Math.abs(i - toIdx);
+      if (d < dist || (d === dist && i < best)) { dist = d; best = i; }
+    }
+    toIdx = best;
+  }
+  const ids = rest.map((c) => c.dataset.id);
+  ids.splice(toIdx, 0, id);
+  const orig = allCards.map((c) => c.dataset.id);
+  if (ids.length === orig.length && ids.every((x, i) => x === orig[i])) return null;
+  return ids;
 }
 function removeNode(id) {
   for (const k in cache) cache[k] = cache[k].filter((x) => x.id !== id);
@@ -604,6 +725,9 @@ const soonKeys = () => [...Array(SOON_DAYS)].map((_, i) => key(addDays(today(), 
 async function loadWeek(force) {
   const t = ++loadToken;
   const e = await loadKeys(weekKeys());
+  if (t !== loadToken) return;
+  if (force) for (const k of weekKeys()) delete sortCache[k];
+  await Promise.all(weekKeys().map((k) => fetchSortOrder(k)));
   if (t !== loadToken) return;
   err(e); draw();
   if (mode !== "off") {
@@ -884,7 +1008,13 @@ function drawView() {
   list.appendChild(notesBand(sel));
   const ents = entriesOf(sel).filter((e) => e.kind !== "task" || showDone || !e.n.completedAt);
   if (!ents.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = (cache[sel] || []).length || openCount(sel) ? "All done 🎉" : "Nothing yet"; list.appendChild(m); }
-  for (const e of ents) list.appendChild(e.kind === "group" ? groupEl(e) : cardEl(e.n, e.kind === "nested" ? e.b : null));
+  for (const e of ents) {
+    const el = e.kind === "group" ? groupEl(e) : cardEl(e.n, e.kind === "nested" ? e.b : null);
+    if (entryFree(e)) el.dataset.reorder = "1";
+    else if (e.tb < 9999 && e.kind !== "nested") el.dataset.lock = "time";
+    else el.dataset.lock = e.kind === "nested" ? "nest" : "prio";
+    list.appendChild(el);
+  }
   list.scrollTop = keep;
 }
 // open tasks (top level and under bullets) of the given days, oldest first, with where each one sits
@@ -2250,6 +2380,151 @@ document.addEventListener("visibilitychange", async () => {
     loadWeek();
   }
 });
+
+// Long-press a free row to reorder it within the day. A time block, a priority pin, and a task inside a group stay put.
+let press = null, swallowClick = false;
+function dayRows() { return Array.from($("list").querySelectorAll(":scope > .card[data-id], :scope > .grp[data-id]")); }
+function reorderTarget(node) {
+  if (!node || !node.closest) return null;
+  if (node.closest("input, textarea, select, a, .more, .zopen, .gbody, .gaddrow")) return null;
+  const card = node.closest("#list > .card[data-reorder]");
+  if (card) return card;
+  const grp = node.closest("#list > .grp[data-reorder]");
+  if (grp && node.closest(".ghrow")) return grp;
+  return null;
+}
+function paintMobile(ids, id) {
+  $("list").querySelectorAll(".drag-over-above, .drag-over-below").forEach((el) => el.classList.remove("drag-over-above", "drag-over-below"));
+  if (!ids) return;
+  const at = ids.indexOf(id);
+  const row = (x) => $("list").querySelector(`:scope > [data-id="${CSS.escape(x)}"]`);
+  if (at >= 0 && at < ids.length - 1) { const next = row(ids[at + 1]); if (next) next.classList.add("drag-over-above"); }
+  else if (at > 0) { const prev = row(ids[at - 1]); if (prev) prev.classList.add("drag-over-below"); }
+}
+function slotAt(id, y) {
+  const all = dayRows();
+  const rest = all.filter((c) => c.dataset.id !== id);
+  let target = null, above = false;
+  for (const el of rest) {
+    const rect = el.getBoundingClientRect();
+    if (y < rect.top + rect.height / 2) { target = el; above = true; break; }
+    target = el; above = false;
+  }
+  return { ids: manualIds(all, id, target, above), all };
+}
+function placeFloat(y) {
+  if (!press || !press.flo) return;
+  const h = press.flo.offsetHeight || 48;
+  press.flo.style.top = Math.round(y - h / 2) + "px";
+}
+function liftRow(y) {
+  if (!press) return;
+  press.lifted = true;
+  swallowClick = true;
+  if (navigator.vibrate) navigator.vibrate(50);
+  press.row.classList.add("touch-dragging");
+  $("list").classList.add("reordering");
+  document.body.classList.add("reordering");
+  const selNow = window.getSelection();
+  if (selNow) selNow.removeAllRanges();
+  const flo = press.row.cloneNode(true);
+  flo.className = "touch-float card";
+  flo.querySelectorAll("input, button").forEach((n) => n.remove());
+  document.body.appendChild(flo);
+  press.flo = flo;
+  placeFloat(y);
+  const { ids } = slotAt(press.id, y);
+  paintMobile(ids, press.id);
+  const tick = () => {
+    if (!press || !press.lifted) return;
+    const box = $("list").getBoundingClientRect(), yNow = press.yNow;
+    let dy = 0;
+    if (yNow < box.top + 60) dy = -Math.max(4, Math.ceil((box.top + 60 - yNow) / 6));
+    else if (yNow > box.bottom - 60) dy = Math.max(4, Math.ceil((yNow - (box.bottom - 60)) / 6));
+    if (dy) { $("list").scrollTop += dy; const s = slotAt(press.id, yNow); paintMobile(s.ids, press.id); press.ids = s.ids; }
+    press.raf = requestAnimationFrame(tick);
+  };
+  press.raf = requestAnimationFrame(tick);
+}
+function endPress(commit) {
+  const cur = press;
+  press = null;
+  if (!cur) return;
+  clearTimeout(cur.timer);
+  if (cur.raf) cancelAnimationFrame(cur.raf);
+  if (cur.flo) cur.flo.remove();
+  if (cur.row) cur.row.classList.remove("touch-dragging");
+  $("list").classList.remove("reordering");
+  document.body.classList.remove("reordering");
+  $("list").querySelectorAll(".drag-over-above, .drag-over-below").forEach((el) => el.classList.remove("drag-over-above", "drag-over-below"));
+  if (commit && cur.lifted && cur.ids) {
+    const label = cur.row.querySelector(".gn, .t");
+    const name = ((label && label.textContent) || "task").replace(/\s+/g, " ").trim().slice(0, 40);
+    commitReorder(sel, cur.ids, cur.id, name || "task");
+  }
+}
+async function commitReorder(dayKey, ids, id, name) {
+  const shown = ids.indexOf(id);
+  const wfPos = outlinePosition(dayKey, ids, id);
+  const prev = sortCache[dayKey] ? sortCache[dayKey].slice() : null;
+  const oldApi = (allOf[dayKey] || []).findIndex((n) => n.id === id);
+  try {
+    await call("POST", `/nodes/${id}/move`, { parent_id: dayKey, position: wfPos });
+    sortCache[dayKey] = ids.slice();
+    try {
+      const r = await fetch("/sort-order", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parent: dayKey, order: ids }) });
+      if (!r.ok) throw new Error(String(r.status));
+    } catch (e) { err("Moved the task, but the column order was not saved (" + e.message + ")."); }
+    await reloadDays([dayKey]);
+    pushUndo(`Reordered “${name}” to position ${shown + 1}`, async () => {
+      await call("POST", `/nodes/${id}/move`, { parent_id: dayKey, position: oldApi < 0 ? 0 : oldApi });
+      if (prev) {
+        sortCache[dayKey] = prev;
+        await fetch("/sort-order", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parent: dayKey, order: prev }) });
+      } else {
+        sortCache[dayKey] = null;
+        await fetch(`/sort-order?parent=${encodeURIComponent(dayKey)}`, { method: "DELETE" });
+      }
+      await reloadDays([dayKey]);
+    });
+  } catch (e) { err(e.message); }
+}
+$("list").addEventListener("selectstart", (e) => {
+  if (document.body.classList.contains("reordering") || reorderTarget(e.target)) e.preventDefault();
+});
+$("list").addEventListener("touchstart", (e) => {
+  if (press) endPress(false);
+  if (e.touches.length !== 1 || view !== "day" || zoom.length) return;
+  if ($("sheet").style.display === "block") return;
+  const row = reorderTarget(e.target);
+  if (!row) return;
+  const t = e.touches[0];
+  const timer = setTimeout(() => { if (press && press.row === row) liftRow(press.yNow); }, 500);
+  press = { row, id: row.dataset.id, x: t.clientX, y: t.clientY, yNow: t.clientY, timer, lifted: false, flo: null, raf: 0, ids: null };
+}, { passive: true });
+$("list").addEventListener("touchmove", (e) => {
+  if (!press) return;
+  const t = e.touches[0];
+  press.yNow = t.clientY;
+  if (!press.lifted) {
+    if (Math.hypot(t.clientX - press.x, t.clientY - press.y) > 10) { clearTimeout(press.timer); press = null; }
+    return;
+  }
+  e.preventDefault();
+  const box = $("list").getBoundingClientRect();
+  if (t.clientY < box.top - 48 || t.clientY > box.bottom + 48 || t.clientX < box.left - 40 || t.clientX > box.right + 40) { endPress(false); return; }
+  placeFloat(t.clientY);
+  const slot = slotAt(press.id, t.clientY);
+  press.ids = slot.ids;
+  paintMobile(slot.ids, press.id);
+}, { passive: false });
+$("list").addEventListener("touchend", () => { if (press) endPress(!!press.lifted); });
+$("list").addEventListener("touchcancel", () => { if (press) endPress(false); });
+document.addEventListener("click", (e) => {
+  if (!swallowClick) return;
+  swallowClick = false;
+  e.preventDefault(); e.stopPropagation();
+}, true);
 
 // swipe the list left or right to change the day
 let sx = 0, sy = 0, st = 0;

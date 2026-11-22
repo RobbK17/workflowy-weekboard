@@ -191,6 +191,11 @@
   .grp.drag-over-below { box-shadow: inset 0 -2px 0 var(--accent); }
   @media (hover: none) { .card .grip, .grp .grip { opacity: .5; } }
   .card.dragging { opacity: .4; }
+  .card, .grp { -webkit-user-select: none; user-select: none; }
+  .card :is(input, textarea, .cd-live, .cd-note, [contenteditable="true"]),
+  .grp :is(input, textarea, .pl-edit, [contenteditable="true"]) { -webkit-user-select: text; user-select: text; }
+  body.boarddrag, body.boarddrag * { -webkit-user-select: none !important; user-select: none !important; }
+  body.boarddrag ::selection, body.boarddrag *::selection { background: transparent; color: inherit; }
   .card input[type=checkbox] { font-size: inherit; margin-top: max(2px, calc(0.7em - 6.5px)); }      /* level with the first line of text, as in the panes */
   .txt { flex: 1; word-break: break-word; }
   .note, .badge { display: block; font-size: 12px; color: var(--muted); }
@@ -2007,21 +2012,65 @@ function entries(k, onlyOpen, noBlk) {      // noBlk: leave template blocks (!bl
       }
     }
   }
-  // A saved column order (from a drag) wins, so the card stays in the slot the toast named.
-  // Anything not in that list keeps the usual order: time block, then priority, then outline.
+  // Time-blocked cards stay in clock order. A saved drag order may place a free
+  // card in a gap between them; it does not reorder the timed cards themselves.
   const byUsual = (a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s;
-  const order = sortCache[k];
-  if (order && order.length) {
-    const pos = new Map(order.map((id, i) => [id, i]));
-    const idOf = (e) => e.kind === "group" ? e.b.id : e.n.id;
-    return out.sort((a, b) => {
-      const ai = pos.has(idOf(a)) ? pos.get(idOf(a)) : Infinity;
-      const bi = pos.has(idOf(b)) ? pos.get(idOf(b)) : Infinity;
-      if (ai !== bi) return ai - bi;
-      return byUsual(a, b);
-    });
+  return placeManual(out.sort(byUsual), sortCache[k]);
+}
+function entryId(e) { return e.kind === "group" ? e.b.id : e.n.id; }
+function entryFree(e) {
+  if (e.tb < 9999 || e.kind === "nested") return false;
+  if (e.kind === "group") return !(prefs.prioSort && e.r > 0 && e.r < PRIO_RANK[0]);
+  return !(prefs.prioSort && prioOf(e.n) > 0);
+}
+function placeManual(sorted, order) {
+  const free = [], rest = [];
+  let at = -1;
+  for (const e of sorted) {
+    if (entryFree(e)) { if (at < 0) at = rest.length; free.push(e); }
+    else rest.push(e);
   }
-  return out.sort(byUsual);
+  if (at < 0) return sorted;
+  if (!order || !order.length) { rest.splice(at, 0, ...free); return rest; }
+  // Locked rows keep clock and priority order. Free rows sit where the save put them,
+  // including in a gap between two time blocks.
+  const lockedIds = new Set(rest.map(entryId));
+  const freeById = new Map(free.map((e) => [entryId(e), e]));
+  const result = [];
+  let li = 0;
+  const used = new Set();
+  for (const id of order) {
+    if (lockedIds.has(id)) {
+      const idx = rest.findIndex((e) => entryId(e) === id);
+      if (idx >= li) while (li <= idx) result.push(rest[li++]);
+    } else if (freeById.has(id) && !used.has(id)) {
+      result.push(freeById.get(id));
+      used.add(id);
+    }
+  }
+  if (li < rest.length) {
+    const extra = rest.slice(li);
+    let insertAt = result.length;
+    if (li > 0) {
+      const anchor = entryId(rest[li - 1]);
+      const ai = result.findIndex((e) => entryId(e) === anchor);
+      insertAt = ai < 0 ? result.length : ai + 1;
+    }
+    result.splice(insertAt, 0, ...extra);
+  }
+  const leftovers = free.filter((e) => !used.has(entryId(e)));
+  if (leftovers.length) {
+    leftovers.sort((a, b) => a.p - b.p || a.s - b.s);
+    let insertAt = result.length;
+    if (at === 0) insertAt = 0;
+    else {
+      const anchor = entryId(rest[at - 1]);
+      const ai = result.findIndex((e) => entryId(e) === anchor);
+      insertAt = ai < 0 ? result.length : ai + 1;
+    }
+    result.splice(insertAt, 0, ...leftovers);
+  }
+  return result;
 }
 // 0-based WorkFlowy position: where `id` lands among every sibling of the day
 // (notes, bullets and completed lines included), counted in priority order
@@ -2035,6 +2084,95 @@ function outlinePosition(dayKey, visualIds, id) {
     if (j >= 0) return j;
   }
   return sibs.length;
+}
+let holdDrag = null;
+// Dragging a card must not paint the browser text-selection highlight across the board.
+document.addEventListener("mousedown", (e) => {
+  const row = e.target.closest && e.target.closest(".card, .grp");
+  if (!row || row.draggable === false) return;
+  if (e.target.closest("input, textarea, button, a, select, .cd-live, .cd-note, .pl-edit, [contenteditable='true']")) return;
+  const s = window.getSelection();
+  if (s) s.removeAllRanges();
+}, true);
+document.addEventListener("dragstart", () => {
+  document.body.classList.add("boarddrag");
+  const s = window.getSelection();
+  if (s) s.removeAllRanges();
+}, true);
+document.addEventListener("dragover", () => {
+  if (!document.body.classList.contains("boarddrag")) return;
+  const s = window.getSelection();
+  if (s && s.rangeCount) s.removeAllRanges();
+}, true);
+document.addEventListener("dragend", () => {
+  document.body.classList.remove("boarddrag");
+  const s = window.getSelection();
+  if (s) s.removeAllRanges();
+}, true);
+document.addEventListener("selectstart", (e) => {
+  if (document.body.classList.contains("boarddrag")) e.preventDefault();
+}, true);
+// New column order after a same-day drop. A time block, a priority pin, and a nested
+// task stay put. A free card may land in a gap between two time blocks.
+function manualIds(allCards, id, targetEl, above) {
+  const dragEl = allCards.find((c) => c.dataset.id === id);
+  if (!dragEl || dragEl.dataset.lock) return null;
+  if (targetEl && targetEl.dataset.id === id) return null;
+  const rest = allCards.filter((c) => c.dataset.id !== id);
+  const hi = allCards.findIndex((c) => c.dataset.id === id);
+  const hard = (c) => !!(c && c.dataset.lock && c.dataset.lock !== "time");
+  const timed = (c) => !!(c && c.dataset.lock === "time");
+  const legal = new Set();
+  const freeAt = [];
+  rest.forEach((c, i) => { if (!c.dataset.lock) freeAt.push(i); });
+  if (freeAt.length) for (let i = freeAt[0]; i <= freeAt[freeAt.length - 1] + 1; i++) legal.add(i);
+  else legal.add(hi);
+  for (let i = 0; i <= rest.length; i++) {
+    const prev = rest[i - 1], next = rest[i];
+    if (hard(prev) && (hard(next) || !next)) continue;
+    if (hard(next) && !prev) continue;
+    if (timed(prev) || timed(next)) legal.add(i);
+  }
+  if (!legal.size) return null;
+  const ti = targetEl ? rest.findIndex((c) => c.dataset.id === targetEl.dataset.id) : -1;
+  let toIdx = ti < 0 ? rest.length : ti + (above ? 0 : 1);
+  if (!legal.has(toIdx)) {
+    let best = toIdx, dist = Infinity;
+    for (const i of legal) {
+      const d = Math.abs(i - toIdx);
+      if (d < dist || (d === dist && i < best)) { dist = d; best = i; }
+    }
+    toIdx = best;
+  }
+  const ids = rest.map((c) => c.dataset.id);
+  ids.splice(toIdx, 0, id);
+  const orig = allCards.map((c) => c.dataset.id);
+  if (ids.length === orig.length && ids.every((x, i) => x === orig[i])) return null;
+  return ids;
+}
+function paintLine(scope, ids, id) {
+  scope.querySelectorAll(".drag-over-above, .drag-over-below").forEach((el) => el.classList.remove("drag-over-above", "drag-over-below"));
+  if (!ids) return;
+  const at = ids.indexOf(id);
+  const row = (x) => scope.querySelector(`:scope > [data-id="${CSS.escape(x)}"]`);
+  if (at >= 0 && at < ids.length - 1) { const next = row(ids[at + 1]); if (next) next.classList.add("drag-over-above"); }
+  else if (at > 0) { const prev = row(ids[at - 1]); if (prev) prev.classList.add("drag-over-below"); }
+}
+async function commitReorder(dayKey, ids, id, name) {
+  const shown = ids.indexOf(id);
+  const wfPos = outlinePosition(dayKey, ids, id);
+  const prevOrder = sortCache[dayKey] ? sortCache[dayKey].slice() : null;
+  const oldApi = (dayAll[dayKey] || []).slice().sort((a, b) => a.priority - b.priority).findIndex((n) => n.id === id);
+  await act(async () => {
+    try { await call("POST", `/nodes/${id}/move`, { parent_id: dayKey, position: wfPos }); } catch (err) { showError("Reorder failed: " + err.message); }
+    await saveSortOrder(dayKey, ids);
+    await loadDay(dayKey);
+  });
+  pushUndo(`Reordered "${name || "task"}" to position ${shown + 1}`, async () => {
+    try { await call("POST", `/nodes/${id}/move`, { parent_id: dayKey, position: oldApi < 0 ? 0 : oldApi }); } catch (err) { /* best effort */ }
+    if (prevOrder) await saveSortOrder(dayKey, prevOrder); else await clearSortOrder(dayKey);
+    await loadDay(dayKey);
+  });
 }
 const entriesFor = (keys, onlyOpen, noBlk) => keys.flatMap((k) => entries(k, onlyOpen, noBlk));
 function entryOpen(e) {
@@ -3080,18 +3218,12 @@ function render() {
     /* ---------- Drag / drop: cross-column move + same-column reorder ---------- */
     col.addEventListener("dragover", (e) => {
       e.preventDefault();
-      // Card-level indicators for same-column reorder
-      const cardEl = e.target.closest(".card[data-id], .grp[data-id]");
-      if (cardEl) {
-        // Clear old indicators in this column
-        list.querySelectorAll(".card.drag-over-above, .card.drag-over-below, .grp.drag-over-above, .grp.drag-over-below").forEach(el => {
-          if (el !== cardEl) el.classList.remove("drag-over-above", "drag-over-below");
-        });
-        const rect = cardEl.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        cardEl.classList.toggle("drag-over-above", e.clientY < mid);
-        cardEl.classList.toggle("drag-over-below", e.clientY >= mid);
-      }
+      if (holdDrag && holdDrag.reorder && holdDrag.from === k) {
+        const allCards = Array.from(list.querySelectorAll(":scope > .card[data-id], :scope > .grp[data-id]"));
+        const targetEl = e.target.closest(".card[data-id], .grp[data-id]");
+        const above = targetEl ? e.clientY < targetEl.getBoundingClientRect().top + targetEl.getBoundingClientRect().height / 2 : false;
+        paintLine(list, manualIds(allCards, holdDrag.id, targetEl, above), holdDrag.id);
+      } else list.querySelectorAll(".drag-over-above, .drag-over-below").forEach((el) => el.classList.remove("drag-over-above", "drag-over-below"));
       col.classList.add("over");
     });
     col.addEventListener("dragleave", (e) => {
@@ -3107,46 +3239,14 @@ function render() {
       const { id, from, name, reorder } = data;
       if (!id) return;
 
-      // Same-column reorder (grip handle was used)
+      // Same-column reorder (grip handle was used). Time-blocked and pinned cards stay put.
       if (reorder && from === k) {
         const targetEl = e.target.closest(".card[data-id], .grp[data-id]");
-        if (!targetEl || targetEl.dataset.id === id) return;
-        const rect = targetEl.getBoundingClientRect();
-        const above = e.clientY < rect.top + rect.height / 2;
-        // Collect all card/group elements in the column's task list
+        const above = targetEl ? e.clientY < targetEl.getBoundingClientRect().top + targetEl.getBoundingClientRect().height / 2 : false;
         const allCards = Array.from(list.querySelectorAll(":scope > .card[data-id], :scope > .grp[data-id]"));
-        const ids = allCards.map(c => c.dataset.id);
-        // When prioSort is ON, only allow reordering among unprioritized cards
-        if (prefs.prioSort) {
-          const pinnedIds = new Set();
-          for (const c of allCards) {
-            const cid = c.dataset.id;
-            // A card is pinned if it has a prio class
-            if (c.classList.contains("prio1") || c.classList.contains("prio2") || c.classList.contains("prio3") || c.classList.contains("prio4")) pinnedIds.add(cid);
-          }
-          if (pinnedIds.has(id) || pinnedIds.has(targetEl.dataset.id)) return; // can't reorder pinned cards
-        }
-        // Compute the new order
-        const fromIdx = ids.indexOf(id);
-        if (fromIdx >= 0) ids.splice(fromIdx, 1);
-        let toIdx = ids.indexOf(targetEl.dataset.id);
-        if (!above) toIdx++;
-        ids.splice(toIdx, 0, id);
-        // Toast names the 1-based place in the column. The API index counts every sibling.
-        const shown = ids.indexOf(id);
-        const wfPos = outlinePosition(k, ids, id);
-        const prevOrder = sortCache[k] ? sortCache[k].slice() : null;
-        const oldApi = (dayAll[k] || []).slice().sort((a, b) => a.priority - b.priority).findIndex((n) => n.id === id);
-        await act(async () => {
-          try { await call("POST", `/nodes/${id}/move`, { parent_id: k, position: wfPos }); } catch (err) { showError("Reorder failed: " + err.message); }
-          await saveSortOrder(k, ids);
-          await loadDay(k);
-        });
-        pushUndo(`Reordered "${name || "task"}" to position ${shown + 1}`, async () => {
-          try { await call("POST", `/nodes/${id}/move`, { parent_id: k, position: oldApi < 0 ? fromIdx : oldApi }); } catch (err) { /* best effort */ }
-          if (prevOrder) await saveSortOrder(k, prevOrder); else await clearSortOrder(k);
-          await loadDay(k);
-        });
+        const ids = manualIds(allCards, id, targetEl, above);
+        if (!ids) return;
+        await commitReorder(k, ids, id, name);
         return;
       }
 
@@ -3178,13 +3278,12 @@ function render() {
         for (const e of ents) sec.appendChild(entryEl(e, false));
         sec.addEventListener("dragover", (e) => {
           e.preventDefault();
-          const cardEl = e.target.closest(".card[data-id], .grp[data-id]");
-          if (cardEl) {
-            sec.querySelectorAll(".drag-over-above, .drag-over-below").forEach(el => { if (el !== cardEl) el.classList.remove("drag-over-above", "drag-over-below"); });
-            const rect = cardEl.getBoundingClientRect(); const mid = rect.top + rect.height / 2;
-            cardEl.classList.toggle("drag-over-above", e.clientY < mid);
-            cardEl.classList.toggle("drag-over-below", e.clientY >= mid);
-          }
+          if (holdDrag && holdDrag.reorder && holdDrag.from === k) {
+            const allCards = Array.from(sec.querySelectorAll(":scope > .card[data-id], :scope > .grp[data-id]"));
+            const targetEl = e.target.closest(".card[data-id], .grp[data-id]");
+            const above = targetEl ? e.clientY < targetEl.getBoundingClientRect().top + targetEl.getBoundingClientRect().height / 2 : false;
+            paintLine(sec, manualIds(allCards, holdDrag.id, targetEl, above), holdDrag.id);
+          } else sec.querySelectorAll(".drag-over-above, .drag-over-below").forEach((el) => el.classList.remove("drag-over-above", "drag-over-below"));
           sec.classList.add("over");
         });
         sec.addEventListener("dragleave", (e) => {
@@ -3200,24 +3299,11 @@ function render() {
           if (!id) return;
           if (reorder && from === k) {
             const targetEl = e.target.closest(".card[data-id], .grp[data-id]");
-            if (!targetEl || targetEl.dataset.id === id) return;
-            const rect = targetEl.getBoundingClientRect(); const above = e.clientY < rect.top + rect.height / 2;
+            const above = targetEl ? e.clientY < targetEl.getBoundingClientRect().top + targetEl.getBoundingClientRect().height / 2 : false;
             const allCards = Array.from(sec.querySelectorAll(":scope > .card[data-id], :scope > .grp[data-id]"));
-            const ids = allCards.map(c => c.dataset.id);
-            if (prefs.prioSort) {
-              const pinnedIds = new Set();
-              for (const c of allCards) { if (c.classList.contains("prio1") || c.classList.contains("prio2") || c.classList.contains("prio3") || c.classList.contains("prio4")) pinnedIds.add(c.dataset.id); }
-              if (pinnedIds.has(id) || pinnedIds.has(targetEl.dataset.id)) return;
-            }
-            const fromIdx = ids.indexOf(id); if (fromIdx >= 0) ids.splice(fromIdx, 1);
-            let toIdx = ids.indexOf(targetEl.dataset.id); if (!above) toIdx++;
-            ids.splice(toIdx, 0, id);
-            const wfPos = outlinePosition(k, ids, id);
-            await act(async () => {
-              try { await call("POST", `/nodes/${id}/move`, { parent_id: k, position: wfPos }); } catch (err) { showError("Reorder failed: " + err.message); }
-              await saveSortOrder(k, ids);
-              await loadDay(k);
-            });
+            const ids = manualIds(allCards, id, targetEl, above);
+            if (!ids) return;
+            await commitReorder(k, ids, id, name);
             return;
           }
           if (from === k) return;
@@ -3494,12 +3580,18 @@ function groupCard(e, showDate) {
     ev.preventDefault(); ev.stopPropagation();
     toggleSel(b, k, null, el, true);
   }, true);
+  const gname = (shownVisible(b.name) || "group").slice(0, 40);
+  if (prefs.prioSort && e.r > 0 && e.r < PRIO_RANK[0]) el.dataset.lock = "prio";
   el.addEventListener("dragstart", (ev) => {
-    const reorder = !!el.dataset.reorder;
-    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: (shownVisible(b.name) || "group").slice(0, 40), reorder }));
+    const reorder = !!el.dataset.reorder && !el.dataset.lock;
+    holdDrag = { id: b.id, from: k, reorder, name: gname };
+    ev.dataTransfer.setData("text/plain", JSON.stringify({ id: b.id, from: k, name: gname, reorder }));
     el.classList.add("dragging");
   });
-  el.addEventListener("dragend", () => { el.classList.remove("dragging"); delete el.dataset.reorder; });
+  el.addEventListener("dragend", () => {
+    el.classList.remove("dragging"); delete el.dataset.reorder; holdDrag = null;
+    document.querySelectorAll(".drag-over-above, .drag-over-below").forEach((n) => n.classList.remove("drag-over-above", "drag-over-below"));
+  });
 
   const closed = groupsClosed.has(b.id);
   const open = e.todos.filter((t) => !t.completedAt).length;
@@ -3538,11 +3630,14 @@ function groupCard(e, showDate) {
   const opn = document.createElement("button");
   opn.className = "mv gopen"; opn.textContent = "Open ▸"; opn.title = "Open this bullet to see and edit everything under it"; opn.setAttribute("aria-label", opn.title);
   opn.addEventListener("click", (ev) => { ev.stopPropagation(); openItem(b.id, true); });
-  const gGrip = document.createElement("button"); gGrip.className = "grip"; gGrip.textContent = "⠿"; gGrip.title = "Drag to reorder";
-  gGrip.setAttribute("aria-label", "Drag to reorder");
-  gGrip.addEventListener("mousedown", () => { el.draggable = true; el.dataset.reorder = "1"; });
-  gGrip.addEventListener("touchstart", () => { el.draggable = true; el.dataset.reorder = "1"; }, { passive: true });
-  head.append(selMark(), arrow, title, pill, mv, opn, gGrip);
+  head.append(selMark(), arrow, title, pill, mv, opn);
+  if (!el.dataset.lock) {
+    const gGrip = document.createElement("button"); gGrip.className = "grip"; gGrip.textContent = "⠿"; gGrip.title = "Drag to reorder";
+    gGrip.setAttribute("aria-label", "Drag to reorder");
+    gGrip.addEventListener("mousedown", () => { el.draggable = true; el.dataset.reorder = "1"; });
+    gGrip.addEventListener("touchstart", () => { el.draggable = true; el.dataset.reorder = "1"; }, { passive: true });
+    head.appendChild(gGrip);
+  }
   el.appendChild(selPick(b, k, null, true));            // on the group's top edge, like a card's hover bar, so the name keeps its width
   el.appendChild(head);
 
@@ -3699,11 +3794,15 @@ function card(n, k, showDate, opts) {
     toggleSel(n, k, nested ? opts.bullet : null, el);
   }, true);
   el.addEventListener("dragstart", (e) => {
-    const reorder = !!el.dataset.reorder;
+    const reorder = !!el.dataset.reorder && !el.dataset.lock;
+    holdDrag = { id: n.id, from: k, reorder, name: shortName(n) };
     e.dataTransfer.setData("text/plain", JSON.stringify({ id: n.id, from: k, name: shortName(n), reorder }));
     el.classList.add("dragging");
   });
-  el.addEventListener("dragend", () => { el.classList.remove("dragging"); delete el.dataset.reorder; });
+  el.addEventListener("dragend", () => {
+    el.classList.remove("dragging"); delete el.dataset.reorder; holdDrag = null;
+    document.querySelectorAll(".drag-over-above, .drag-over-below").forEach((n) => n.classList.remove("drag-over-above", "drag-over-below"));
+  });
 
   // Time block badge (if scheduled)
   const tb = n.pending ? null : timeBlockOf(n);
@@ -3728,6 +3827,7 @@ function card(n, k, showDate, opts) {
     if (k === key(new Date())) { badge.dataset.s = tb.mins; badge.dataset.e = endMins; badge.dataset.lab = fmtTimeBlock(tb.h, tb.mi) + (est ? " · " + fmtMins(est) : "");
     badge.dataset.win = `Scheduled ${fmtTimeBlock(tb.h, tb.mi)} – ${fmtTimeBlock(Math.floor(endMins / 60), endMins % 60)}`; }
     el.appendChild(badge); el.classList.add("hastb");
+    if (!nested) el.dataset.lock = "time";
   }
 
   const cb = document.createElement("input");
@@ -3824,8 +3924,10 @@ function card(n, k, showDate, opts) {
   };
   mv.addEventListener("click", (e) => { e.stopPropagation(); if (n.pending && !(cta && cta.value.trim())) return; cardSettle(cta).then(() => openMovePop(mv, k, moveTo)); });
 
-  // Grip handle for same-column reorder (not on nested, pending, or priority-pinned cards)
-  const grip = (!nested && !n.pending && !pinned) ? (() => { const g = document.createElement("button"); g.className = "grip"; g.textContent = "⠿"; g.title = "Drag to reorder"; g.setAttribute("aria-label", "Drag to reorder"); g.addEventListener("mousedown", () => { el.draggable = true; el.dataset.reorder = "1"; }); g.addEventListener("touchstart", () => { el.draggable = true; el.dataset.reorder = "1"; }, { passive: true }); return g; })() : null;
+  if (nested) el.dataset.lock = el.dataset.lock || "nest";
+  else if (pinned) el.dataset.lock = el.dataset.lock || "prio";
+  // Grip handle for same-column reorder. A time block, a nested task, a pending card, or a priority pin has none.
+  const grip = (!nested && !n.pending && !el.dataset.lock) ? (() => { const g = document.createElement("button"); g.className = "grip"; g.textContent = "⠿"; g.title = "Drag to reorder"; g.setAttribute("aria-label", "Drag to reorder"); g.addEventListener("mousedown", () => { el.draggable = true; el.dataset.reorder = "1"; }); g.addEventListener("touchstart", () => { el.draggable = true; el.dataset.reorder = "1"; }, { passive: true }); return g; })() : null;
   if (!n.pending) { const parts = [selMark(), cb, txt, selPick(n, k, nested ? opts.bullet : null, false), mv, del]; if (grip) parts.push(grip); el.append(...parts); }
   else el.append(cb, txt, mv, del);           // reminder and repeat live in the right-click menu (live cards) or this card's own menu below
   if (!liveOk) el.addEventListener("contextmenu", (ev) => {            // plain cards have no text box, so they get a short menu of their own
