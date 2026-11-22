@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.9.2 (2026-11-22)
+
+- **Daily notes.** The sidebar heading that said Daily page now says Daily notes. The previous and next arrows say day's notes. Empty states say daily notes.
+- **Pages.** The undated Notes collection is labeled Pages: the desktop button and window, **+ New page**, search, the status count, delete, and **Settings > Week board > Pages**. On the phone, the button, the list heading, **＋ New page**, **‹ Pages**, and **Pages location** use the same name. A new page is titled "Page · " plus the date until you rename it. In the desktop window the search field fills the list column, **+ New page** is the full-width row under it, and the title bar closes with **✕** on the right. All-day notes, the notes bullet, and **Search notes** are unchanged.
+- **Priority pins above time blocks.** Settings > Week board, directly under Sort by priority, and the same row in the phone's Settings. Off by default, so a column stays clock-first. On, untimed `!p1`–`!p4` form a band above the time blocks, and free cards stay below the clock. A card that has both a priority and a `^time` stays in the clock. The switch does nothing while Sort by priority is off. It is shared with other browsers and with the phone when settings sharing is on. Sharing it needs this `server.js`.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `index.html` | Version 1.5.9.2. Daily notes heading; Pages button, window, and Week board setting; priority pins above the clock when that switch is on |
+| `mobile.html` | Version 1.5.9.2. Pages button, list, editor, and Pages location; the same priority switch and day order |
+| `server.js` | Version 1.5.9.2. `prioAbove` is accepted in the shared desktop and phone settings |
+| `README.md`, `CHANGELOG.md` | Updated |
+
 ## 1.5.9.1 (2026-11-22)
 
 - **A downward drop lands on the slot the toast names.** The toast number is the 1-based place in the visible column. WorkFlowy's `position` is a 0-based index among every sibling under the day (notes, bullets and completed lines included), counted in priority order after the node is removed. The drop now sends that sibling index. A note above the cards used to make a one-step move downward compute the slot the card already occupied, so WorkFlowy left it there and the column snapped back.

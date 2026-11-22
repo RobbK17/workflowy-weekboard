@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.5.9.1">
+<meta name="version" content="1.5.9.2">
 <meta name="server-version" content="">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
@@ -110,6 +110,8 @@
   .srow small { display: block; color: var(--muted); font-size: 12px; }
   .srow select { font: inherit; font-size: 15px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
   .srow input[type=checkbox] { flex: none; width: 24px; height: 24px; accent-color: var(--accent); }
+  .srow.pinabove { padding-left: 18px; }
+  .srow.pinabove:has(input:disabled) { opacity: .55; }
   .grp { margin-bottom: 8px; }
   .ghrow { display: flex; align-items: center; gap: 4px; }
   .ghrow .more { margin: 0; flex: none; }
@@ -232,20 +234,20 @@
 <div id="shade"></div>
 <div id="sheet" role="dialog" aria-modal="true"></div>
 <div id="toast"></div>
-<div id="noteEditor" role="dialog" aria-modal="true" aria-label="Note editor">
+<div id="noteEditor" role="dialog" aria-modal="true" aria-label="Page editor">
   <header>
-    <button class="nbtn" id="noteBack" aria-label="Back to notes">‹ Notes</button>
+    <button class="nbtn" id="noteBack" aria-label="Back to pages">‹ Pages</button>
     <svg class="nlockic" id="noteEncMark" viewBox="0 0 256 256" role="img" aria-label="Has encrypted text" hidden><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg>
-    <input id="noteTitle" class="ntitle" type="text" maxlength="200" autocomplete="off" autocapitalize="sentences" aria-label="Note title" placeholder="Title">
+    <input id="noteTitle" class="ntitle" type="text" maxlength="200" autocomplete="off" autocapitalize="sentences" aria-label="Page title" placeholder="Title">
     <span class="nstatus" id="noteStatus"></span>
     <button class="nbtn" id="noteLock" type="button">Encrypt</button>
-    <button class="nbtn" id="noteMenu" aria-label="Note menu">⋯</button>
+    <button class="nbtn" id="noteMenu" aria-label="Page menu">⋯</button>
   </header>
   <p class="nhint" id="noteHint" hidden></p>
   <div class="nbar" id="noteBar" hidden></div>
-  <textarea class="nedit" id="noteText" placeholder="Start writing…" aria-label="Note content"></textarea>
+  <textarea class="nedit" id="noteText" placeholder="Start writing…" aria-label="Page content"></textarea>
   <div class="nview" id="noteView" hidden></div>
-  <div class="nlocked" id="noteLockedPanel" hidden><p>This note is encrypted.</p><button class="nbtn go" id="noteUnlockBig" type="button">Unlock</button></div>
+  <div class="nlocked" id="noteLockedPanel" hidden><p>This page is encrypted.</p><button class="nbtn go" id="noteUnlockBig" type="button">Unlock</button></div>
 </div>
 
 <script>
@@ -270,6 +272,7 @@ let showDone = store.get("m.showDone", "0") === "1";
 let showLate = store.get("m.showLate", "1") === "1", showSoon = store.get("m.showSoon", "1") === "1";
 let hideEst = store.get("m.hideEst", "0") === "1";         // leave the ⏱ estimate chip off cards (a time block's chip still shows its length)
 let prioSort = store.get("m.prioSort", "1") === "1";       // urgent first in each day (and in Past due / Upcoming), as on the desktop board
+let prioAbove = store.get("m.prioAbove", "0") === "1";     // untimed priority pins above the clock band; off by default
 const cache = {};                       // day key -> tasks, in outline order
 const clProg = {};                       // checklist id -> { done, total } for the "2/5" on its row
 const dayNotes = {}, noteBul = {};        // day key -> its all-day note lines (the children of the WB-Notes bullet), and that bullet
@@ -298,7 +301,7 @@ let view = "day";                       // day | late | soon | inbox
 let zoom = [];                          // opened bullets, outermost first: { id, name, up, day, from }; empty = the normal board
 const zkids = {};                      // opened item id -> its children, any type
 let inbox = null; try { const v = JSON.parse(store.get("m.inbox", "null")); if (v && v.id) inbox = { id: String(v.id), name: String(v.name || "Inbox") }; } catch (e) { /* none */ }
-let notesLoc = null; try { const v = JSON.parse(store.get("m.notesLoc", "null")); if (v && v.id) notesLoc = { id: String(v.id), name: String(v.name || "Notes") }; } catch (e) { /* none */ }
+let notesLoc = null; try { const v = JSON.parse(store.get("m.notesLoc", "null")); if (v && v.id) notesLoc = { id: String(v.id), name: String(v.name || "Pages") }; } catch (e) { /* none */ }
 const notesCache = {};                 // note id -> { id, name, note, enc }
 let notesLoaded = false;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -309,9 +312,9 @@ const undoStack = [];
 /* ---------- sharing settings between devices (optional, per device, off by default) ---------- */
 let sync = store.get("m.sync", "0") === "1";
 let applying = false, pushTimer = 0, syncAt = store.get("m.syncAt", "");
-const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.prioSort", "m.hideEst", "m.inbox", "m.notesLoc"]);
+const SHARED_KEYS = new Set(["m.nested", "m.span", "m.showLate", "m.showSoon", "m.showDone", "m.prioSort", "m.prioAbove", "m.hideEst", "m.inbox", "m.notesLoc"]);
 let inboxGone = false, notesLocGone = false;  // true only after "Remove" on this device, so a device without it never wipes the shared one
-const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone, prioSort, hideEst }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; if (notesLoc) o.notesLoc = notesLoc; else if (notesLocGone) o.notesLoc = null; return o; };
+const sharedNow = () => { const o = { nested: mode, span: weekType, showLate, showSoon, showDone, prioSort, prioAbove, hideEst }; if (inbox) o.inbox = inbox; else if (inboxGone) o.inbox = null; if (notesLoc) o.notesLoc = notesLoc; else if (notesLocGone) o.notesLoc = null; return o; };
 { const rawSet = store.set; store.set = (k, v) => { rawSet(k, v); if (sync && !applying && SHARED_KEYS.has(k)) pushShared(); }; }
 function pushShared(now) {
   clearTimeout(pushTimer);
@@ -331,13 +334,13 @@ function applyShared(s) {
   try {
     if (["group", "flatten", "off"].includes(s.nested)) { mode = s.nested; store.set("m.nested", mode); }
     if (["5", "7", "7s"].includes(s.span)) { weekType = s.span; span = weekType === "5" ? 5 : 7; store.set("m.span", weekType); weekStart = startOf(keyToDate(sel)); }
-    for (const [k, mk] of [["showLate", "m.showLate"], ["showSoon", "m.showSoon"], ["showDone", "m.showDone"], ["prioSort", "m.prioSort"], ["hideEst", "m.hideEst"]]) {
-      if (typeof s[k] === "boolean") { if (k === "showLate") showLate = s[k]; else if (k === "showSoon") showSoon = s[k]; else if (k === "prioSort") prioSort = s[k]; else if (k === "hideEst") hideEst = s[k]; else showDone = s[k]; store.set(mk, s[k] ? "1" : "0"); }
+    for (const [k, mk] of [["showLate", "m.showLate"], ["showSoon", "m.showSoon"], ["showDone", "m.showDone"], ["prioSort", "m.prioSort"], ["prioAbove", "m.prioAbove"], ["hideEst", "m.hideEst"]]) {
+      if (typeof s[k] === "boolean") { if (k === "showLate") showLate = s[k]; else if (k === "showSoon") showSoon = s[k]; else if (k === "prioSort") prioSort = s[k]; else if (k === "prioAbove") prioAbove = s[k]; else if (k === "hideEst") hideEst = s[k]; else showDone = s[k]; store.set(mk, s[k] ? "1" : "0"); }
     }
     if (s.inbox === null) { inbox = null; store.set("m.inbox", "null"); }
     else if (s.inbox && s.inbox.id) { inbox = { id: String(s.inbox.id), name: String(s.inbox.name || "Inbox") }; store.set("m.inbox", JSON.stringify(inbox)); }
     if (s.notesLoc === null) { notesLoc = null; store.set("m.notesLoc", "null"); }
-    else if (s.notesLoc && s.notesLoc.id) { notesLoc = { id: String(s.notesLoc.id), name: String(s.notesLoc.name || "Notes") }; store.set("m.notesLoc", JSON.stringify(notesLoc)); }
+    else if (s.notesLoc && s.notesLoc.id) { notesLoc = { id: String(s.notesLoc.id), name: String(s.notesLoc.name || "Pages") }; store.set("m.notesLoc", JSON.stringify(notesLoc)); }
     if ((view === "late" && !showLate) || (view === "soon" && !showSoon) || (view === "inbox" && !inbox) || (view === "notes" && !notesLoc)) view = "day";
     $("showDone").checked = showDone;
   } finally { applying = false; }
@@ -593,8 +596,18 @@ function entriesOf(k) {
   }
   // Time-blocked rows stay in clock order. A saved drag order may place a free
   // row in a gap between them; it does not reorder the timed rows themselves.
-  const byUsual = (a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s;
+  // With Priority pins above time blocks on, untimed pins form a band above that clock.
+  const byUsual = (a, b) => entryBand(a) - entryBand(b) || a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s;
   return placeManual(out.sort(byUsual), sortCache[k]);
+}
+function entryBand(e) {
+  if (e.tb < 9999) return 1;
+  if (prioSort && prioAbove && entryUntimedPin(e)) return 0;
+  return 2;
+}
+function entryUntimedPin(e) {
+  if (e.kind === "group") return e.r > 0 && e.r < PRIO_RANK[0];
+  return parsePrio(plain(e.n.name)) > 0;
 }
 const sortCache = {};
 function entryId(e) { return e.kind === "group" ? e.b.id : e.n.id; }
@@ -1001,7 +1014,7 @@ function drawView() {
   $("dayname").onclick = null; $("dayname").classList.remove("tap"); $("dayname").removeAttribute("role"); $("dayname").removeAttribute("tabindex");
   if (zoom.length) { drawZoom(list); return; }
   if (view === "inbox") { $("dayname").textContent = inbox.name; drawInboxList(list); return; }
-  if (view === "notes") { $("dayname").textContent = "Notes"; drawNotesList(list); return; }
+  if (view === "notes") { $("dayname").textContent = "Pages"; drawNotesList(list); return; }
   if (view !== "day") { $("dayname").textContent = view === "late" ? "Past due" : "Upcoming"; drawExtraList(list); return; }
   $("dayname").textContent = keyToDate(sel).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) + (sel === tk ? " · Today" : "");
   { const dn = $("dayname"), kd = sel; dn.textContent += " ›"; dn.classList.add("tap"); dn.setAttribute("role", "button"); dn.setAttribute("tabindex", "0"); dn.setAttribute("aria-label", "Open this day's outline");
@@ -1054,8 +1067,8 @@ function drawExtras() {
   }
   if (notesLoc) {
     const b = document.createElement("button"); b.type = "button"; b.className = view === "notes" ? "on" : "";
-    if (wf.notes) { const c = document.createElement("b"); c.textContent = notesLoaded ? String(Object.keys(notesCache).length) : "…"; b.append("📝 Notes ", c); }
-    else { b.textContent = "📝 Notes · off"; b.style.opacity = ".5"; b.title = wfHint; }
+    if (wf.notes) { const c = document.createElement("b"); c.textContent = notesLoaded ? String(Object.keys(notesCache).length) : "…"; b.append("📝 Pages ", c); }
+    else { b.textContent = "📝 Pages · off"; b.style.opacity = ".5"; b.title = wfHint; }
     b.onclick = () => { if (!wf.notes) { toast(wfHint + "."); return; } view = view === "notes" ? "day" : "notes"; draw(); if (view === "notes") loadNotes().catch((e) => err(e.message)); };
     box.appendChild(b);
   }
@@ -1125,7 +1138,7 @@ async function loadNotes() {
 }
 function defaultNoteTitle() {
   const d = new Date();
-  return "Notes · " + d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return "Page · " + d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 /* The note editor's places for add-ons (the same names and shape as on the desktop board; the Markdown add-on uses them):
    wbNotes.mount((ctx) => ...)  ctx: { text, bar, view, box, refreshList() };  wbNotes.onState((s) => ...)  s: { shown, id, rev, readOnly, locked, whole, unlocked };
@@ -1146,19 +1159,19 @@ let noteRev = 0;                // changes each time a note is loaded, locked or
 function drawNotesList(list) {
   if (!notesLoaded) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "Loading…"; list.appendChild(m); return; }
   // New note button
-  const newBtn = document.createElement("button"); newBtn.type = "button"; newBtn.className = "bulk"; newBtn.textContent = "＋ New note";
+  const newBtn = document.createElement("button"); newBtn.type = "button"; newBtn.className = "bulk"; newBtn.textContent = "＋ New page";
   newBtn.onclick = () => openNoteEditor(null);
   list.appendChild(newBtn);
   // Notes list sorted by priority (most recent first)
   const notes = Object.values(notesCache).sort((a, b) => (a.priority || 0) - (b.priority || 0));
-  if (!notes.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "No notes yet"; list.appendChild(m); return; }
+  if (!notes.length) { const m = document.createElement("div"); m.className = "empty"; m.textContent = "No pages yet"; list.appendChild(m); return; }
   for (const n of notes) {
     const card = document.createElement("div"); card.className = "ncard";
     const body = document.createElement("div"); body.className = "nbody";
     const title = document.createElement("div"); title.className = "nt"; title.textContent = secretText(plain(n.name)) || "(untitled)";
     if (hasSecret(n)) title.insertAdjacentHTML("afterbegin", LOCK_SVG);
     const preview = document.createElement("div"); preview.className = "np";
-    preview.textContent = allSecret(n.note) ? "Encrypted note" : wbNotes.shorten(secretText(n.note).slice(0, 1500), n).trim().slice(0, 200);
+    preview.textContent = allSecret(n.note) ? "Encrypted page" : wbNotes.shorten(secretText(n.note).slice(0, 1500), n).trim().slice(0, 200);
     body.append(title, preview); card.appendChild(body);
     card.onclick = () => openNoteEditor(n);
     list.appendChild(card);
@@ -1418,18 +1431,18 @@ $("noteBack").onclick = async () => {
 $("noteMenu").onclick = () => {
   if (!currentNote) return;
   openSheet((s) => {
-    head(s, secretText(plain(currentNote.name)) || "(untitled)", "Note options");
+    head(s, secretText(plain(currentNote.name)) || "(untitled)", "Page options");
     if (pass !== null || noteEnc) sbtn(s, "Lock encryption", () => { closeSheet(); lockCrypto("Locked"); });
-    sbtn(s, "🗑 Delete note", () => {
+    sbtn(s, "🗑 Delete page", () => {
       openSheet((s2) => {
-        head(s2, "Delete note?", "This can't be undone.");
+        head(s2, "Delete page?", "This can't be undone.");
         sbtn(s2, "Delete", async () => {
           closeSheet();
           if (currentNote.id) {
             try {
               await call("DELETE", `/nodes/${currentNote.id}`);
               delete notesCache[currentNote.id];
-              toast("Note deleted");
+              toast("Page deleted");
             } catch (e) { err(e.message); }
           }
           closeNoteEditor();
@@ -2160,7 +2173,13 @@ function openSettings() {
     row("Show Past due", "The last 14 days", check(showLate, (v) => { showLate = v; store.set("m.showLate", v ? "1" : "0"); if (!v && view === "late") view = "day"; draw(); if (v) loadWeek(true); }));
     row("Show Upcoming", "The next 14 days", check(showSoon, (v) => { showSoon = v; store.set("m.showSoon", v ? "1" : "0"); if (!v && view === "soon") view = "day"; draw(); if (v) loadWeek(true); }));
     row("Show completed", "", check(showDone, (v) => { showDone = v; store.set("m.showDone", v ? "1" : "0"); draw(); }));
-    row("Sort by priority", "Urgent (!p1) first, low (!p4) last", check(prioSort, (v) => { prioSort = v; store.set("m.prioSort", v ? "1" : "0"); draw(); }));
+    const aboveBox = check(prioAbove, (v) => { prioAbove = v; store.set("m.prioAbove", v ? "1" : "0"); draw(); });
+    aboveBox.disabled = !prioSort;
+    row("Sort by priority", "Urgent (!p1) first, low (!p4) last", check(prioSort, (v) => { prioSort = v; store.set("m.prioSort", v ? "1" : "0"); aboveBox.disabled = !v; draw(); }));
+    const ar = document.createElement("label"); ar.className = "srow pinabove";
+    const at = document.createElement("span"); at.textContent = "Priority pins above time blocks";
+    const am = document.createElement("small"); am.textContent = "Untimed !p1–!p4 first, then the clock. A task with a time stays in the clock.";
+    at.appendChild(am); ar.append(at, aboveBox); s.appendChild(ar);
     row("Hide estimates", "Leave the ⏱ chip off tasks (a time block still shows its length)", check(hideEst, (v) => { hideEst = v; store.set("m.hideEst", v ? "1" : "0"); draw(); }));
     // Inbox: a WorkFlowy node (an Inbox or quick-capture bullet) whose open tasks you can see and sort into days
     const ir = document.createElement("div"); ir.className = "srow"; ir.style.flexWrap = "wrap";
@@ -2199,16 +2218,16 @@ function openSettings() {
     ir.appendChild(msg); s.appendChild(ir);
     // Notes location: a WorkFlowy node to store notes under
     const nr = document.createElement("div"); nr.className = "srow"; nr.style.flexWrap = "wrap";
-    const nt = document.createElement("span"); nt.innerHTML = "Notes location<small></small>"; nr.appendChild(nt);
+    const nt = document.createElement("span"); nt.innerHTML = "Pages location<small></small>"; nr.appendChild(nt);
     const nmsg = document.createElement("div"); nmsg.className = "sub"; nmsg.style.flexBasis = "100%"; nmsg.style.margin = "0";
     if (notesLoc) {
       nt.querySelector("small").textContent = notesLoc.name;
-      nmsg.textContent = "Id: " + notesLoc.id.slice(-12) + " (notes are stored as children of this node)";
+      nmsg.textContent = "Id: " + notesLoc.id.slice(-12) + " (pages are stored as children of this node)";
       const ncp = document.createElement("button"); ncp.type = "button"; ncp.textContent = "Copy id"; ncp.className = "sbtn"; ncp.style.cssText = "width:auto;border:1px solid var(--border);border-radius:8px;padding:8px 12px;";
       ncp.onclick = async () => { try { await navigator.clipboard.writeText(notesLoc.id); toast("Full id copied"); } catch (e) { nmsg.textContent = "Full id: " + notesLoc.id; } };
       nr.appendChild(ncp);
       const nrm = document.createElement("button"); nrm.type = "button"; nrm.textContent = "Remove"; nrm.className = "sbtn danger"; nrm.style.cssText = "width:auto;border:1px solid var(--border);border-radius:8px;padding:8px 12px;";
-      nrm.onclick = () => { notesLoc = null; notesLocGone = true; store.set("m.notesLoc", "null"); if (view === "notes") view = "day"; closeSheet(); draw(); toast("Notes location removed"); };
+      nrm.onclick = () => { notesLoc = null; notesLocGone = true; store.set("m.notesLoc", "null"); if (view === "notes") view = "day"; closeSheet(); draw(); toast("Pages location removed"); };
       nr.appendChild(nrm);
     } else {
       nt.querySelector("small").textContent = "Paste a node's link from WorkFlowy";
@@ -2225,8 +2244,8 @@ function openSettings() {
           const data = await call("GET", `/nodes?parent_id=${id}`);
           if (data === null) throw new Error("WorkFlowy doesn't know that id.");
           if (!found) { try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = (nd && nd.name) || ""; } catch (e) { /* falls back to Notes */ } }
-          notesLoc = { id, name: shown(found).replace(/\s+/g, " ").trim().slice(0, 30) || "Notes" }; store.set("m.notesLoc", JSON.stringify(notesLoc));
-          closeSheet(); draw(); loadNotes().catch(() => {}); toast("Notes location set");
+          notesLoc = { id, name: shown(found).replace(/\s+/g, " ").trim().slice(0, 30) || "Pages" }; store.set("m.notesLoc", JSON.stringify(notesLoc));
+          closeSheet(); draw(); loadNotes().catch(() => {}); toast("Pages location set");
         } catch (e) { nmsg.textContent = e.message; nab.disabled = false; }
       };
       nr.append(nli, nab);
@@ -2273,7 +2292,7 @@ function openSettings() {
 function openUnlock() {
   openSheet((s) => {
     if (!(window.crypto && crypto.subtle)) { head(s, "Encryption", "Unlocking needs a secure address (https, or localhost). Open the board through its https address."); sbtn(s, "Close", closeSheet, "cancel"); return; }
-    head(s, "Unlock encryption", "Encrypted text is shown, and can be edited in Notes (Encrypt and Unlock in a note). The passphrase stays in this page's memory only; locking or closing the page forgets it.");
+    head(s, "Unlock encryption", "Encrypted text is shown, and can be edited in Pages (Encrypt and Unlock in a page). The passphrase stays in this page's memory only; locking or closing the page forgets it.");
     const inp = document.createElement("input"); inp.type = "password"; inp.placeholder = "Passphrase"; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Passphrase");
     inp.style.cssText = "width:100%;font:inherit;font-size:16px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);margin-top:8px;";
     s.appendChild(inp);

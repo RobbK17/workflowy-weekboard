@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="1.5.9.1">
+<meta name="version" content="1.5.9.2">
 <meta name="server-version" content="">
 <meta name="notes-name" content="WB-Notes">
 <meta name="remote" content="0">
@@ -159,6 +159,8 @@
   .col.soon { background: var(--soon); }
   .subopt { margin-left: 24px; }
   .subopt[hidden] { display: none; }
+  .pinabove { margin-left: 24px; }
+  .pinabove:has(input:disabled) { opacity: .55; }
   .col.pastopen { box-shadow: inset 3px 0 0 #d9534f; }
   .col.pastcount h2 span { color: #c0392b; font-weight: 600; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .col.pastcount h2 span { color: #ff8a80; } }
@@ -745,12 +747,13 @@
   #ntDialog .sm-head { cursor: grab; user-select: none; -webkit-user-select: none; }
   #ntDialog .sm-head:active { cursor: grabbing; }
   #ntDialog .sm-head input, #ntDialog .sm-head button { cursor: default; }
-  .nt-close { border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 13px; padding: 4px 12px; cursor: pointer !important; }
-  .nt-close:hover { background: rgba(127,127,127,.14); }
+  .nt-close { border: none; background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 0 4px; border-radius: 6px; cursor: pointer !important; }
+  .nt-close:hover { color: var(--text); background: rgba(127,127,127,.14); }
   .nt-wrap { flex: 1; min-height: 0; display: flex; }
   .nt-side { width: 300px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--col); }
-  .nt-tools { flex: none; display: flex; gap: 6px; padding: 10px; }
-  .nt-tools input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  .nt-tools { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 10px; }
+  .nt-tools input { flex: none; width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  #ntNew { width: 100%; }
   .nt-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px 10px; }
   .nt-item { display: block; width: 100%; box-sizing: border-box; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; }
   .nt-item:hover { border-color: var(--muted); }
@@ -1037,7 +1040,7 @@
     <button id="settingsBtn" aria-haspopup="dialog" aria-expanded="false" title="Panes and Plan day settings">&#9881; Settings</button>
   </div>
   <!--@addons:button-->
-  <button id="refresh" type="button" title="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)" aria-label="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily page)">&#8635;</button>
+  <button id="refresh" type="button" title="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily notes)" aria-label="Reload everything from WorkFlowy (days, Past due, Upcoming, sub-items and the Daily notes)">&#8635;</button>
   <button id="sideBtn" aria-pressed="false" title="Hide the sidebar (Ctrl+\)" aria-label="Hide the sidebar (Ctrl+\)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/></svg></button>
 </header>
 <div id="error"></div>
@@ -1061,7 +1064,7 @@
     <section class="panel" id="cal"></section>
     <div id="extras"></div>
     <section class="panel" id="outliner">
-      <h3 id="pageHead"><strong id="pageHeading">Daily page</strong><button class="mini nav" id="pagePrev" title="Previous day's page" aria-label="Previous day's page">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's page" aria-label="Next day's page">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar" aria-label="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload" aria-label="Reload">&#8635;</button><button class="mini" id="pageMore" aria-haspopup="true" aria-expanded="false" title="More: rename the notes bullet, move notes in" aria-label="More: rename the notes bullet, move notes in">&#8943;</button></h3>
+      <h3 id="pageHead"><strong id="pageHeading">Daily notes</strong><button class="mini nav" id="pagePrev" title="Previous day's notes" aria-label="Previous day's notes">&#8249;</button><span id="outTitle"></span><button class="mini nav" id="pageNext" title="Next day's notes" aria-label="Next day's notes">&#8250;</button><button class="mini" id="pageExpand" title="Expand to fill the sidebar" aria-label="Expand to fill the sidebar">&#x2922;</button><button class="mini" id="pageRefresh" title="Reload" aria-label="Reload">&#8635;</button><button class="mini" id="pageMore" aria-haspopup="true" aria-expanded="false" title="More: rename the notes bullet, move notes in" aria-label="More: rename the notes bullet, move notes in">&#8943;</button></h3>
       <div class="pop fixed" id="pageMenu" role="menu" hidden>
 
 
@@ -1071,7 +1074,7 @@
       <div class="outbar">
         <span class="outright">
           <button id="inboxBtn" class="unset" title="Open your Inbox (I). Drop a task here to send it to the Inbox.">&#128229; Inbox<span class="cnt" id="inboxCnt" hidden></span></button>
-          <button id="notesBtn" hidden title="Open your notes (N)">&#128221; Notes<span class="cnt" id="notesCnt" hidden></span></button>
+          <button id="notesBtn" hidden title="Open your pages (N)">&#128221; Pages<span class="cnt" id="notesCnt" hidden></span></button>
           <button id="grpBtn" hidden title="Groups tracker (G)">&#128204; Groups<span class="cnt" id="grpCnt" hidden></span></button>
           <span class="reports">
             <button id="reportsBtn" aria-haspopup="true" aria-expanded="false" title="Reports">&#128202; Reports &#9662;</button>
@@ -1092,7 +1095,7 @@
     <button id="kbBtn" aria-pressed="false" title="Your chosen nodes as side-by-side panes (B)" style="display:inline-flex;align-items:center;gap:6px"><svg class="pic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l4.5 2v12L3 18zM7.5 8l4.5-2v12l-4.5 2zM12 6l4.5 2v12L12 18zM16.5 8L21 6v12l-4.5 2z"/></svg> Panes</button>
   </div>
   <div class="footright">
-    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.9.1</span></div>
+    <div class="ver" id="ver"><span id="verText">Workflowy Week Board v1.5.9.2</span></div>
   </div>
 </footer>
 
@@ -1126,6 +1129,7 @@
         <select id="adLines" aria-label="Note lines shown"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="0">All</option></select></div>
       <label><input type="checkbox" id="optHide"><span>Hide completed<small>Leave ticked tasks out</small></span></label>
       <label><input type="checkbox" id="optPrio"><span>Sort by priority<small>Urgent (!p1) first, then high (!p2), medium (!p3), no priority, low (!p4). Off: outline order</small></span></label>
+      <label class="pinabove"><input type="checkbox" id="optPrioAbove"><span>Priority pins above time blocks<small>Untimed !p1–!p4 come first, then the clock. A card that also has a time stays in the clock. Does nothing while Sort by priority is off.</small></span></label>
       <label><input type="checkbox" id="optHideEst"><span>Hide estimates on cards<small>Don't show the ⏱ badge on cards (estimates still work for totals and time blocking)</small></span></label>
       <label><input type="checkbox" id="optLate"><span>Past due<small>Open tasks from before the days shown</small></span></label>
       <label class="sel"><span>Past due range<small>How far back Past due looks (and Plan day's Bring in, up to 4 weeks)</small></span>
@@ -1153,12 +1157,12 @@
         <div id="inboxMsg" role="status"></div>
       </div>
       <div class="srcs" id="notesSetBox">
-        <div class="sh">Notes<small>The &#128221; Notes button (or the N key) opens this node in the item window: each note is a line, and its text is the line's note. Use the same node as the phone page's Notes location. If you leave this empty, the board uses the phone page's location when settings sharing is on there. Saved in this browser.</small></div>
-        <div class="setrow"><span>Your notes<small id="notesCur">Not set</small></span><button type="button" id="notesClear" hidden>Remove</button></div>
+        <div class="sh">Pages<small>The &#128221; Pages button (or the N key) opens this node: each page is a line, and its text is the line's note. Ideas, plans and work product live here, separate from Daily notes. Use the same node as the phone page's Pages location. If you leave this empty, the board uses the phone page's location when settings sharing is on there. Saved in this browser.</small></div>
+        <div class="setrow"><span>Your pages<small id="notesCur">Not set</small></span><button type="button" id="notesClear" hidden>Remove</button></div>
         <div class="srcadd" id="notesForm">
           <label for="notesLink">Paste a WorkFlowy link or node id <em>(copy the address from your browser)</em></label>
           <input id="notesLink" type="text" placeholder="Paste a WorkFlowy node link here" autocomplete="off" spellcheck="false">
-          <button id="notesSetBtn" type="button">Set Notes</button>
+          <button id="notesSetBtn" type="button">Set Pages</button>
         </div>
         <div id="notesMsg" role="status"></div>
       </div>
@@ -1188,7 +1192,7 @@
       </div>
       <label><input type="checkbox" id="wf_rep"><span>Repeating tasks<small>The server creates the next copy of a task marked <b>!every week</b>, even with the board closed</small></span></label>
       <div class="setrow" id="wfRepNote" hidden><span><small>The server was started with RECURRING=0, so repeating stays off whatever this switch says.</small></span></div>
-      <label><input type="checkbox" id="wf_notes"><span>Notes<small>Creates the notes line and new note lines under a day (all-day notes, the Daily page, Notes on the phone page)</small></span></label>
+      <label><input type="checkbox" id="wf_notes"><span>Notes<small>Creates the notes line and new note lines under a day (all-day notes, Daily notes, and Pages on the phone)</small></span></label>
       <label><input type="checkbox" id="wf_mark"><span>Priority, estimate and reminder items<small>Writes <b>!p1</b>, <b>~30m</b> and <b>@2:30pm</b> into a task from the menus. You can still type them yourself.</small></span></label>
       </div>
       <div class="set-pane setpane" data-sec="remind" hidden>
@@ -1361,21 +1365,21 @@
   </div>
 </div>
 
-<dialog id="ntDialog" aria-label="Notes">
+<dialog id="ntDialog" aria-label="Pages">
   <div class="modal-box nt-box">
     <div class="sm-head">
-      <h3 id="ntHead">Notes</h3>
-      <button id="ntClose" class="nt-close" title="Close (Esc)" aria-label="Close (Esc)">Close</button>
+      <h3 id="ntHead">Pages</h3>
+      <button id="ntClose" class="nt-close" title="Close (Esc)" aria-label="Close (Esc)">&#10005;</button>
     </div>
     <div class="nt-wrap">
       <div class="nt-side">
-        <div class="nt-tools"><button id="ntNew" class="mini" type="button">+ New note</button><input id="ntSearch" type="search" placeholder="Search notes" aria-label="Search notes" autocomplete="off"></div>
-        <div class="nt-list" id="ntList" aria-label="Notes"></div>
+        <div class="nt-tools"><input id="ntSearch" type="search" placeholder="Search pages" aria-label="Search pages" autocomplete="off"><button id="ntNew" type="button">+ New page</button></div>
+        <div class="nt-list" id="ntList" aria-label="Pages"></div>
       </div>
       <div class="nt-main">
         <div class="nt-ehead" id="ntEhead" hidden>
           <svg class="nt-lockic" id="ntMark" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg>
-          <input id="ntTitle" type="text" maxlength="200" autocomplete="off" aria-label="Note title" placeholder="Title">
+          <input id="ntTitle" type="text" maxlength="200" autocomplete="off" aria-label="Page title" placeholder="Title">
         </div>
         <p class="nt-hint" id="ntHint" hidden></p>
         <div class="nt-bar" id="ntBar" hidden>
@@ -1388,8 +1392,8 @@
         <div class="nt-ruler" id="ntRuler" hidden><canvas id="ntRulerC"></canvas></div>
         <textarea id="ntText" placeholder="Start writing…" aria-label="Note text" hidden></textarea>
         <div class="nt-view" id="ntView" hidden></div>
-        <div class="nt-locked" id="ntLocked" hidden><p>This note is encrypted.</p><button id="ntUnlockBig" type="button">Unlock</button></div>
-        <div class="nt-empty" id="ntEmpty">Pick a note, or start a new one.</div>
+        <div class="nt-locked" id="ntLocked" hidden><p>This page is encrypted.</p><button id="ntUnlockBig" type="button">Unlock</button></div>
+        <div class="nt-empty" id="ntEmpty">Pick a page, or start a new one.</div>
       </div>
     </div>
     <div class="nt-foot" aria-label="Status bar">
@@ -1445,7 +1449,7 @@ const WF_LINK = "https://workflowy.com/#/";
 function wfPrefill(el) { el.value = WF_LINK; for (const ev of ["focus", "click"]) el.addEventListener(ev, () => setTimeout(() => { if (el.value === WF_LINK) try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} }, 0)); }
 // ---- Shared settings: with "Share these settings between browsers" on, this browser's preference keys are kept on the server (/d/settings) and read back by the others.
 const dsync = (() => {
-  const KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "notesNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "planHours", "filters", "tbPresets", "tbTemplate", "hideEst", "hideWkend"]);
+  const KEYS = new Set(["hideDone", "showLate", "showSoon", "showSubs", "liveCards", "allDay", "allDayLines", "pastAlert", "pastCount", "pastEdge", "nested", "span", "weekStartDay", "lateRange", "doneRange", "planSources", "planLimit", "notesName", "inboxNode", "notesNode", "kbCols", "kbViews", "kbHideDone", "kbAddType", "kbOpenLines", "kbEditOn", "kbReadEdit", "kbTableOutline", "kbCalDays", "kbGroup", "addType", "kbLane", "kbLaneN", "kbLaneX", "remind", "prioSort", "prioAbove", "planHours", "filters", "tbPresets", "tbTemplate", "hideEst", "hideWkend"]);
   const ls ={ get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { Storage.prototype.setItem.call(localStorage, k, v); } catch (e) {} }, del: (k) => { try { Storage.prototype.removeItem.call(localStorage, k); } catch (e) {} } };
   let timer = null, applying = false;
   const on = () => ls.get("dsync") === "1";
@@ -1537,7 +1541,7 @@ function getPref(k) { try { return localStorage.getItem(k) === "1"; } catch (e) 
 function setPref(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} }
 function loadNestedMode() { try { const v = localStorage.getItem("nested"); return v === "group" || v === "flatten" ? v : "off"; } catch (e) { return "off"; } }
 let kbReadEdit = (() => { try { return localStorage.getItem("kbReadEdit") !== "0"; } catch (e) { return true; } })();     // read mode: does clicking a line open the pop-up editor?
-const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), allDay: getBool("allDay", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true), prioSort: getBool("prioSort", true), hideWkend: getBool("hideWkend", false), hideEst: getBool("hideEst", false) };
+const prefs = { nested: loadNestedMode(), hideDone: getPref("hideDone"), showLate: getPref("showLate"), showSoon: getPref("showSoon"), showSubs: getBool("showSubs", true), liveCards: getBool("liveCards", true), allDay: getBool("allDay", true), pastAlert: getBool("pastAlert", true), pastCount: getBool("pastCount", true), pastEdge: getBool("pastEdge", true), prioSort: getBool("prioSort", true), prioAbove: getBool("prioAbove", false), hideWkend: getBool("hideWkend", false), hideEst: getBool("hideEst", false) };
 // ---- Writing features: Settings → Writing features turns off what puts things into WorkFlowy. The switches live on the server (/features), so every browser and the phone page agree.
 const wf = { tb: true, rep: true, notes: true, mark: true, repForced: false };
 const WF_WHAT = { tb: "Time blocking", rep: "Repeating tasks", notes: "Notes bullets", mark: "Priority, estimate and reminder items" };
@@ -2015,8 +2019,19 @@ function entries(k, onlyOpen, noBlk) {      // noBlk: leave template blocks (!bl
   }
   // Time-blocked cards stay in clock order. A saved drag order may place a free
   // card in a gap between them; it does not reorder the timed cards themselves.
-  const byUsual = (a, b) => a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s;
+  // With Priority pins above time blocks on, untimed pins form a band above that clock.
+  const byUsual = (a, b) => entryBand(a) - entryBand(b) || a.tb - b.tb || a.r - b.r || a.p - b.p || a.s - b.s;
   return placeManual(out.sort(byUsual), sortCache[k]);
+}
+// 0 = untimed priority pins, 1 = the clock, 2 = everything else. The pin band is used only when both switches are on.
+function entryBand(e) {
+  if (e.tb < 9999) return 1;
+  if (prefs.prioSort && prefs.prioAbove && entryUntimedPin(e)) return 0;
+  return 2;
+}
+function entryUntimedPin(e) {
+  if (e.kind === "group") return e.r > 0 && e.r < PRIO_RANK[0];
+  return prioOf(e.n) > 0;
 }
 function entryId(e) { return e.kind === "group" ? e.b.id : e.n.id; }
 function entryFree(e) {
@@ -4790,7 +4805,7 @@ function renderPage() {
   const keepScroll = tree.scrollTop;          // stay where you were after a reload or edit
   tree.innerHTML = "";
   if (!roots.length) {
-    tree.innerHTML = `<div class="empty">${viewItem ? "Nothing here" : "No notes on this page yet"}</div>`;
+    tree.innerHTML = `<div class="empty">${viewItem ? "Nothing here" : "No daily notes yet"}</div>`;
     return;
   }
   // inNotes: this line is the notes bullet or sits inside it. The notes bullet itself can't be removed from here.
@@ -5198,9 +5213,15 @@ nestedSel.onchange = () => {
   render();                                            // shows what's already loaded; missing bullets load in the background
 };
 
+function paintPrioAbove() { const el = document.getElementById("optPrioAbove"); if (el) el.disabled = !prefs.prioSort; }
 { const po = document.getElementById("optPrio");
   po.checked = prefs.prioSort;
-  po.onchange = () => { prefs.prioSort = po.checked; setPref("prioSort", po.checked); render(); renderPlan(); };
+  po.onchange = () => { prefs.prioSort = po.checked; setPref("prioSort", po.checked); paintPrioAbove(); render(); renderPlan(); };
+}
+{ const pa = document.getElementById("optPrioAbove");
+  pa.checked = prefs.prioAbove;
+  pa.onchange = () => { prefs.prioAbove = pa.checked; setPref("prioAbove", pa.checked); render(); renderPlan(); };
+  paintPrioAbove();
 }
 { const he = document.getElementById("optHideEst");
   he.checked = prefs.hideEst;
@@ -7317,7 +7338,7 @@ function itemLiveRender() {
   }
 }
 /* ----- the Daily page uses it too ----- */
-const kbPageCol = { id: "_page", name: "the Daily page" };
+const kbPageCol = { id: "_page", name: "Daily notes" };
 const pageLiveOn = () => kbEditMap._page !== false;
 const kbIsRootLine = (n) => !!kbHost && kbHost.kind === "item" && n.id === viewItem;          // the opened item itself, shown as the first line
 const kbIsNotesLine = (n) => !!kbHost && kbHost.kind === "page" && kbHost.top.some((x) => x.id === n.id) && isNotesName(plain(n.name));
@@ -7345,7 +7366,7 @@ function pageLiveRender() {
   const list = document.createElement("div"); list.className = "kcards";
   kbWalk(list, pageNodes, 0, null, null, ctx);
   wrap.appendChild(list);
-  if (!pageNodes.length) { const e = document.createElement("div"); e.className = "kempty"; e.textContent = "Nothing on this page yet. Add a task or line, or a note in the box below."; wrap.appendChild(e); }
+  if (!pageNodes.length) { const e = document.createElement("div"); e.className = "kempty"; e.textContent = "No daily notes yet. Add a task or line, or a note in the box below."; wrap.appendChild(e); }
   wrap.appendChild(kbAddRow(ctx, k, 0));                 // always there, so you can add another line after the ones already on the page
   tree.appendChild(wrap); tree.scrollTop = keep;
   kbRestoreFocus();
@@ -8692,7 +8713,7 @@ const notesCur = document.getElementById("notesCur"), notesClear = document.getE
 const notesLink = document.getElementById("notesLink"), notesSetBtn = document.getElementById("notesSetBtn"), notesMsg = document.getElementById("notesMsg");
 wfPrefill(notesLink);
 function loadNotesNode() {
-  try { const v = JSON.parse(localStorage.getItem("notesNode") || "null"); if (v && typeof v.id === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(v.id)) return { id: v.id, name: String(v.name || "Notes").slice(0, 40) }; } catch (e) {}
+  try { const v = JSON.parse(localStorage.getItem("notesNode") || "null"); if (v && typeof v.id === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(v.id)) return { id: v.id, name: String(v.name || "Pages").slice(0, 40) }; } catch (e) {}
   return null;
 }
 let notesNode = loadNotesNode(), phoneNotes = null;
@@ -8714,21 +8735,21 @@ async function refreshNotesCount() {
     const d = await call("GET", `/nodes?parent_id=${w.id}`);
     if (notesWhere() !== w) return;
     if (d === null) throw new Error("gone");
-    notesCnt.textContent = String((d.nodes || []).length); notesCnt.hidden = false; notesCnt.title = "Notes in it";
+    notesCnt.textContent = String((d.nodes || []).length); notesCnt.hidden = false; notesCnt.title = "Pages in it";
   } catch (e) { notesCnt.textContent = "?"; notesCnt.hidden = false; }
 }
 async function loadPhoneNotes() {                          // the phone page's Notes location, when it shares its settings
   try {
     const j = await fetch("/m/settings").then((r) => (r.ok ? r.json() : null));
     const v = j && j.enabled && j.settings && j.settings.notesLoc;
-    const next = v && typeof v.id === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(v.id) ? { id: v.id, name: String(v.name || "Notes").slice(0, 40) } : null;
+    const next = v && typeof v.id === "string" && /^[A-Za-z0-9_-]{8,40}$/.test(v.id) ? { id: v.id, name: String(v.name || "Pages").slice(0, 40) } : null;
     if (JSON.stringify(next) === JSON.stringify(phoneNotes)) return;
     phoneNotes = next; updateNotesUi(); if (!notesNode) refreshNotesCount();
   } catch (e) { /* no phone settings: the button follows this browser's setting only */ }
 }
 function openNotes() { const w = notesWhere(); if (w) ntOpen(); }
 notesBtn.onclick = openNotes;
-notesClear.onclick = () => { notesNode = null; saveNotesNode(); updateNotesUi(); refreshNotesCount(); notesMsgSet(phoneNotes ? "Removed. The button now uses the phone page's Notes location." : "Notes removed."); };
+notesClear.onclick = () => { notesNode = null; saveNotesNode(); updateNotesUi(); refreshNotesCount(); notesMsgSet(phoneNotes ? "Removed. The button now uses the phone page's Pages location." : "Pages removed."); };
 notesSetBtn.onclick = async () => {
   notesMsgSet("");
   const id0 = parseNodeLink(notesLink.value);
@@ -8740,11 +8761,11 @@ notesSetBtn.onclick = async () => {
     const data = await call("GET", `/nodes?parent_id=${id}`);
     if (data === null) throw new Error("WorkFlowy doesn't know that id.");
     if (!found) { try { const one = await call("GET", `/nodes/${id}`); const nd = one && (one.node || one); found = shownName((nd && nd.name) || ""); } catch (e) { /* falls back to "Notes" */ } }
-    const pick = { id, name: (found || "Notes").slice(0, 40) };
+    const pick = { id, name: (found || "Pages").slice(0, 40) };
     notesLink.value = WF_LINK;
-    if (phoneNotes && phoneNotes.id === id) { notesMsgSet(`That's already your notes location (from the phone page), so nothing changed.`); }
+    if (phoneNotes && phoneNotes.id === id) { notesMsgSet(`That's already your Pages location (from the phone page), so nothing changed.`); }
     else if (phoneNotes) notesAskWhich(pick);              // the phone uses another node: ask before splitting them
-    else { notesNode = pick; saveNotesNode(); updateNotesUi(); refreshNotesCount(); notesMsgSet(`Notes set to “${notesNode.name}”.`); }
+    else { notesNode = pick; saveNotesNode(); updateNotesUi(); refreshNotesCount(); notesMsgSet(`Pages set to “${notesNode.name}”.`); }
   } catch (e) { notesMsgSet(e.message, true); }
   notesSetBtn.disabled = false;
 };
@@ -8758,8 +8779,8 @@ function notesAskWhich(pick) {
   const mk = (label, fn, title) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (title) b.title = title; b.onclick = fn; row.appendChild(b); return b; };
   mk("Use on this board only", () => {
     notesNode = pick; saveNotesNode(); updateNotesUi(); refreshNotesCount();
-    notesMsgSet(`Notes set to “${pick.name}” on this board. The phone page keeps “${phoneNotes.name}”.`);
-  }, "The phone page keeps its own notes location");
+    notesMsgSet(`Pages set to “${pick.name}” on this board. The phone page keeps “${phoneNotes.name}”.`);
+  }, "The phone page keeps its own Pages location");
   const both = mk("Use for both", async () => {
     both.disabled = true;
     try {
@@ -8767,9 +8788,9 @@ function notesAskWhich(pick) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || `The server answered ${r.status}`);
       phoneNotes = { id: pick.id, name: pick.name.slice(0, 30) }; notesNode = null; saveNotesNode(); updateNotesUi(); refreshNotesCount();
-      notesMsgSet(`Notes set to “${pick.name}” here and on the phone page (phones that share their settings pick it up when they next load).`);
+      notesMsgSet(`Pages set to “${pick.name}” here and on the phone page (phones that share their settings pick it up when they next load).`);
     } catch (e) { both.disabled = false; notesMsgSet("Couldn't change the phone page's location: " + e.message + " You can still use it on this board only.", true); notesMsg.appendChild(row); }
-  }, "Also changes the phone page's notes location (shared settings)");
+  }, "Also changes the phone page's Pages location (shared settings)");
   mk("Cancel", () => notesMsgSet("Nothing changed."));
   box.append(q, row);
 }
@@ -8798,7 +8819,7 @@ const ntSecret = (v) => { const str = String(v || ""), n = (str.match(NT_TOKG) |
 const ntAllSecret = (v) => NT_TOK.test(v || "") && !String(v).replace(NT_TOKG, "").trim();
 const ntHas = (n) => !!n && (NT_TOK.test(n.note || "") || NT_TOK.test(n.name || ""));
 const ntCrypto = () => (window.wbcryptLive && window.wbcryptLive.ready() ? window.wbcryptLive : null);
-const ntDefaultTitle = () => "Notes · " + new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const ntDefaultTitle = () => "Page · " + new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const ntNameFromInput = () => ntTitle.value.replace(/\s+/g, " ").trim().slice(0, 200).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 let ntRev = 0;
 let ntNotes = [], ntLoaded = false, ntCur = null, ntEnc = null, ntDirty = false, ntUntouched = false, ntTitleEdited = false, ntTimer = null, ntChain = Promise.resolve(), ntLockHooked = false, ntWhere = null;
@@ -8808,7 +8829,7 @@ async function ntLoad() {
   ntWhere = w;
   try {
     const d = await call("GET", `/nodes?parent_id=${w.id}`);
-    if (d === null) throw new Error("WorkFlowy doesn't know the notes node any more. Set it again in Settings > Week board > Notes.");
+    if (d === null) throw new Error("WorkFlowy doesn't know the Pages node any more. Set it again in Settings > Week board > Pages.");
     ntNotes = ((d && d.nodes) || []).map((n) => ({ id: n.id, name: n.name || "", note: n.note || "", priority: n.priority || 0 })).sort((a, b) => a.priority - b.priority);
     ntLoaded = true;
   } catch (e) { ntLoaded = true; ntNotes = []; ntList.textContent = ""; const m = document.createElement("div"); m.className = "nt-none"; m.textContent = e.message; ntList.appendChild(m); return; }
@@ -8823,12 +8844,12 @@ function ntRenderList() {
   ntList.textContent = "";
   const shown = ntNotes.filter((n) => !q || (ntSecret(plain(n.name)) + "\n" + ntSecret(n.note)).toLowerCase().includes(q));
   if (!ntLoaded) { const m = document.createElement("div"); m.className = "nt-none"; m.textContent = "Loading…"; ntList.appendChild(m); return; }
-  if (!shown.length) { const m = document.createElement("div"); m.className = "nt-none"; m.textContent = q ? "No notes match." : "No notes yet."; ntList.appendChild(m); return; }
+  if (!shown.length) { const m = document.createElement("div"); m.className = "nt-none"; m.textContent = q ? "No pages match." : "No pages yet."; ntList.appendChild(m); return; }
   for (const n of shown) {
     const b = document.createElement("button"); b.type = "button"; b.className = "nt-item" + (ntCur && ntCur.id === n.id ? " on" : ""); b.dataset.id = n.id;
     const t = document.createElement("div"); t.className = "t"; t.textContent = ntSecret(plain(n.name)) || "(untitled)";
     if (ntHas(n)) t.insertAdjacentHTML("afterbegin", NT_LOCK);
-    const first = ntAllSecret(n.note) ? "Encrypted note" : (wbNotes.shorten(ntSecret(n.note).slice(0, 1500), n).split("\n").find((l) => l.trim()) || "").trim().slice(0, 200);
+    const first = ntAllSecret(n.note) ? "Encrypted page" : (wbNotes.shorten(ntSecret(n.note).slice(0, 1500), n).split("\n").find((l) => l.trim()) || "").trim().slice(0, 200);
     const p = document.createElement("div"); p.className = "p" + (first ? "" : " none"); p.textContent = first || "No text";
     b.title = ntSecret(plain(n.name)) || "(untitled)";
     b.append(t, p);
@@ -8898,7 +8919,7 @@ async function ntShow(n) {                                    // open a note (nu
   ntPop.hidden = true;
   ntCur = n ? { ...n, isNew: false } : { id: null, name: ntNameSafe(ntDefaultTitle()), note: "", isNew: true };
   ntEnc = null; ntRev++; ntDirty = false; ntTitleEdited = false; ntUntouched = !n; ntSavedAt = null;
-  ntSetStatus(n ? "Saved" : "New note, not saved yet");
+  ntSetStatus(n ? "Saved" : "New page, not saved yet");
   ntTitle.value = n ? ntSecret(plain(n.name)) : ntDefaultTitle(); ntTitle.readOnly = !!n && NT_TOK.test(n.name || "");
   if (n && NT_TOK.test(n.note || "")) { ntShowLocked(); const c = ntCrypto(); if (c && c.unlocked()) await ntOpenSealed(); }
   else { ntText.value = ntCur.note; ntText.readOnly = false; }
@@ -8947,7 +8968,7 @@ function ntSetStatus(text, kind) { ntStatus.textContent = text; ntStatus.classNa
 function ntFoot() {
   const total = ntNotes.length, q = ntSearch.value.trim();
   const match = q ? ntList.querySelectorAll(".nt-item").length : total;
-  document.getElementById("ntCount").textContent = !ntLoaded ? "Loading notes…" : q ? `${match} of ${total} note${total === 1 ? "" : "s"} match` : `${total} note${total === 1 ? "" : "s"}`;
+  document.getElementById("ntCount").textContent = !ntLoaded ? "Loading pages…" : q ? `${match} of ${total} page${total === 1 ? "" : "s"} match` : `${total} page${total === 1 ? "" : "s"}`;
   const pos = document.getElementById("ntPos"), words = document.getElementById("ntWords"), lk = document.getElementById("ntLockSt");
   if (!ntCur || ntText.hidden) { pos.textContent = ""; words.textContent = ""; }
   else {
@@ -9000,7 +9021,7 @@ document.getElementById("ntMenu").onclick = (e) => {
   if (c && c.unlocked()) add("Lock encryption", () => { const btn = document.getElementById("cryptLock"); if (btn) btn.click(); else ntLockNow(); });
   const rulerOn = !ntRuler.hidden;
   add(rulerOn ? "Hide ruler" : "Show ruler", ntToggleRuler);
-  add("Delete note", ntDelete, "danger");
+  add("Delete page", ntDelete, "danger");
   ntPop.hidden = false;
   const mr = document.getElementById("ntMenu").getBoundingClientRect();
   ntPop.style.top = (mr.bottom + 4) + "px";
@@ -9068,17 +9089,17 @@ function ntToggleRuler() {
 async function ntDelete() {
   const cur = ntCur; if (!cur) return;
   if (cur.isNew) { ntCur = null; ntUi(); ntRenderList(); return; }
-  if (!confirm(`Delete the note “${ntTitle.value || "(untitled)"}”?`)) return;
+  if (!confirm(`Delete the page “${ntTitle.value || "(untitled)"}”?`)) return;
   clearTimeout(ntTimer); ntTimer = null; await ntChain;
   try {
     await call("DELETE", `/nodes/${cur.id}`);
     const was = ntNotes.find((x) => x.id === cur.id) || cur, parent = (ntWhere || notesWhere()).id;
     ntNotes = ntNotes.filter((x) => x.id !== cur.id); ntCur = null; ntEnc = null; ntUi(); ntRenderList(); refreshNotesCount();
-    pushUndo(`Deleted the note “${ntSecret(plain(was.name)) || "(untitled)"}”`, async () => {
+    pushUndo(`Deleted the page “${ntSecret(plain(was.name)) || "(untitled)"}”`, async () => {
       const res = await call("POST", "/nodes", { parent_id: parent, name: was.name, note: was.note, position: "top" });
       ntNotes.unshift({ id: res && (res.item_id || res.id), name: was.name, note: was.note, priority: -1e9 }); ntRenderList(); refreshNotesCount();
     });
-  } catch (e) { showError("Couldn't delete the note: " + e.message); }
+  } catch (e) { showError("Couldn't delete the page: " + e.message); }
 }
 
 async function ntOpen() {
